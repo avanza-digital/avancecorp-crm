@@ -292,8 +292,10 @@ describe('Proyección de citas: periodo y CSV', () => {
     // Ana: 124/19 × 2/3 × 50 % × 9 375 = 20 394,74.
     expect(lineas[1]).toBe('"Octubre 2026","Claudia Ríos","Ana Torres","4","37500","9375","66.7","50","20394.74","1","0","3"')
     expect(lineas.at(-1)).toBe('"Octubre 2026","","Total · 3 analistas","7","122500","17500","75","33.3","20394.74","2","1","4"')
-    const lista = csvCitasProyeccion(fila(hoja, 'ana')!.conMonto.filter(c => c.cita.id === 'a2'))
-    expect(lista.split('\r\n')[1]).toBe('"a2","2026-10-10","10:00","Persona a2","Ana Torres","Claudia Ríos","Realizada","USD","2000","7500","Lead"')
+    const lista = csvCitasProyeccion(fila(hoja, 'ana')!.conMonto.filter(c => c.cita.id === 'a2')).split('\r\n')
+    // Autosuficiente: el día de creación (Lima) decide su periodo y su columna de tiempo.
+    expect(lista[0]).toBe('\uFEFF"Código de cita","Creada","Fecha","Hora","Persona","Analista","Supervisor","Estado","Moneda","Monto","Monto S/","Origen"')
+    expect(lista[1]).toBe('"a2","2026-10-03","2026-10-10","10:00","Persona a2","Ana Torres","Claudia Ríos","Realizada","USD","2000","7500","Lead"')
   })
 
   it('las columnas de origen suman las citas en cada fila', () => {
@@ -546,8 +548,8 @@ describe('Proyección de citas: reuniones con clientes sin lead', () => {
     // S1 1–7: a1 a2 a3 · S2 8–14: r1 r2 · S3 · S4.
     expect(ana.porTramo.map(ids)).toEqual([['a1', 'a2', 'a3'], ['r1', 'r2'], [], []])
     const csv = csvCitasProyeccion(ana.clientes).split('\r\n')
-    expect(csv[1]).toBe('"r1","2026-10-12","11:00","CLIENTE R1","Ana Torres","Claudia Ríos","Realizada","","","","Cliente"')
-    expect(csv[2]).toBe('"r2","2026-10-12","11:00","Cliente fuera de tu cartera","Ana Torres","Claudia Ríos","No asistió","","","","Cliente"')
+    expect(csv[1]).toBe('"r1","2026-10-08","2026-10-12","11:00","CLIENTE R1","Ana Torres","Claudia Ríos","Realizada","","","","Cliente"')
+    expect(csv[2]).toBe('"r2","2026-10-11","2026-10-12","11:00","Cliente fuera de tu cartera","Ana Torres","Claudia Ríos","No asistió","","","","Cliente"')
     const hojaCsv = csvProyeccion(calcularProyeccion(ejemplo()), 'Octubre').split('\r\n')
     // Citas 5 · Monto 60 000 · Ticket 20 000 · % Entrev. 60 · % Conv. 50 · Proyectado · Referidos 0 · Clientes 2 · Leads 3.
     expect(hojaCsv[1]).toBe('"Octubre","Claudia Ríos","Ana Torres","5","60000","20000","60","50","32631.58","0","2","3"')

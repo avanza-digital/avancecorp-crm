@@ -59,9 +59,21 @@ const tiempo = (nombre: 'Mes' | 'Semanas' | 'Días') => within(screen.getByRole(
 const atajo = (nombre: string) => within(screen.getByRole('group', { name: 'Atajos de periodo' })).getByRole('button', { name: nombre })
 /** Cabeceras de las columnas de tiempo tal como se ven (título y detalle). */
 const cabecerasTiempo = (hoja: HTMLElement) => [...hoja.querySelectorAll('thead th.pc-tiempo .pc-tiempo-cab')].map(e => `${e.firstChild?.textContent} ${e.querySelector('small')?.textContent}`)
+/** Intercepta las descargas: nombre del archivo y filas del CSV (sin la cabecera), en orden. */
+function capturarDescargas() {
+  const archivos: { nombre: string; blob: Blob }[] = []
+  const original = { crear: URL.createObjectURL, revocar: URL.revokeObjectURL }
+  let ultimo: Blob | null = null
+  URL.createObjectURL = vi.fn((blob: Blob) => { ultimo = blob; return 'blob:proyeccion' })
+  URL.revokeObjectURL = vi.fn()
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { archivos.push({ nombre: this.download, blob: ultimo! }) })
+  const filas = async (i: number) => (await archivos[i]!.blob.text()).split('\r\n').slice(1)
+  return { archivos, filas, restaurar: () => { URL.createObjectURL = original.crear; URL.revokeObjectURL = original.revocar; click.mockRestore() } }
+}
+const codigos = (filas: string[]) => filas.map(f => f.slice(1, f.indexOf('"', 1)))
 
 describe('Pestaña Proyección de Citas', () => {
-  it('pinta una hoja plana, una fila por analista y # continuo; toda cifra es botón, salvo los ceros y los derivados', async () => {
+  it('pinta una hoja plana, una fila por analista y # continuo; toda cifra es botón (también Ticket cita y Proyectado citas), salvo ceros y «—»', async () => {
     const { hoja } = await abrirProyeccion()
     expect(screen.getByRole('tab', { name: 'Proyección' })).toHaveAttribute('aria-selected', 'true')
     // Sin bandas por equipo ni pastillas de totales: la fila Σ da los totales.
@@ -70,7 +82,6 @@ describe('Pestaña Proyección de Citas', () => {
     expect(hoja.querySelectorAll('tr.pc-fila')).toHaveLength(3)
     expect([...hoja.querySelectorAll('tr.pc-fila td.pc-n0')].map(td => td.textContent)).toEqual(['1', '2', '3'])
     // Columnas: # · Citas · Monto · Ticket · % Entrev. · % Conv. · Proyectado · Referidos · Clientes · Leads
-    const DERIVADAS = [3, 6]
     for (const tr of hoja.querySelectorAll<HTMLTableRowElement>('tr.pc-fila')) {
       const celdas = within(tr).getAllByRole('cell')
       expect(celdas).toHaveLength(10)
@@ -79,12 +90,15 @@ describe('Pestaña Proyección de Citas', () => {
         const texto = celda.textContent!.trim()
         // La señal añade su estado para el lector («0% · Brecha alta»): cuenta la cifra.
         const sinValor = ['0', '—', '0%'].includes(texto.replace(/ · .*$/, ''))
-        expect(within(celda).queryByRole('button') !== null, `${tr.textContent} · columna ${columna}`).toBe(!sinValor && !DERIVADAS.includes(columna))
+        expect(within(celda).queryByRole('button') !== null, `${tr.textContent} · columna ${columna}`).toBe(!sinValor)
       })
     }
     const ana = fila(hoja, 'Ana Torres')
     expect(within(ana).getByRole('button', { name: '4 citas de Ana Torres' })).toBeVisible()
     expect(within(ana).getByRole('button', { name: 'S/ 37,500 en citas de Ana Torres' })).toBeVisible()
+    // Codex (19/10): «todo número se abre»; Ticket cita y Proyectado citas abren su base, las citas con lead.
+    expect(within(ana).getByRole('button', { name: /^S\/ 9,375 de ticket cita de Ana Torres$/ })).toBeVisible()
+    expect(within(ana).getByRole('button', { name: /proyectado en citas de Ana Torres$/ })).toBeVisible()
     // % Entrev. como Resultados: 2 realizadas ÷ 3 resueltas (la programada a4 no es base).
     expect(within(ana).getByRole('button', { name: /^% Entrev\. de Ana Torres: 66\.7%/ })).toBeVisible()
     expect(within(fila(hoja, 'Luis Vega')).getAllByRole('cell')[4]).toHaveTextContent('— · Sin base para evaluar')
@@ -209,7 +223,8 @@ describe('Pestaña Proyección de Citas', () => {
     })
     try {
       const { usuario, hoja } = await abrirProyeccion()
-      await usuario.click(screen.getByRole('button', { name: 'Exportar CSV' }))
+      await usuario.click(screen.getByRole('button', { name: 'Exportar' }))
+      await usuario.click(screen.getByRole('menuitem', { name: 'Hoja por analista' }))
       expect(click).toHaveBeenCalledOnce()
       const csvHoja = (await leer(blobs[0]!)).split('\r\n')
       expect(csvHoja).toHaveLength(5)
@@ -221,7 +236,7 @@ describe('Pestaña Proyección de Citas', () => {
       await usuario.click(within(lista).getByRole('button', { name: 'Exportar CSV' }))
       const csvLista = (await leer(blobs[1]!)).split('\r\n')
       expect(csvLista).toHaveLength(5)
-      expect(csvLista.find(l => l.startsWith('"a2"'))).toBe('"a2","2026-10-10","10:00","Persona a2","Ana Torres","Claudia Ríos","Realizada","USD","2000","7500","Lead"')
+      expect(csvLista.find(l => l.startsWith('"a2"'))).toBe('"a2","2026-10-03","2026-10-10","10:00","Persona a2","Ana Torres","Claudia Ríos","Realizada","USD","2000","7500","Lead"')
       expect(within(lista).getByText('Se descargó el CSV con 4 citas.')).toBeVisible()
       URL.createObjectURL = vi.fn(() => { throw new Error('sin memoria') })
       await usuario.click(within(lista).getByRole('button', { name: 'Exportar CSV' }))
@@ -230,6 +245,40 @@ describe('Pestaña Proyección de Citas', () => {
       URL.createObjectURL = original.crear
       URL.revokeObjectURL = original.revocar
     }
+  })
+
+  it('Exportar abre un menú con «Hoja por analista» y «Citas del periodo»: flechas para moverse y Esc lo cierra devolviendo el foco', async () => {
+    const descargas = capturarDescargas()
+    try {
+      const { usuario } = await abrirProyeccion()
+      const exportar = screen.getByRole('button', { name: 'Exportar' })
+      expect(exportar).toHaveAttribute('aria-haspopup', 'menu')
+      await usuario.click(exportar)
+      const menu = screen.getByRole('menu')
+      expect(within(menu).getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Hoja por analista', 'Citas del periodo'])
+      expect(within(menu).getByRole('menuitem', { name: 'Hoja por analista' })).toHaveFocus()
+      await usuario.keyboard('{ArrowDown}')
+      expect(within(menu).getByRole('menuitem', { name: 'Citas del periodo' })).toHaveFocus()
+      await usuario.keyboard('{Escape}')
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      expect(exportar).toHaveFocus()
+      expect(descargas.archivos).toHaveLength(0)
+      // Con teclado: Enter elige; el menú se cierra, el foco vuelve a Exportar y el aviso lo cuenta.
+      await usuario.keyboard('{Enter}')
+      await usuario.keyboard('{ArrowDown}')
+      await usuario.keyboard('{Enter}')
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      expect(exportar).toHaveFocus()
+      expect(descargas.archivos.map(a => a.nombre)).toEqual(['proyeccion-citas-del-periodo-2026-10-01_2026-10-19.csv'])
+      expect(screen.getByText('Se descargaron las 7 citas del periodo.')).toBeVisible()
+      // (Blob.text() descarta el BOM que el CSV lleva para Excel.)
+      const [cabecera] = (await descargas.archivos[0]!.blob.text()).split('\r\n')
+      expect(cabecera).toBe('"Código de cita","Creada","Fecha","Hora","Persona","Analista","Supervisor","Estado","Moneda","Monto","Monto S/","Origen"')
+      await usuario.click(exportar)
+      await usuario.click(screen.getByRole('menuitem', { name: 'Hoja por analista' }))
+      expect(descargas.archivos[1]!.nombre).toBe('proyeccion-por-analista-2026-10-01_2026-10-19.csv')
+      expect(await descargas.filas(1)).toHaveLength(4)
+    } finally { descargas.restaurar() }
   })
 
   it('el rango nace del mes de arriba hasta hoy; los atajos y las fechas lo cambian y se valida', async () => {
@@ -306,7 +355,7 @@ describe('Pestaña Proyección de Citas', () => {
     expect(within(hoja).queryAllByRole('button', { name: /de todos los analistas/ })).toEqual([])
     expect(within(filaTotal(hoja)).getAllByRole('cell').map(td => td.textContent)).toEqual(['Σ', '0', '—', '—', '— · Sin base para evaluar', '— · Sin base para evaluar', '—', '0', '0', '0'])
     expect(screen.queryByRole('group', { name: 'Totales de la proyección' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Exportar CSV' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Exportar' })).toBeDisabled()
     // Sin citas, las columnas de tiempo también se pintan, en cero y sin botones.
     await userEvent.setup().click(tiempo('Semanas'))
     expect(cabecerasTiempo(hoja)).toEqual(['S1 1–7', 'S2 8–14', 'S3 15–19'])
@@ -331,10 +380,10 @@ describe('Pestaña Proyección de Citas', () => {
     const hoja = screen.getByRole('table', { name: /Proyección de citas por analista/ })
     expect(nombres(hoja)).toEqual(['ATAna Torres', 'DSDiego Salas', 'LVLuis Vega'])
     expect(screen.queryByText('Revisa los filtros de la consulta')).not.toBeInTheDocument()
-    // Barra única: Supervisor · rango · atajos · columnas de tiempo · Exportar CSV.
+    // Barra única: Supervisor · rango · atajos · columnas de tiempo · Exportar.
     const barra = screen.getByRole('group', { name: 'Consulta de la proyección' })
     expect([...barra.querySelectorAll('label, strong, [role=group], .pc-acciones')].map(e => e.getAttribute('aria-label') ?? e.textContent!.slice(0, 10)))
-      .toEqual(['Supervisor', '1–19 oct 2', 'Desde', 'Hasta', 'Atajos de periodo', 'Columnas de tiempo', 'Exportar C'])
+      .toEqual(['Supervisor', '1–19 oct 2', 'Desde', 'Hasta', 'Atajos de periodo', 'Columnas de tiempo', 'Exportar'])
     const supervisor = within(barra).getByLabelText('Supervisor')
     expect([...supervisor.querySelectorAll('option')].map(o => o.textContent)).toEqual(['Todos', 'Claudia Ríos', 'Javier Vega'])
     await usuario.selectOptions(supervisor, 'sup-2')
@@ -539,7 +588,7 @@ describe('Proyección con reuniones con clientes sin lead', () => {
       expect(within(lista).getByRole('row', { name: /Cliente fuera de tu cartera/ })).toHaveTextContent('No asistió—Cliente')
       await usuario.click(within(lista).getByRole('button', { name: 'Exportar CSV' }))
       const texto = await blobs[0]!.text()
-      expect(texto.split('\r\n')[1]).toBe('"r1","2026-10-10","10:00","CLIENTE UNO","Ana Torres","Claudia Ríos","Realizada","","","","Cliente"')
+      expect(texto.split('\r\n')[1]).toBe('"r1","2026-10-08","2026-10-10","10:00","CLIENTE UNO","Ana Torres","Claudia Ríos","Realizada","","","","Cliente"')
       await usuario.click(within(lista).getByRole('button', { name: 'Cerrar lista' }))
       // Las citas con lead siguen abriendo su ficha.
       await usuario.click(within(fila(hoja, 'Ana Torres')).getByRole('button', { name: '6 citas de Ana Torres' }))
@@ -550,6 +599,37 @@ describe('Proyección con reuniones con clientes sin lead', () => {
       URL.revokeObjectURL = original.revocar
       click.mockRestore()
     }
+  })
+
+  it('«Citas del periodo» trae exactamente las citas que suma la columna Citas del total, reuniones con clientes incluidas, también tras un embudo', async () => {
+    const descargas = capturarDescargas()
+    try {
+      const { usuario, hoja } = await abrirProyeccion(cargador())
+      const total = filaTotal(hoja)
+      expect(within(total).getByRole('button', { name: '9 citas de todos los analistas' })).toBeVisible()
+      const exportarPeriodo = async () => {
+        await usuario.click(screen.getByRole('button', { name: 'Exportar' }))
+        await usuario.click(screen.getByRole('menuitem', { name: 'Citas del periodo' }))
+        return descargas.filas(descargas.archivos.length - 1)
+      }
+      const periodo = await exportarPeriodo()
+      expect(descargas.archivos[0]!.nombre).toBe('proyeccion-citas-del-periodo-2026-10-01_2026-10-19.csv')
+      expect(codigos(periodo).sort()).toEqual(['a1', 'a2', 'a3', 'a4', 'd1', 'd2', 'l1', 'r1', 'r2'])
+      expect(periodo.find(f => f.startsWith('"r2"'))).toBe('"r2","2026-10-11","2026-10-10","10:00","Cliente fuera de tu cartera","Ana Torres","Claudia Ríos","No asistió","","","","Cliente"')
+      // Las mismas filas, en el mismo orden, que el CSV de la lista detrás de esa cifra.
+      await usuario.click(within(total).getByRole('button', { name: '9 citas de todos los analistas' }))
+      const lista = screen.getByRole('dialog', { name: 'Citas · Total' })
+      await usuario.click(within(lista).getByRole('button', { name: 'Exportar CSV' }))
+      expect(await descargas.filas(1)).toEqual(periodo)
+      await usuario.click(within(lista).getByRole('button', { name: 'Cerrar lista' }))
+      // Un Mín de Citas oculta filas: el total y el CSV del periodo dejan fuera las mismas citas.
+      await usuario.click(within(hoja).getByRole('button', { name: 'Filtrar Citas' }))
+      await usuario.type(within(screen.getByRole('dialog', { name: 'Filtrar Citas' })).getByRole('spinbutton', { name: 'Mín' }), '3')
+      await usuario.click(within(screen.getByRole('dialog', { name: 'Filtrar Citas' })).getByRole('button', { name: 'Aplicar' }))
+      expect(within(total).getByRole('button', { name: '6 citas de todos los analistas' })).toBeVisible()
+      expect(codigos(await exportarPeriodo()).sort()).toEqual(['a1', 'a2', 'a3', 'a4', 'r1', 'r2'])
+      expect(screen.getByText('Se descargaron las 6 citas del periodo.')).toBeVisible()
+    } finally { descargas.restaurar() }
   })
 
   it('pide el rango a la pantalla y, mientras sus reuniones no lleguen o si fallan, no pinta cifras parciales', async () => {
@@ -578,5 +658,147 @@ describe('Proyección con reuniones con clientes sin lead', () => {
     expect(screen.getByText('Cargando las citas del rango…')).toBeVisible()
     await usuario.click(screen.getByRole('tab', { name: 'Agenda' }))
     expect(pedirRango).toHaveBeenLastCalledWith(null)
+  })
+})
+
+// Fase 3: en el celular (< 768 px) la hoja se vuelve tarjetas, con el mismo estado (orden, embudos y listas).
+describe('Proyección en el celular: tarjetas', () => {
+  beforeEach(() => {
+    vi.stubGlobal('matchMedia', (consulta: string) => ({
+      matches: consulta.includes('max-width: 767px') || consulta.includes('prefers-reduced-motion'), media: consulta,
+      addEventListener: () => {}, removeEventListener: () => {},
+    }))
+  })
+  afterEach(() => { vi.unstubAllGlobals() })
+
+  async function abrirTarjetas() {
+    const usuario = userEvent.setup()
+    render(<ContextoCitas value={fuente}><TableroCitas /></ContextoCitas>)
+    await usuario.click(screen.getByRole('tab', { name: 'Proyección' }))
+    return { usuario, lista: screen.getByRole('list', { name: 'Proyección de citas por analista · 1–19 oct 2026' }) }
+  }
+  const tarjetas = (lista: HTMLElement) => within(lista).getAllByRole('listitem')
+  const nombresTarjetas = (lista: HTMLElement) => tarjetas(lista).map(t => t.querySelector('.pc-tarjeta-nombre')!.textContent)
+  const tarjeta = (lista: HTMLElement, nombre: string) => tarjetas(lista).find(t => t.querySelector('.pc-tarjeta-nombre')!.textContent === nombre)!
+  const filtros = () => screen.getByRole('button', { name: /^Filtros/ })
+
+  it('una tarjeta por analista en el orden de la hoja, con el Total primero; cada cifra es botón (salvo ceros y «—») y abre la misma lista', async () => {
+    const { usuario, lista } = await abrirTarjetas()
+    expect(screen.queryByRole('table', { name: /Proyección de citas por analista/ })).not.toBeInTheDocument()
+    expect(nombresTarjetas(lista)).toEqual(['Total · 3 analistas', 'Ana Torres', 'Diego Salas', 'Luis Vega'])
+    const ana = tarjeta(lista, 'Ana Torres')
+    expect(ana.querySelector('.pc-tarjeta-sup')).toHaveTextContent('Claudia Ríos')
+    expect(within(ana).getAllByRole('term').map(dt => dt.textContent)).toEqual(
+      ['Citas', 'Monto', 'Ticket cita', '% Entrev.', '% Conv.', 'Proyectado citas', 'Referidos', 'Clientes', 'Leads'])
+    for (const t of tarjetas(lista)) {
+      for (const par of t.querySelectorAll<HTMLElement>('dl > div')) {
+        const texto = within(par).getByRole('definition').textContent!.trim().replace(/ · .*$/, '')
+        const sinValor = ['0', '—', '0%'].includes(texto)
+        expect(within(par).queryByRole('button') !== null, `${t.textContent} · ${par.dataset.col}`).toBe(!sinValor)
+      }
+    }
+    // El semáforo de % Entrev. y % Conv. se conserva.
+    expect(within(ana).getByRole('button', { name: /^% Entrev\. de Ana Torres: 66\.7%/ })).toHaveAttribute('data-senal')
+    expect(ana.querySelector('[data-col="ticket"] dd')).toHaveTextContent('S/9,375')
+    await usuario.click(within(ana).getByRole('button', { name: '4 citas de Ana Torres' }))
+    let detalle = screen.getByRole('dialog', { name: 'Citas · Ana Torres' })
+    expect(within(detalle).getByTestId('pc-detalle-conteo')).toHaveTextContent('1–19 oct 2026 · 4 citas')
+    expect(within(detalle).getAllByRole('row')).toHaveLength(5)
+    await usuario.click(within(detalle).getByRole('button', { name: 'Cerrar lista' }))
+    const total = tarjeta(lista, 'Total · 3 analistas')
+    await usuario.click(within(total).getByRole('button', { name: '1 cita con cliente de todos los analistas' }))
+    detalle = screen.getByRole('dialog', { name: 'Citas con clientes · Total' })
+    expect(within(detalle).getByRole('row', { name: /Persona d1/ })).toHaveTextContent('Diego Salas')
+    await usuario.keyboard('{Escape}')
+    await usuario.click(within(ana).getByRole('button', { name: /^% Conv\. de Ana Torres: 50%/ }))
+    expect(within(screen.getByRole('dialog', { name: 'Entrevistas que cerraron cliente · Ana Torres' })).getAllByRole('row')).toHaveLength(2)
+  })
+
+  it('«Ordenar por» y «Filtros» usan el mismo orden y los mismos embudos de la hoja', async () => {
+    const { usuario, lista } = await abrirTarjetas()
+    const ordenar = screen.getByRole('combobox', { name: 'Ordenar por' })
+    expect(ordenar).toHaveValue('citas')
+    const sentido = screen.getByRole('button', { name: 'Orden de mayor a menor' })
+    await usuario.selectOptions(ordenar, 'ticket')
+    expect(nombresTarjetas(lista)).toEqual(['Total · 3 analistas', 'Diego Salas', 'Ana Torres', 'Luis Vega'])
+    await usuario.click(sentido)
+    expect(sentido).toHaveAccessibleName('Orden de menor a mayor')
+    expect(nombresTarjetas(lista)).toEqual(['Total · 3 analistas', 'Luis Vega', 'Ana Torres', 'Diego Salas'])
+    await usuario.selectOptions(ordenar, 'analista')
+    expect(sentido).toHaveAccessibleName('Orden de A a Z')
+    expect(nombresTarjetas(lista)).toEqual(['Total · 3 analistas', 'Ana Torres', 'Diego Salas', 'Luis Vega'])
+
+    // Filtros: las mismas columnas que tienen embudo en la hoja; cada una abre su embudo.
+    await usuario.click(filtros())
+    expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual(
+      ['Analista', 'Citas', 'Monto', 'Ticket cita', '% Entrev.', '% Conv.', 'Proyectado citas', 'Referidos', 'Clientes', 'Leads'])
+    await usuario.click(screen.getByRole('menuitem', { name: 'Analista' }))
+    let embudo = screen.getByRole('dialog', { name: 'Filtrar Analista' })
+    expect(within(embudo).getByRole('searchbox', { name: 'Buscar analista' })).toHaveFocus()
+    await usuario.click(within(embudo).getByRole('checkbox', { name: 'Luis Vega · 1 cita' }))
+    await usuario.click(within(embudo).getByRole('button', { name: 'Aplicar' }))
+    expect(nombresTarjetas(lista)).toEqual(['Total · 2 analistas', 'Ana Torres', 'Diego Salas'])
+    expect(screen.getByRole('group', { name: 'Filtros de columna' })).toHaveTextContent('Analista Ana Torres, Diego Salas')
+    // El embudo se ancla a «Filtros»: al cerrarse, el foco vuelve ahí, que ya cuenta el filtro.
+    expect(filtros()).toHaveFocus()
+    expect(filtros()).toHaveAccessibleName('Filtros, 1 con filtro')
+    await usuario.click(filtros())
+    expect(screen.getByRole('menuitem', { name: 'Analista, con filtro' })).toBeVisible()
+    await usuario.keyboard('{Escape}')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(filtros()).toHaveFocus()
+    // Sin cabeceras, quitar el chip devuelve el foco a «Filtros», no a <body>.
+    await usuario.click(screen.getByRole('button', { name: 'Quitar filtro de Analista' }))
+    expect(nombresTarjetas(lista)).toHaveLength(4)
+    expect(filtros()).toHaveFocus()
+    expect(filtros()).toHaveAccessibleName('Filtros')
+
+    await usuario.click(filtros())
+    await usuario.click(screen.getByRole('menuitem', { name: 'Clientes' }))
+    embudo = screen.getByRole('dialog', { name: 'Filtrar Clientes' })
+    expect(within(embudo).getAllByRole('checkbox').map(c => c.getAttribute('aria-label'))).toEqual(['Seleccionar todo', 'Persona d1 · 1 cita'])
+    await usuario.keyboard('{Escape}')
+    expect(filtros()).toHaveFocus()
+    await usuario.click(filtros())
+    await usuario.click(screen.getByRole('menuitem', { name: 'Monto' }))
+    embudo = screen.getByRole('dialog', { name: 'Filtrar Monto S/' })
+    await usuario.click(within(embudo).getByRole('checkbox', { name: 'Soles · S/ 115,000 · 6 citas' }))
+    await usuario.click(within(embudo).getByRole('button', { name: 'Aplicar' }))
+    expect(nombresTarjetas(lista)).toEqual(['Total · 1 analista', 'Ana Torres'])
+    expect(within(tarjeta(lista, 'Ana Torres')).getByRole('button', { name: 'S/ 7,500 en citas de Ana Torres' })).toBeVisible()
+  })
+
+  it('Semanas y Días: los tramos van en una fila de la tarjeta, cada número abre su lista; Exportar sigue en la barra', async () => {
+    const { usuario, lista } = await abrirTarjetas()
+    expect(lista.querySelectorAll('.pc-tarjeta-tramos')).toHaveLength(0)
+    await usuario.click(tiempo('Semanas'))
+    const ana = tarjeta(lista, 'Ana Torres')
+    const semanas = within(ana).getByRole('group', { name: 'Citas por semana de Ana Torres' })
+    expect([...semanas.querySelectorAll('.sr-only')].map(e => e.textContent)).toEqual(['S1 1–7 oct', 'S2 8–14 oct', 'S3 15–19 oct'])
+    expect([...semanas.querySelectorAll('.pc-n')].map(e => e.textContent)).toEqual(['3', '1', '0'])
+    expect(within(tarjeta(lista, 'Total · 3 analistas')).getByRole('group', { name: 'Citas por semana de todos los analistas' })).toBeVisible()
+    await usuario.click(within(semanas).getByRole('button', { name: '1 cita de Ana Torres, S2 8–14 oct' }))
+    const detalle = screen.getByRole('dialog', { name: 'Citas · S2 8–14 oct · Ana Torres' })
+    expect(within(detalle).getByRole('row', { name: /Persona a4/ })).toBeVisible()
+    await usuario.keyboard('{Escape}')
+    await usuario.click(tiempo('Días'))
+    const dias = within(tarjeta(lista, 'Luis Vega')).getByRole('group', { name: 'Citas por día de Luis Vega' })
+    expect(dias.querySelectorAll('.pc-tiempo')).toHaveLength(19)
+    expect(dias.querySelector('.pc-hoy .sr-only')).toHaveTextContent('lun 19 oct')
+    expect(within(dias).getByRole('button', { name: '1 cita de Luis Vega, 18 oct' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Exportar' })).toBeEnabled()
+  })
+})
+
+describe('Proyección: Ticket cita y Proyectado citas abren su base', () => {
+  it('abren la lista de las citas con lead de la fila (sin las reuniones con clientes sin lead)', async () => {
+    const { usuario, hoja } = await abrirProyeccion()
+    await usuario.click(within(fila(hoja, 'Ana Torres')).getByRole('button', { name: /de ticket cita de Ana Torres$/ }))
+    let lista = screen.getByRole('dialog', { name: 'Citas con lead · Ana Torres' })
+    expect(within(lista).getByTestId('pc-detalle-conteo')).toHaveTextContent('· 4 citas')
+    await usuario.keyboard('{Escape}')
+    await usuario.click(within(fila(hoja, 'Ana Torres')).getByRole('button', { name: /proyectado en citas de Ana Torres$/ }))
+    lista = screen.getByRole('dialog', { name: 'Citas con lead · Ana Torres' })
+    expect(within(lista).getAllByRole('row')).toHaveLength(5)
   })
 })

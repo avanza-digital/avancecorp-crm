@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
 import { loginReal, montarBackendReal } from './_helpers'
 
@@ -93,6 +94,7 @@ async function abrirProyeccion(page: Page) {
 }
 const atajo = (page: Page, nombre: string) => page.getByRole('group', { name: 'Atajos de periodo' }).getByRole('button', { name: nombre, exact: true })
 const tiempo = (page: Page, nombre: 'Mes' | 'Semanas' | 'Días') => page.getByRole('group', { name: 'Columnas de tiempo' }).getByRole('button', { name: nombre, exact: true })
+const desbordePagina = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
 
 test('Proyección: la hoja pinta una fila por analista, un número abre su lista y un embudo filtra', async ({ page }, info) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
@@ -114,6 +116,31 @@ test('Proyección: la hoja pinta una fila por analista, un número abre su lista
   expect(await scroll.evaluate(el => el.scrollWidth - el.clientWidth), anchos).toBeLessThanOrEqual(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0)
   await page.screenshot({ path: info.outputPath('proyeccion-1440.png'), fullPage: true })
+
+  // Exportar: un menú con la hoja por analista y las citas del periodo; Esc lo cierra y devuelve el foco.
+  const exportar = page.getByRole('button', { name: 'Exportar', exact: true })
+  await exportar.click()
+  const menuExportar = page.getByRole('menu')
+  await expect(menuExportar.getByRole('menuitem')).toHaveText(['Hoja por analista', 'Citas del periodo'])
+  await expect(menuExportar.getByRole('menuitem', { name: 'Hoja por analista' })).toBeFocused()
+  await page.screenshot({ path: info.outputPath('proyeccion-exportar-1440.png') })
+  await page.keyboard.press('Escape')
+  await expect(menuExportar).toHaveCount(0)
+  await expect(exportar).toBeFocused()
+  // «Citas del periodo» trae exactamente las 10 que suma Citas del total: 5 con lead, 2 de ANALISTA TRES y sus 3 reuniones con clientes sin lead.
+  await expect(hoja.getByRole('button', { name: '10 citas de todos los analistas' })).toBeVisible()
+  await exportar.click()
+  const descarga = page.waitForEvent('download')
+  await page.getByRole('menuitem', { name: 'Citas del periodo' }).click()
+  const archivo = await descarga
+  expect(archivo.suggestedFilename()).toBe('proyeccion-citas-del-periodo-2026-10-01_2026-10-19.csv')
+  const filas = (await readFile((await archivo.path())!, 'utf8')).replace(/^\uFEFF/, '').split('\r\n')
+  expect(filas[0]).toBe('"Código de cita","Creada","Fecha","Hora","Persona","Analista","Supervisor","Estado","Moneda","Monto","Monto S/","Origen"')
+  expect(filas).toHaveLength(11)
+  const reuniones = filas.filter(f => f.endsWith('"Cliente"'))
+  expect(reuniones.map(f => f.slice(1, 37)).sort()).toEqual([id(201), id(202), id(203)])
+  expect(reuniones.every(f => f.includes('"ANALISTA TRES","SUPERVISOR SUR"'))).toBe(true)
+  await expect(page.getByText('Se descargaron las 10 citas del periodo.')).toBeVisible()
 
   await hoja.getByRole('button', { name: '4 citas de ANALISTA UNO' }).click()
   const lista = page.getByRole('dialog', { name: 'Citas · ANALISTA UNO' })
@@ -224,7 +251,7 @@ test('Proyección: Semanas y Días ponen columnas de tiempo antes de Citas y cad
   await expect(hoja.locator('thead th.pc-tiempo .sr-only').first()).toHaveText('S1 1–7 set')
 })
 
-test('Proyección: el mes sin citas muestra la hoja vacía sin errores y en el celular solo desplaza la hoja', async ({ page }, info) => {
+test('Proyección: el mes sin citas muestra la hoja vacía sin errores y en el celular pinta tarjetas sin desplazar la página', async ({ page }, info) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   const hoja = await abrirProyeccion(page)
   await expect(hoja.locator('tr.pc-fila')).toHaveCount(3)
@@ -234,27 +261,64 @@ test('Proyección: el mes sin citas muestra la hoja vacía sin errores y en el c
   await expect(page.getByTestId('pc-rotulo-rango')).toHaveText('1–31 ago 2026')
   await expect(hoja.locator('tr.pc-fila')).toHaveCount(0)
   await expect(hoja.getByRole('row', { name: /^Total · 0 analistas/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Exportar CSV' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Exportar', exact: true })).toBeDisabled()
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(page.getByText('No hay citas con esta combinación')).toHaveCount(0)
   await atajo(page, 'Mes').click()
   await expect(page.getByTestId('pc-rotulo-rango')).toHaveText('1–19 oct 2026')
   await expect(hoja.locator('tr.pc-fila')).toHaveCount(3)
+  // En el celular la hoja se vuelve tarjetas: el Total primero y una por analista, en el orden de la hoja.
   await page.setViewportSize({ width: 390, height: 844 })
-  await expect(hoja.locator('tr.pc-fila')).toHaveCount(3)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0)
-  const scroll = page.getByRole('region', { name: 'Hoja de proyección por analista' })
-  expect(await scroll.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true)
+  await expect(hoja).toHaveCount(0)
+  const tarjetas = page.getByRole('list', { name: /^Proyección de citas por analista/ }).getByRole('listitem')
+  await expect(tarjetas).toHaveCount(4)
+  await expect(tarjetas.first()).toContainText('Total · 3 analistas')
+  expect(await desbordePagina(page)).toBeLessThanOrEqual(0)
   await page.screenshot({ path: info.outputPath('proyeccion-390.png'), fullPage: true })
-  // Con cuatro pestañas, a 375 y 320 px ninguna queda fuera de la pantalla.
+  // Una cifra de la tarjeta abre la misma lista que en la hoja.
+  const uno = tarjetas.filter({ hasText: 'ANALISTA UNO' })
+  await uno.getByRole('button', { name: '4 citas de ANALISTA UNO' }).click()
+  const lista = page.getByRole('dialog', { name: 'Citas · ANALISTA UNO' })
+  await expect(lista.getByTestId('pc-detalle-conteo')).toHaveText('1–19 oct 2026 · 4 citas')
+  await expect(lista.locator('tbody tr')).toHaveCount(4)
+  await page.keyboard.press('Escape')
+  await expect(lista).toHaveCount(0)
+  // Días: la fila de tramos se desplaza dentro de la tarjeta, nunca la página.
+  await tiempo(page, 'Días').click()
+  const dias = uno.getByRole('group', { name: 'Citas por día de ANALISTA UNO' })
+  await expect(dias.locator('.pc-tiempo')).toHaveCount(19)
+  expect(await dias.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true)
+  expect(await desbordePagina(page)).toBeLessThanOrEqual(0)
+  await tiempo(page, 'Mes').click()
+  // A 375 y 320 px: ninguna pestaña ni control de la barra, del orden o de los filtros queda fuera de la pantalla.
   for (const ancho of [375, 320]) {
     await page.setViewportSize({ width: ancho, height: 800 })
     const pestanas = page.getByRole('tablist', { name: 'Cómo ver las citas' })
     expect(await pestanas.evaluate(el => el.scrollWidth - el.clientWidth), `${ancho} px`).toBeLessThanOrEqual(0)
     await expect(page.getByRole('tab', { name: 'Proyección' })).toBeInViewport()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0)
+    await expect(tarjetas).toHaveCount(4)
+    const fuera = await page.locator('.pc-periodo, .pc-controles').locator('button, select, input').evaluateAll(controles => controles
+      .filter(c => { const r = c.getBoundingClientRect(); return r.left < -0.5 || r.right > window.innerWidth + 0.5 })
+      .map(c => c.getAttribute('aria-label') ?? c.textContent))
+    expect(fuera, `${ancho} px`).toEqual([])
+    expect(await desbordePagina(page), `${ancho} px`).toBeLessThanOrEqual(0)
   }
   await page.screenshot({ path: info.outputPath('proyeccion-320.png') })
+  // «Filtros» abre los mismos embudos de la hoja, dentro de la pantalla; al cerrarlo el foco vuelve a «Filtros».
+  const filtros = page.getByRole('button', { name: /^Filtros/ })
+  await filtros.click()
+  await page.getByRole('menuitem', { name: 'Analista' }).click()
+  const embudo = page.getByRole('dialog', { name: 'Filtrar Analista' })
+  await expect(embudo.getByRole('searchbox', { name: 'Buscar analista' })).toBeFocused()
+  const caja = (await embudo.boundingBox())!
+  expect(caja.x).toBeGreaterThanOrEqual(0)
+  expect(caja.x + caja.width).toBeLessThanOrEqual(320)
+  await embudo.getByRole('checkbox', { name: 'ANALISTA DOS · 1 cita' }).uncheck()
+  await embudo.getByRole('button', { name: 'Aplicar' }).click()
+  await expect(tarjetas).toHaveCount(3)
+  await expect(filtros).toBeFocused()
+  await expect(filtros).toHaveAccessibleName('Filtros, 1 con filtro')
+  expect(await desbordePagina(page)).toBeLessThanOrEqual(0)
 })
 
 test('Proyección: las reuniones con clientes sin lead cuentan en Citas, Clientes y % Entrev., no en Monto, Ticket ni Proyectado', async ({ page }, info) => {
