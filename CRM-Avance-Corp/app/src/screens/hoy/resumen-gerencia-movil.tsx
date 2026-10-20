@@ -11,14 +11,11 @@ import { resumirCitasDia } from './resumen-gerencia-movil-modelo'
 import { SolicitudesTasaGerenciaPanel } from './solicitudes-tasa-gerencia'
 import { PendientesMovil } from './pendientes-movil'
 import './resumen-gerencia-movil.css'
-import type { CapitalValoracion } from '@/lib/capital-valorado'
-import { CoberturaCapitalAviso } from '@/components/common/cobertura-capital'
 
 interface Props {
   dia: string
   mes: string
   capital: CapitalUnificado
-  valoracionCapital?: CapitalValoracion | undefined
   meta: CapitalUnificado
   fuenteTc: string
   cargando: boolean
@@ -35,7 +32,7 @@ function EstadoConsulta({ cargando, error, onReintentar }: { cargando: boolean; 
   return cargando ? <p role="status" className="grm-estado">Cargando…</p> : null
 }
 
-export function ResumenGerenciaMovil({ dia, mes, capital, meta, fuenteTc, cargando, error, onReintentar, onActualizar, onMetas, onCompleto, aviso, valoracionCapital }: Props) {
+export function ResumenGerenciaMovil({ dia, mes, capital, meta, fuenteTc, cargando, error, onReintentar, onActualizar, onMetas, onCompleto, aviso }: Props) {
   const { yo, datos, citas, consulta, equipo } = useDatosCitasGerencia(dia.slice(0, 7))
   const nombre = primerNombre(yo?.nombre_completo)
   const real = Boolean(yo && !yo.demo)
@@ -98,7 +95,6 @@ export function ResumenGerenciaMovil({ dia, mes, capital, meta, fuenteTc, cargan
       <h2 id="grm-titulo" tabIndex={-1}>Bienvenido{nombre ? `, ${nombre}` : ''}</h2><span>Tu equipo, de un vistazo.</span>
     </header>
     {aviso}
-    {valoracionCapital && <CoberturaCapitalAviso cobertura={valoracionCapital.cobertura} sellado={valoracionCapital.sellado} />}
     <section aria-label="Indicadores principales" className="grm-indicadores">
       <button type="button" className="grm-capital" onClick={onMetas}>
         <span className="grm-card-label"><Wallet size={17} aria-hidden />Capital confirmado<ArrowUpRight size={17} aria-hidden /></span>

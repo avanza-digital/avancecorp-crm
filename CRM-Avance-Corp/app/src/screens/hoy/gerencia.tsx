@@ -1,4 +1,3 @@
-import { ResumenGestionesHoy } from '@/components/gestion-diaria/resumen-gestiones'
 import { ControlesMoviles } from '@/components/gerencia/controles-moviles'
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { AlertTriangle, CalendarRange, RefreshCw, Target } from 'lucide-react'
@@ -133,7 +132,7 @@ function MetaItem({ label, actual, objetivo, progreso, mensajeSinProgreso, nota 
   )
 }
 
-function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar, fuente, onCambiarFuente, filtroVisible, filtroDeshabilitado, filtroSellado, modo, mes, mesMaximo, etiquetaMes, onCambiarMes }: { periodo: PeriodoGerencia; borrador: PeriodoGerencia; onCambiarBorrador: (campo: keyof PeriodoGerencia, valor: string) => void; onAplicar: () => void; fuente: FiltroFuentesConversion; onCambiarFuente: (fuente: FiltroFuentesConversion) => void; filtroVisible: boolean; filtroDeshabilitado: boolean; filtroSellado: boolean; modo: 'rango' | 'mes' | 'mixto'; mes: string; mesMaximo: string; etiquetaMes: string; onCambiarMes: (mes: string) => void }): JSX.Element {
+function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar, fuente, onCambiarFuente, filtroVisible, filtroDeshabilitado, filtroSellado, modo, mes, mesMaximo, etiquetaMes, onCambiarMes, compacta }: { periodo: PeriodoGerencia; borrador: PeriodoGerencia; onCambiarBorrador: (campo: keyof PeriodoGerencia, valor: string) => void; onAplicar: () => void; fuente: FiltroFuentesConversion; onCambiarFuente: (fuente: FiltroFuentesConversion) => void; filtroVisible: boolean; filtroDeshabilitado: boolean; filtroSellado: boolean; modo: 'rango' | 'mes' | 'mixto'; mes: string; mesMaximo: string; etiquetaMes: string; onCambiarMes: (mes: string) => void; compacta: boolean }): JSX.Element {
   const validacion = validarPeriodoGerencia(borrador)
   const sinCambios = borrador.desde === periodo.desde && borrador.hasta === periodo.hasta
   const hoyLima = periodoInicialGerencia().hasta
@@ -142,7 +141,7 @@ function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar, fue
   const fuentesElegidas = fuente == null ? FUENTES_CONVERSION.map((opcion) => opcion.id)
     : typeof fuente === 'string' ? [fuente] : fuente
   const selectorFuente = filtroVisible ? (
-    <ControlesMoviles titulo="Fuentes" resumen={fuente == null ? 'Conversión de todas las fuentes' : `Conversión de ${fuentesElegidas.length} ${fuentesElegidas.length === 1 ? 'fuente' : 'fuentes'}`} aviso={<>
+    <ControlesMoviles titulo={compacta && fuente != null ? `Fuentes (${fuentesElegidas.length})` : 'Fuentes'} resumen={fuente == null ? 'Conversión de todas las fuentes' : `Conversión de ${fuentesElegidas.length} ${fuentesElegidas.length === 1 ? 'fuente' : 'fuentes'}`} aviso={<>
       {filtroSellado && <p role="status" className="w-full text-xs text-[var(--gi-muted)]">Mes cerrado: el desglose por fuente no está disponible. Todas las fuentes muestra el índice sellado.</p>}
       {fuentesElegidas.length === 0 && <p role="status" className="w-full text-xs text-[var(--gi-muted)]">Selecciona al menos una fuente.</p>}
     </>}><fieldset className="flex min-w-0 flex-wrap items-center gap-2" aria-label="Fuentes de conversión">
@@ -188,10 +187,10 @@ function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar, fue
     )
   }
   return (
-    <div data-gi-toolbar className="gi-toolbar">
-      <div className="flex items-center gap-2"><CalendarRange className="size-4 text-[var(--gi-blue)]" /><span className="gi-label">Período</span></div>
+    <div data-gi-toolbar className={`gi-toolbar${compacta ? ' gi-toolbar-compacta' : ''}`}>
+      {!compacta && <div className="flex items-center gap-2"><CalendarRange className="size-4 text-[var(--gi-blue)]" /><span className="gi-label">Período</span></div>}
       <div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className={`flex flex-wrap items-center gap-2${compacta ? ' gi-toolbar-controles' : ''}`}>
           <input aria-label="Desde" aria-describedby={!validacion.valido ? 'error-periodo-gerencia' : undefined} type="date" value={borrador.desde} max={maximoDesde} onChange={(e) => onCambiarBorrador('desde', e.target.value)} className="gi-date" />
           <span className="text-xs text-[var(--gi-muted)]">a</span>
           <input aria-label="Hasta" aria-describedby={!validacion.valido ? 'error-periodo-gerencia' : undefined} type="date" value={borrador.hasta} min={borrador.desde} max={hoyLima} onChange={(e) => onCambiarBorrador('hasta', e.target.value)} className="gi-date" />
@@ -636,7 +635,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
 
   if (resumenMovil) return <ResumenGerenciaMovil
     dia={diaLima} mes={metaMensualRanking.etiqueta} capital={capitalTotal} meta={metaTotalCapital}
-    fuenteTc={tipoCambio.tc?.fuente ?? ''} valoracionCapital={cumplimientoRanking?.valoracionCapital}
+    fuenteTc={tipoCambio.tc?.fuente ?? ''}
     cargando={conversionMensualCargando || cumplimientoRankingCargando || tcEnVuelo}
     error={errorConversionMensual || errorFotoMensualRanking || metaMensualRanking.errorCarga ? 'No se pudieron actualizar el capital y la meta del mes.' : null}
     onReintentar={() => { reintentarConversionMensual(); if (sesionReal) void qCumplimientoRanking.refetch(); tipoCambio.recargar() }}
@@ -650,6 +649,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     <GerenciaMotion clave={claveMotion} className="mx-auto max-w-[1640px] space-y-4">
       {seccion === 'resumen' && esMovil && resumenCompleto && <Button ref={volverCompactoRef} variant="outline" onClick={() => cambiarResumen(false)}>Volver al resumen compacto</Button>}
       <CabeceraGerencia
+        compacta={esResumen}
         periodo={periodo}
         borrador={borrador}
         onCambiarBorrador={(campo, valor) => setBorrador((actual) => ({ ...actual, [campo]: valor }))}
@@ -678,8 +678,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           para ampliarlo o reabrir el mes sellado. Junto al aviso, pero solo en
           Hoy: es una decisión, no una alarma que tenga que seguir a cada pestaña. */}
 
-      {esResumen && <ResumenGestionesHoy />}
-      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={cumplimientoRankingCargando ? undefined : conversionMensualPaneles} origenFiltrado={origenActivo} fuenteConversion={fuenteActiva} lecturaFuente={lecturaFuentePaneles} reuniones={datosReuniones} equipo={datosEquipoConversionRango} equipoMensual={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} valoracionCapital={cumplimientoRanking?.valoracionCapital} metaMensual={metaMensualRanking} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || conversionMensualCargando || cumplimientoRankingCargando || estaCargando(sesionReal, reuniones)} rangoCargando={!conversionesDeEjemplo && fuenteCargando} mensualCargando={!conversionesDeEjemplo && (conversionMensualCargando || cumplimientoRankingCargando)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); void qCumplimientoRanking.refetch(); reintentarReuniones(); tipoCambio.recargar() }} />}
+      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={cumplimientoRankingCargando ? undefined : conversionMensualPaneles} origenFiltrado={origenActivo} fuenteConversion={fuenteActiva} lecturaFuente={lecturaFuentePaneles} reuniones={datosReuniones} equipo={datosEquipoConversionRango} equipoMensual={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensualRanking} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || conversionMensualCargando || cumplimientoRankingCargando || estaCargando(sesionReal, reuniones)} rangoCargando={!conversionesDeEjemplo && fuenteCargando} mensualCargando={!conversionesDeEjemplo && (conversionMensualCargando || cumplimientoRankingCargando)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); void qCumplimientoRanking.refetch(); reintentarReuniones(); tipoCambio.recargar() }} />}
 
       {/* Por empresa: de dónde vino cada sol (Avance vs. COOPAC), por analista.
           Se oculta solo si el mes no tiene cierres en cooperativas. */}

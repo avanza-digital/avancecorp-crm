@@ -47,8 +47,6 @@ import { lecturaCobertura, totalConversionPublicable } from '@/lib/conversion-me
 import { presentarCitas } from '@/lib/terminologia'
 import { etiquetaOrigen } from '@/lib/tipos'
 import { estadoVerificacionNucleo, sondasNucleoVerificadas } from '@/lib/sondas-conversion'
-import type { CapitalValoracion } from '@/lib/capital-valorado'
-import { CoberturaCapitalAviso } from '@/components/common/cobertura-capital'
 
 interface ResumenGerenciaPanelProps {
   conversiones: MetricasConversiones | null | undefined
@@ -65,7 +63,6 @@ interface ResumenGerenciaPanelProps {
   equipoMensual?: ConversionEquipoVendedor[]
   meta: ObjetivoComercial
   cumplimiento: CumplimientoAgregado | null
-  valoracionCapital?: CapitalValoracion | undefined
   metaMensual: MetaMensualGerencia
   tc: { promedio: number, fuente: string } | null | undefined
   /** Origen de prospecto enviado a la RPC; null para total y cartera. */
@@ -159,7 +156,6 @@ export function ResumenGerenciaPanel({
   equipoMensual,
   meta,
   cumplimiento,
-  valoracionCapital,
   metaMensual,
   tc,
   origenFiltrado,
@@ -470,7 +466,6 @@ export function ResumenGerenciaPanel({
   return (
     <div className="space-y-4">
       {error && <ErrorResumen error={error} onReintentar={onReintentar} />}
-      {valoracionCapital && <div className="gi-card p-4"><CoberturaCapitalAviso cobertura={valoracionCapital.cobertura} sellado={valoracionCapital.sellado} /></div>}
       {tcCaido && (
         <div className="gi-card flex flex-wrap items-center justify-between gap-3 p-5" role="alert">
           <span className="flex items-center gap-2 text-sm font-semibold text-amber-900">
