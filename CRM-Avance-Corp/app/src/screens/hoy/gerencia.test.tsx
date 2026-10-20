@@ -873,12 +873,13 @@ describe('Hoy · gerencia — período del tablero', () => {
       .toHaveTextContent('Se muestran los últimos datos disponibles, sin actualizar.')
   })
 
-  it('presenta el rango y la meta sin introducir otra definición de conversión', () => {
+  it('conserva las fechas del filtro sin repetir el rango y la meta en el resumen', () => {
     montar({}, 'resumen')
 
-    expect(screen.getByText(/Rango: 01 jul\. 2026 al 15 jul\. 2026/))
-      .toBeInTheDocument()
-    expect(screen.getByText(/Meta mensual: julio 2026/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Desde')).toHaveValue('2026-07-01')
+    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-07-15')
+    expect(screen.queryByText(/Rango:/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Meta mensual: julio 2026/)).not.toBeInTheDocument()
     expect(screen.queryByText(/el rango y origen recortan Cosecha, citas y embudo/))
       .not.toBeInTheDocument()
   })

@@ -6,6 +6,13 @@ test('Resumen: fechas compactas a la derecha y fuentes plegadas sin perder la se
   await page.clock.setFixedTime(new Date('2026-10-20T16:00:00Z'))
   await page.setViewportSize({ width: 1440, height: 1000 })
   await montarBackendReal(page, { rolCrm: 'gerencia', cumplimientoMetas: pendiente })
+  // El estado que se ve en producción: setiembre ampliado hasta el 22/10.
+  await page.route('**/rest/v1/rpc/cierre_mes_estado_fn', route => route.fulfill({ json: {
+    version: 1, generado_en: '2026-10-20T16:00:00Z', hoy: '2026-10-20', zona: 'America/Lima',
+    mes_en_curso: { mes: '2026-10', mes_nombre: 'octubre', cierra_el: '2026-11-11' },
+    pendiente: { mes: '2026-09', mes_nombre: 'setiembre', cierra_el: '2026-10-22', dias_para_cierre: 2, estado: 'en_ventana' },
+    ultimo_cerrado: null,
+  } }))
   await loginReal(page)
   const barra = page.locator('[data-gi-toolbar]')
   const fuentes = barra.getByRole('button', { name: /^Fuentes/ })
@@ -14,6 +21,12 @@ test('Resumen: fechas compactas a la derecha y fuentes plegadas sin perder la se
   await expect(page.getByRole('region', { name: 'Gestión de leads y clientes', exact: true })).toHaveCount(0)
   await expect(page.getByText(/Capital en soles con TC fijado por venta/)).toHaveCount(0)
   await expect(page.getByText(/venta pendiente de valoración/)).toHaveCount(0)
+  await expect(page.getByText(/^Rango:/)).toHaveCount(0)
+  await expect(page.getByText('Prospectos del período y cuántos cerraron, agrupados por su semana de ingreso')).toHaveCount(0)
+  const cierre = barra.getByRole('button', { name: 'Cierre de setiembre: 22 oct.' })
+  const detalle = page.getByRole('region', { name: 'setiembre se cierra el 22 oct. 2026' })
+  await expect(cierre).toHaveAttribute('aria-expanded', 'false')
+  await expect(detalle).toHaveCount(0)
   await expect(fuentes).toHaveAttribute('aria-expanded', 'false')
   await expect(opciones).toBeHidden()
   const caja = await barra.boundingBox()
@@ -24,6 +37,19 @@ test('Resumen: fechas compactas a la derecha y fuentes plegadas sin perder la se
   expect(fecha!.x).toBeGreaterThan(caja!.x + caja!.width / 2)
   expect(Math.abs(boton!.x + boton!.width - caja!.x - caja!.width)).toBeLessThan(2)
   await page.screenshot({ path: info.outputPath('resumen-escritorio.png'), fullPage: true })
+  await cierre.focus()
+  await page.keyboard.press('Enter')
+  await expect(detalle).toContainText('Quedan 2 días de ajuste')
+  // El detalle debe quedar sobre el héroe, sin que el gráfico lo tape.
+  await detalle.getByRole('button', { name: 'Cerrar detalle del cierre' }).click()
+  await expect(cierre).toBeFocused()
+  await cierre.click()
+  await page.keyboard.press('Escape')
+  await expect(detalle).toHaveCount(0)
+  await expect(cierre).toBeFocused()
+  await cierre.click()
+  await page.getByRole('heading', { name: 'Resumen', exact: true }).click()
+  await expect(detalle).toHaveCount(0)
 
   await fuentes.focus()
   await page.keyboard.press('Enter')
@@ -41,12 +67,18 @@ test('Resumen: fechas compactas a la derecha y fuentes plegadas sin perder la se
   await barra.getByLabel('Desde', { exact: true }).fill('2026-10-05')
   await barra.getByRole('button', { name: 'Aplicar', exact: true }).click()
   await expect(barra.getByRole('button', { name: 'Aplicar', exact: true })).toBeDisabled()
-  await expect(barra).toContainText('05 oct. 2026')
+  await expect(barra.getByLabel('Desde', { exact: true })).toHaveValue('2026-10-05')
 
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(page.getByTestId('resumen-gerencia-movil')).toBeVisible()
   await expect(page.getByText(/Capital en soles con TC fijado por venta/)).toHaveCount(0)
   await page.getByRole('button', { name: 'Abrir el resumen completo' }).click()
+  await cierre.click()
+  await expect(detalle).toBeVisible()
+  const cajaDetalle = await detalle.boundingBox()
+  expect(cajaDetalle!.x).toBeGreaterThanOrEqual(0)
+  expect(cajaDetalle!.x + cajaDetalle!.width).toBeLessThanOrEqual(390)
+  await detalle.getByRole('button', { name: 'Cerrar detalle del cierre' }).click()
   await expect(opciones).toBeHidden()
   await fuentes.click()
   await expect(opciones).toBeVisible()
