@@ -55,27 +55,31 @@ select set_config('request.jwt.claim.sub',vendedor::text,true) is not null from 
 set local role authenticated;
 insert into g_respuestas values ('antes',crm.gestion_diaria_cola_trabajo_fn('sin_conversacion',0,8));
 select pg_temp.comprobar((valor->>'total')::integer=530,'cola completa superior a 500') from g_respuestas where clave='antes';
-select pg_temp.comprobar(valor#>>'{items,0,lead_id}'=(select id::text from g_leads where n=1),'primero antes de gestionar') from g_respuestas where clave='antes';
-insert into g_respuestas select 'llamada1',crm.registrar_llamada_v4(gen_random_uuid(),id,'no_contesto') from g_leads where n=1;
+-- Sin conversación va de lo más reciente a lo más antiguo (20261020214445): el n=530 (última conversación más reciente) primero.
+select pg_temp.comprobar(valor#>>'{items,0,lead_id}'=(select id::text from g_leads where n=530),'primero antes de gestionar') from g_respuestas where clave='antes';
+insert into g_respuestas select 'llamada1',crm.registrar_llamada_v4(gen_random_uuid(),id,'no_contesto') from g_leads where n=530;
 insert into g_respuestas values ('despues1',crm.gestion_diaria_cola_trabajo_fn('sin_conversacion',0,8));
-select pg_temp.comprobar(valor#>>'{items,0,lead_id}'=(select id::text from g_leads where n=2),'siguiente pendiente tras guardar') from g_respuestas where clave='despues1';
+select pg_temp.comprobar(valor#>>'{items,0,lead_id}'=(select id::text from g_leads where n=529),'siguiente pendiente tras guardar') from g_respuestas where clave='despues1';
 select pg_temp.comprobar((valor#>>'{totales,sin_conversacion,gestionados}')::integer=1,'una gestión confirmada') from g_respuestas where clave='despues1';
-insert into g_respuestas select 'anclada1',crm.gestion_diaria_cola_trabajo_fn('sin_conversacion',0,8,'lead:'||id) from g_leads where n=1;
-select pg_temp.comprobar((valor->>'pagina')::integer=66 and valor#>>'{items,1,lead_id}'=(select id::text from g_leads where n=1),
+insert into g_respuestas select 'anclada1',crm.gestion_diaria_cola_trabajo_fn('sin_conversacion',0,8,'lead:'||id) from g_leads where n=530;
+select pg_temp.comprobar((valor->>'pagina')::integer=66 and valor#>>'{items,1,lead_id}'=(select id::text from g_leads where n=530),
   'el gestionado está en la última página completa') from g_respuestas where clave='anclada1';
 select pg_temp.comprobar(valor#>>'{items,1,ultima_gestion,resultado}'='no_contesto' and
   (valor#>>'{items,1,senal,dias_sin_conversacion}')::integer>=37,'resultado visible sin reiniciar conversación') from g_respuestas where clave='anclada1';
 select 'GESTION_COLA_FIXTURE:'||valor::text from g_respuestas where clave='anclada1';
-insert into g_respuestas select 'llamada2',crm.registrar_llamada_v4(gen_random_uuid(),id,'no_contesto') from g_leads where n=2;
-insert into g_respuestas select 'reintento1',crm.registrar_llamada_v4(gen_random_uuid(),id,'no_contesto') from g_leads where n=1;
+insert into g_respuestas select 'llamada2',crm.registrar_llamada_v4(gen_random_uuid(),id,'no_contesto') from g_leads where n=529;
+insert into g_respuestas select 'reintento1',crm.registrar_llamada_v4(gen_random_uuid(),id,'no_contesto') from g_leads where n=530;
 insert into g_respuestas values ('ultima',crm.gestion_diaria_cola_trabajo_fn('sin_conversacion',66,8));
-select pg_temp.comprobar(valor#>>'{items,0,lead_id}'=(select id::text from g_leads where n=2)
-  and valor#>>'{items,1,lead_id}'=(select id::text from g_leads where n=1)
+select pg_temp.comprobar(valor#>>'{items,0,lead_id}'=(select id::text from g_leads where n=529)
+  and valor#>>'{items,1,lead_id}'=(select id::text from g_leads where n=530)
   and (valor#>>'{totales,sin_conversacion,gestionados}')::integer=2,'dos leads, tres llamadas; el último atendido queda último') from g_respuestas where clave='ultima';
 
--- Siguiente cruza el límite de la página y recorre todos los pendientes.
-insert into g_respuestas select 'salto',crm.gestion_diaria_cola_trabajo_fn('sin_conversacion',0,8,'lead:'||id) from g_leads where n=10;
-select pg_temp.comprobar(valor->>'siguiente'='lead:'||(select id::text from g_leads where n=11),'siguiente entre páginas') from g_respuestas where clave='salto';
+-- Siguiente cruza el límite de la página y recorre todos los pendientes (hacia lo más antiguo). Quedan 528 pendientes
+-- (528…1): el n=9 es la posición 519 (última de la página 64) y el n=8 la 520 (primera de la 65) (Codex r2).
+insert into g_respuestas select 'salto',crm.gestion_diaria_cola_trabajo_fn('sin_conversacion',0,8,'lead:'||id) from g_leads where n=9;
+select pg_temp.comprobar((valor->>'pagina')::integer=64 and valor->>'siguiente'='lead:'||(select id::text from g_leads where n=8),'siguiente entre páginas') from g_respuestas where clave='salto';
+insert into g_respuestas select 'salto2',crm.gestion_diaria_cola_trabajo_fn('sin_conversacion',0,8,'lead:'||id) from g_leads where n=8;
+select pg_temp.comprobar((valor->>'pagina')::integer=65 and valor#>>'{items,0,lead_id}'=(select id::text from g_leads where n=8),'el ancla pasa a la página 65') from g_respuestas where clave='salto2';
 
 -- Una clave ajena no amplía el ámbito y no provoca una diferencia de error.
 insert into g_respuestas select 'ajeno',crm.gestion_diaria_cola_trabajo_fn('todo',0,200,'lead:'||id) from g_leads where n=531;
@@ -94,8 +98,8 @@ select pg_temp.comprobar(exists(select 1 from jsonb_array_elements(valor->'items
   and f.value->>'estado_trabajo'='programado'),'reintento futuro fuera de pendientes') from g_respuestas where clave='programada_hoy';
 
 select crm.deshacer_resultado_llamada((valor->>'actividad_id')::uuid)->>'ok' from g_respuestas where clave='llamada2';
-insert into g_respuestas select 'deshecha',crm.gestion_diaria_cola_trabajo_fn('todo',0,8,'lead:'||id) from g_leads where n=2;
-select pg_temp.comprobar(exists(select 1 from jsonb_array_elements(valor->'items') f where f.value->>'lead_id'=(select id::text from g_leads where n=2)
+insert into g_respuestas select 'deshecha',crm.gestion_diaria_cola_trabajo_fn('todo',0,8,'lead:'||id) from g_leads where n=529;
+select pg_temp.comprobar(exists(select 1 from jsonb_array_elements(valor->'items') f where f.value->>'lead_id'=(select id::text from g_leads where n=529)
   and f.value->>'estado_trabajo'='pendiente' and f.value->'ultima_gestion'='null'::jsonb),'deshacer recalcula avance') from g_respuestas where clave='deshecha';
 reset role;
 

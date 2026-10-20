@@ -45,9 +45,10 @@ describe('Lista útil de pendientes', () => {
     expect(dobles.recargar).toHaveBeenCalledOnce(); expect(filtro).toHaveFocus(); expect(filtro).toHaveAttribute('aria-pressed','true')
   })
   it('como el resumen: dos cuadros con número que filtran, la vencida se marca y el título no repite el lead (Miguel, 27/09)', () => {
+    // Como llega de la v3: de lo más reciente a lo más antiguo.
     dobles.lista.items = [
-      tareaPendiente(20, { tipo: 'whatsapp', titulo: 'WhatsApp — LEAD VISIBLE', vence_en: '2026-09-23T16:00:00.000001+00:00' }),
       tareaPendiente(21, { titulo: 'Responder propuesta — Lead visible', vence_en: '2026-09-23T18:00:00.000001+00:00' }),
+      tareaPendiente(20, { tipo: 'whatsapp', titulo: 'WhatsApp — LEAD VISIBLE', vence_en: '2026-09-23T16:00:00.000001+00:00' }),
     ]
     dobles.lista.pagina = paginaPendientes(dobles.lista.items, { resumen: { tareas_pendientes: 5, tareas_vencidas: 2 } })
     render(<PendientesSupervisor {...props} />)
@@ -56,12 +57,12 @@ describe('Lista útil de pendientes', () => {
     fireEvent.click(within(filtro).getByRole('button', { name: /^Vencidas 2$/ }))
     expect(dobles.hook).toHaveBeenLastCalledWith(props.dia, props.analista, true, true, 0)
     const [primera, segunda] = within(screen.getByRole('list', { name: 'Lista de tareas pendientes' })).getAllByRole('listitem')
-    // Vence antes del corte de la consulta (17:00 UTC): vencida. La otra, después: no.
-    expect(within(primera!).getByText('Vencida')).toBeVisible()
-    expect(within(segunda!).queryByText('Vencida')).not.toBeInTheDocument()
+    // La segunda vence antes del corte de la consulta (17:00 UTC): vencida. La primera, después: no.
+    expect(within(segunda!).getByText('Vencida')).toBeVisible()
+    expect(within(primera!).queryByText('Vencida')).not.toBeInTheDocument()
     // «WhatsApp — LEAD VISIBLE» ya lo dicen el tipo y el lead: sin título repetido.
-    expect(within(primera!).queryByText(/WhatsApp —/)).not.toBeInTheDocument()
-    expect(within(segunda!).getByText('Responder propuesta')).toBeVisible()
+    expect(within(segunda!).queryByText(/WhatsApp —/)).not.toBeInTheDocument()
+    expect(within(primera!).getByText('Responder propuesta')).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Pendientes de ANA' })).toBeInTheDocument()
   })
   it('las señales de leads solo aparecen con número confirmado mayor que cero', () => {

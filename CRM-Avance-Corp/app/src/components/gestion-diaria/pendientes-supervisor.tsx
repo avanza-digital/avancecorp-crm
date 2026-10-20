@@ -2,7 +2,8 @@
 // 27/09/2026: «demasiado texto y no se entiende»): dos cuadros que SON el
 // filtro (cada número abre su lista), las señales de leads solo si hay algo que
 // decir, y filas limpias —hora, tipo, lead y «Vencida»—. Los estados que no se
-// pueden confirmar se siguen diciendo, en una línea.
+// pueden confirmar se siguen diciendo, en una línea. El orden lo pone el servidor
+// (v3, 20/10/2026): de lo más reciente a lo más antiguo, también al cargar más.
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState } from 'react'
 import { Check } from 'lucide-react'
 import { usePendientesSupervisor } from '@/data/gestion-diaria-pendientes-queries'

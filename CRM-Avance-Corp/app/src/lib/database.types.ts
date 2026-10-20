@@ -7102,6 +7102,16 @@ export type Database = {
         }
         Returns: Json
       }
+      gestion_diaria_pendientes_v3_fn: {
+        Args: {
+          p_analista_id: string
+          p_despues_de?: string
+          p_despues_id?: string
+          p_limite?: number
+          p_solo_vencidas?: boolean
+        }
+        Returns: Json
+      }
       gestion_diaria_presentar_corte: {
         Args: { p_alerta_id: string; p_solicitud_id: string }
         Returns: Json

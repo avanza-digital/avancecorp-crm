@@ -15,13 +15,18 @@ export function paginarTrabajoDemo(filas: readonly FilaTrabajo[], p: PedidoColaT
       gestionados: grupo.filter((f) => f.estado_trabajo === 'gestionado').length,
       programados: grupo.filter((f) => f.estado_trabajo === 'programado').length }]
   })) as ColaTrabajo['totales']
+  // El mismo orden que `crm.gestion_diaria_cola_trabajo_fn` (20/10/2026): pendientes por grupo;
+  // dentro del grupo, lo más reciente primero (en «Hoy», por hora); sin referencia, al final.
   const ordenadas = filas.filter((f) => filtro === 'todo' || f.grupo === filtro).sort((a, b) => {
     const ap = a.estado_trabajo === 'pendiente', bp = b.estado_trabajo === 'pendiente'
     if (ap !== bp) return ap ? -1 : 1
     const grupo = ap ? FILTROS_TRABAJO.indexOf(a.grupo) - FILTROS_TRABAJO.indexOf(b.grupo) : 0
-    const t = (f: FilaTrabajo) => ap ? f.referencia_en ? Date.parse(f.referencia_en) : Infinity
+    const t = (f: FilaTrabajo) => ap ? f.referencia_en ? Date.parse(f.referencia_en) : null
       : f.ultima_gestion ? Date.parse(f.ultima_gestion.en) : 0
-    return grupo || t(a) - t(b) || a.clave.localeCompare(b.clave)
+    const ta = t(a), tb = t(b)
+    const sinReferencia = (ta === null ? 1 : 0) - (tb === null ? 1 : 0)
+    const porInstante = ta === null || tb === null ? 0 : ap && a.grupo !== 'tarea_hoy' ? tb - ta : ta - tb
+    return grupo || sinReferencia || porInstante || a.clave.localeCompare(b.clave)
   })
   const posicion = ordenadas.findIndex((f) => f.clave === p.elegido)
   const pagina = posicion >= 0 ? Math.floor(posicion / p.limite) : Math.min(p.pagina, Math.max(0, Math.ceil(ordenadas.length / p.limite) - 1))

@@ -8784,6 +8784,43 @@ async function testGestionDiariaPendientes(sessions, seed) {
   check(isAuthorizationError(anonRpc.error), 'anon no ejecuta pendientes');
   const limite = await rpc('gerencia', id('vend1'), { p_limite: 0 });
   check(limite.error?.code === '22023', 'gerencia: límite 0 → 22023');
+
+  // 20261020214445: la v3 va de lo más reciente a lo más antiguo (vence_en desc, id desc) con la
+  // misma autorización; la v1/v2 siguen ascendentes para los bundles publicados.
+  const V3 = 'gestion_diaria_pendientes_v3_fn';
+  const rpc3 = (quien, analista, extra = {}) => sessions[quien].client.schema('crm').rpc(V3, { p_analista_id: analista, p_limite: 100, ...extra });
+  const probe3 = await rpc3('sup1', id('vend1'));
+  if (probe3.error?.code === 'PGRST202') {
+    const msg = '⚠ v3 de pendientes no instalada: orden reciente→antiguo SALTADO (no probado)';
+    if (process.env.CRM_RLS_EXIGE_GESTION_DIARIA === '1') fail(msg);
+    else console.log(`  ${msg}`);
+    return;
+  }
+  const posterior = (a, b) => a.vence_en < b.vence_en || (a.vence_en === b.vence_en && a.id < b.id);
+  for (const [quien, analista] of [['sup1', 'vend1'], ['gerencia', 'vend1'], ['gerencia', 'vend3']]) {
+    const [v3, v1] = await Promise.all([rpc3(quien, id(analista)), rpc(quien, id(analista), { p_limite: 100 })]);
+    const items = v3.data?.items ?? [];
+    check(!v3.error && v3.data?.version === 3 && v3.data?.supervisor_id === id(quien) && v3.data?.analista_id === id(analista)
+      && items.every((t, i) => i === 0 || posterior(t, items[i - 1])),
+      `${quien} → ${analista}: v3 autorizada, version 3 y de lo más reciente a lo más antiguo`);
+    check(!v1.error && JSON.stringify(items.map((t) => t.id)) === JSON.stringify([...(v1.data?.items ?? [])].reverse().map((t) => t.id))
+      && JSON.stringify(v3.data?.resumen) === JSON.stringify(v1.data?.resumen),
+      `${quien} → ${analista}: la v3 es la v1 al revés, con el mismo resumen`);
+  }
+  for (const [quien, analista, etiqueta] of [['sup1', id('vend3'), 'vend3 (otro equipo)'], ['gerencia', randomUUID(), 'inexistente']]) {
+    const { error } = await rpc3(quien, analista);
+    check(isAuthorizationError(error), `${quien}: v3 de ${etiqueta} → 42501`);
+  }
+  for (const quien of ['vend1', 'coordinador', 'directorio', 'vendInactive']) {
+    const { error } = await rpc3(quien, id('vend1'));
+    check(isAuthorizationError(error), `${quien}: sin puerta v3 de pendientes → 42501`);
+  }
+  const anonV3 = await anon.schema('crm').rpc(V3, { p_analista_id: id('vend1') });
+  check(isAuthorizationError(anonV3.error), 'anon no ejecuta la v3 de pendientes');
+  for (const [extra, etiqueta] of [[{ p_limite: 0 }, 'límite 0'], [{ p_limite: 101 }, 'límite 101'], [{ p_despues_de: new Date().toISOString() }, 'cursor a medias']]) {
+    const { error } = await rpc3('gerencia', id('vend1'), extra);
+    check(error?.code === '22023', `gerencia: v3 con ${etiqueta} → 22023`);
+  }
 }
 
 // G4b (28/09/2026): lista exacta de «Citas agendadas». Ámbito explícito decidido en el

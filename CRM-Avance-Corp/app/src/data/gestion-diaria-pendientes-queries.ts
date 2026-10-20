@@ -64,10 +64,17 @@ export function usePendientesSupervisor(dia: string, analista: string, soloVenci
     cliente.setQueriesData({ queryKey: ambitoClave }, { pages: [], pageParams: [] })
   }, [denegada, cliente, ambitoClave])
   const paginas = autorizado && !sinPermiso ? consulta.data?.pages ?? [] : []
-  const ultima = paginas.at(-1)
+  // La foto es la de la PRIMERA página (resumen y corte `pendientes_al`, como `consultadoDesde`):
+  // con el orden de lo más reciente a lo más antiguo (v3), lo que vence entre una página y la
+  // siguiente queda por encima del cursor y no se recorre hasta «Actualizar»; el resumen de la
+  // última página lo contaría y la lista no cuadraría (auditor-rls, 20/10/2026). En «Vencidas» las
+  // páginas siguientes son todas anteriores a ese corte; en «Todas» pueden traer fechas posteriores
+  // (futuras) y se clasifican igual con el corte de la foto: lo que no había vencido al tomarla no
+  // se marca «Vencida» hasta la siguiente foto (Codex r2).
+  const primera = paginas[0]
   return {
-    items: unirPaginasPendientes(paginas), pagina: ultima ?? null,
-    congelada: paginas.length > 1, consultadoDesde: paginas[0]?.generado_en ?? null,
+    items: unirPaginasPendientes(paginas), pagina: primera ?? null,
+    congelada: paginas.length > 1, consultadoDesde: primera?.generado_en ?? null,
     cargando: autorizado && !sinPermiso && consulta.isPending,
     enVuelo: consulta.isFetching, error: sinPermiso ? new CrmApiError('Ya no tienes acceso a estas tareas.', '42501') : consulta.error,
     sinPermiso, hayMas: !sinPermiso && !consulta.error && consulta.hasNextPage,

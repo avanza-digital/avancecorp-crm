@@ -19,8 +19,9 @@ beforeEach(() => {
   vi.clearAllMocks(); cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } }); dobles.vendedores = []
   dobles.yo = { id: pedidoPendientes.supervisor, rol: 'supervisor', demo: false } as Yo
   dobles.listar.mockImplementation(async (p: PedidoPendientes) => {
-    const inicio = p.cursor ? Number(p.cursor.despues_id.slice(-12)) + 1 : 10
-    const items = Array.from({ length: 25 }, (_, i) => tareaPendiente(inicio + i))
+    // Como la v3: de lo más reciente a lo más antiguo (aquí, mismo vence_en e ids descendentes) y cursor hacia atrás.
+    const inicio = p.cursor ? Number(p.cursor.despues_id.slice(-12)) - 1 : 100
+    const items = Array.from({ length: 25 }, (_, i) => tareaPendiente(inicio - i))
     return paginaPendientes(items, { solo_vencidas: p.soloVencidas, resumen: { tareas_pendientes: 100, tareas_vencidas: 100 }, hay_mas: true,
       siguiente_cursor: { despues_de: items[24]!.vence_en, despues_id: items[24]!.id } })
   })
@@ -50,6 +51,25 @@ describe('Memoria y refresco paginados del supervisor', () => {
     await waitFor(() => expect(result.current.items).toHaveLength(25))
     expect(dobles.listar).toHaveBeenLastCalledWith(expect.objectContaining({ cursor: null }), expect.any(AbortSignal))
     expect(result.current.congelada).toBe(false)
+  })
+  it('con dos páginas, el resumen y el corte son los de la PRIMERA foto; «hay más» sigue al servidor', async () => {
+    dobles.listar.mockImplementation(async (p: PedidoPendientes) => {
+      const segunda = p.cursor !== null
+      const items = Array.from({ length: 25 }, (_, i) => tareaPendiente((segunda ? 75 : 100) - i))
+      // La segunda foto cuenta una vencida más (venció entre páginas: queda por encima del cursor y no se recorre).
+      return paginaPendientes(items, { resumen: { tareas_pendientes: segunda ? 101 : 100, tareas_vencidas: segunda ? 101 : 100 },
+        generado_en: segunda ? '2026-09-23T17:05:00.000001+00:00' : '2026-09-23T17:00:00.000001+00:00',
+        pendientes_al: segunda ? '2026-09-23T17:05:00.000001+00:00' : '2026-09-23T17:00:00.000001+00:00',
+        hay_mas: !segunda, siguiente_cursor: segunda ? null : { despues_de: items[24]!.vence_en, despues_id: items[24]!.id } })
+    })
+    const { result } = renderHook(() => usePendientesSupervisor('2026-09-23', pedidoPendientes.analista, false, true), { wrapper: envolver })
+    await waitFor(() => expect(result.current.items).toHaveLength(25))
+    await act(async () => { await result.current.cargarMas() }); await waitFor(() => expect(result.current.items).toHaveLength(50))
+    expect(result.current.congelada).toBe(true)
+    expect(result.current.pagina?.resumen).toEqual({ tareas_pendientes: 100, tareas_vencidas: 100 })
+    expect(result.current.pagina?.pendientes_al).toBe('2026-09-23T17:00:00.000001+00:00')
+    expect(result.current.consultadoDesde).toBe('2026-09-23T17:00:00.000001+00:00')
+    expect(result.current.hayMas).toBe(false)
   })
   it('un error de red cargando más conserva páginas identificadas como anteriores', async () => {
     const { result } = renderHook(() => usePendientesSupervisor('2026-09-23', pedidoPendientes.analista, false, true), { wrapper: envolver })

@@ -272,8 +272,9 @@ describe('GestionDiariaAnalista · a quién llamo ahora', () => {
   })
 
   it('elegir una fila de la lista la lleva a «Ahora»', async () => {
+    // l5 va detrás de l1: su límite es más antiguo (12:00 < 14:00; lo más reciente primero).
     dobles.cola = {
-      data: { items: [itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), itemCola('l5', 'primera_atencion', '2026-09-20T17:00:00Z')] },
+      data: { items: [itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), itemCola('l5', 'primera_atencion', '2026-09-20T12:00:00Z')] },
       error: null, refetch: vi.fn(), isFetching: false,
     }
     render(<GestionDiariaAnalista />)
@@ -293,7 +294,7 @@ describe('GestionDiariaAnalista · a quién llamo ahora', () => {
     let soltar: () => void = () => {}
     dobles.recargar = vi.fn(() => new Promise<void>((r) => { soltar = () => { r() } }))
     dobles.cola = {
-      data: { items: [itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), itemCola('l5', 'primera_atencion', '2026-09-20T17:00:00Z')] },
+      data: { items: [itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), itemCola('l5', 'primera_atencion', '2026-09-20T12:00:00Z')] },
       error: null, refetch: vi.fn(async () => {}), isFetching: false,
     }
     render(<GestionDiariaAnalista />)
@@ -517,12 +518,12 @@ describe('GestionDiariaAnalista · lo que NO está cargado no es lo que NO exist
 })
 
 describe('GestionDiariaAnalista · dos resultados seguidos (carrera)', () => {
-  /** La cola con tres leads del mismo grupo y un `recargar` que se suelta a mano. */
+  /** La cola con tres leads del mismo grupo (l1 la más reciente: va primero) y un `recargar` que se suelta a mano. */
   function tresYControl() {
     const sueltas: Array<() => void> = []
     dobles.recargar = vi.fn(() => new Promise<void>((r) => { sueltas.push(() => { r() }) }))
     dobles.cola = {
-      data: { items: ['l1', 'l5', 'l6'].map((x, i) => itemCola(x, 'primera_atencion', `2026-09-20T1${i}:00:00Z`)) },
+      data: { items: ['l1', 'l5', 'l6'].map((x, i) => itemCola(x, 'primera_atencion', `2026-09-20T1${2 - i}:00:00Z`)) },
       error: null, refetch: vi.fn(async () => {}), isFetching: false,
     }
     return sueltas
@@ -1038,10 +1039,11 @@ const tareaCliente = (id: string, extra: Record<string, unknown> = {}) => ({
 
 describe('GestionDiariaAnalista · tareas de CLIENTES (cola v3)', () => {
   beforeEach(() => {
+    // Vencidas de lo más reciente a lo más antiguo: la del lead (hoy 12:30 Lima) va DELANTE de la del cliente (hoy 12:00 Lima).
     dobles.cola = { data: { items: [
       itemCliente('c-venc', 'tarea_vencida', '2026-09-20T17:00:00Z', { inversionista_id: 'inv-rosa', nombre: 'ROSA CLIENTE' }),
       itemCliente('c-hoy', 'tarea_hoy', '2026-09-20T22:00:00Z', { inversionista_id: 'inv-rosa', nombre: 'ROSA CLIENTE' }),
-      itemCola('l2', 'tarea_vencida', '2026-09-19T15:00:00Z'),
+      itemCola('l2', 'tarea_vencida', '2026-09-20T17:30:00Z'),
     ] }, error: null, refetch: vi.fn(), isFetching: false }
     dobles.tareasAmbito = [tareaCliente('c-venc'), tareaCliente('c-hoy', { vence_en: '2026-09-20T22:00:00Z', titulo: 'Confirmar renovación' })]
     dobles.contactoCliente = { data: { telefono: '+51 988 777 666', contactar: true }, error: null, isPending: false, pedidos: [] }
@@ -1056,7 +1058,7 @@ describe('GestionDiariaAnalista · tareas de CLIENTES (cola v3)', () => {
     const lista = screen.getByRole('list', { name: /^Todo/ })
     expect(within(lista).getAllByRole('button', { name: /ROSA CLIENTE/ })).toHaveLength(2)
     expect(within(lista).getAllByText(/Cliente de tu cartera · gestión agendada/)).toHaveLength(2)
-    // Vencidas: la del cliente (hoy 12:00 Lima) va DETRÁS de la de ayer del lead.
+    // Vencidas: la del cliente (hoy 12:00 Lima) va DETRÁS de la del lead (hoy 12:30 Lima), que venció hace menos.
     expect(within(screen.getByRole('tablist', { name: 'Grupos de la cola' })).getByRole('tab', { name: /Vencidas/ })).toHaveTextContent('2')
   })
 
@@ -1143,7 +1145,7 @@ describe('GestionDiariaAnalista · tareas de CLIENTES (cola v3)', () => {
   it('al guardar (el store ya no la tiene pendiente) «Ahora» pasa a la fila de DETRÁS —la otra tarea de la misma persona— y el foco no se pierde', async () => {
     dobles.cola.refetch = vi.fn(async () => { dobles.cola.data = colaSinLaCerrada(); return dobles.cola })
     render(<GestionDiariaAnalista />)
-    // «Todo»: vencida del lead l2 (ayer), vencida de ROSA (hoy), de hoy de ROSA, sin conversación l3.
+    // «Todo»: vencida del lead l2 (hoy 12:30), vencida de ROSA (hoy 12:00), de hoy de ROSA, sin conversación l3.
     elegirCliente(/ROSA CLIENTE/)
     const registrar = within(screen.getByRole('region', { name: 'Ahora' })).getByRole('button', { name: 'Registrar resultado de ROSA CLIENTE' })
     fireEvent.click(registrar)
