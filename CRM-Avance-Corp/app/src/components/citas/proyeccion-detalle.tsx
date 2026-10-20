@@ -19,11 +19,19 @@ function MontoCita({ c }: { c: CitaProyectada }) {
   return <><span className="pc-m">{money(c.cita.monto, 'USD')} ·</span>{c.enSoles === null ? 'Pendiente de TC' : `S/ ${numero(c.enSoles)}`}</>
 }
 
+/** La persona abre su ficha de lead; una reunión con un cliente sin lead no tiene ficha que abrir. */
+function PersonaCita({ c, onAbrir }: { c: CitaProyectada; onAbrir: ((leadId: string, tareaId: string) => void) | undefined }) {
+  const leadId = c.cita.leadId
+  if (!onAbrir || leadId === null) return <span className="pc-persona">{c.cita.nombre}</span>
+  return <button type="button" className="pc-persona" onClick={() => onAbrir(leadId, c.cita.id)}>{c.cita.nombre}</button>
+}
+
 export function DetalleProyeccion({ detalle, onCerrar, focoRespaldo }: { detalle: ListaProyeccion | null; onCerrar: () => void; focoRespaldo: () => HTMLElement | null }) {
   const { onAbrirLead } = useDatosCitas()
   const [aviso, setAviso] = useState('')
   const n = detalle?.lista.length ?? 0
   const cerrar = () => { setAviso(''); onCerrar() }
+  const abrirFicha = onAbrirLead && ((leadId: string, tareaId: string) => { cerrar(); requestAnimationFrame(() => requestAnimationFrame(() => onAbrirLead(leadId, tareaId))) })
   function exportar() {
     if (!detalle) return
     setAviso(descargarCsv(detalle.archivo, csvCitasProyeccion(detalle.lista)) ? `Se descargó el CSV con ${n} ${n === 1 ? 'cita' : 'citas'}.` : 'No se pudo descargar el archivo. Vuelve a intentarlo.')
@@ -41,7 +49,7 @@ export function DetalleProyeccion({ detalle, onCerrar, focoRespaldo }: { detalle
           <tbody>{detalle.lista.map(c => <tr key={c.cita.id}>
             <td>{c.cita.creadoEn ? fmtFecha(fechaLocalCitas(c.cita.creadoEn)) : '—'}</td>
             <td>{fmtFecha(c.cita.fecha)} · {c.cita.hora}</td>
-            <th scope="row">{onAbrirLead ? <button type="button" className="pc-persona" onClick={() => { cerrar(); requestAnimationFrame(() => requestAnimationFrame(() => onAbrirLead(c.cita.leadId, c.cita.id))) }}>{c.cita.nombre}</button> : <span className="pc-persona">{c.cita.nombre}</span>}</th>
+            <th scope="row"><PersonaCita c={c} onAbrir={abrirFicha} /></th>
             {detalle.conAnalista && <td>{c.cita.analistaNombre}</td>}
             <td><span className="pc-estado" data-estado={c.cita.estado}>{ESTADOS[c.cita.estado].label}</span></td>
             <td className="pc-num"><MontoCita c={c} /></td>

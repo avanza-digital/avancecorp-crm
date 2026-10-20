@@ -6,6 +6,7 @@ import { ContextoCitas, type DatosCitas } from './contexto'
 import { TableroCitas } from './propuesta'
 import type { CitaEjemplo } from './modelo'
 import type { GestionCitas } from './metas'
+import type { ReunionClienteProyeccion } from './proyeccion'
 
 const cotizacion = vi.hoisted(() => ({ tc: { promedio: 3.75, fuente: 'Fuente de prueba' } as { promedio: number; fuente: string } | null, recargar: vi.fn() }))
 vi.mock('@/lib/tipo-cambio', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/tipo-cambio')>(),
@@ -260,7 +261,7 @@ describe('Pestaña Proyección de Citas', () => {
   it('un rango que cruza meses pide esos meses, espera sin cifras parciales y pinta lo fusionado', async () => {
     const pedir = vi.fn()
     const septiembre = cita('s1', 'diego', { creadoEn: '2026-09-28T15:00:00Z', fecha: '2026-09-29' })
-    const base = { onMesesProyeccion: pedir, proyeccion: { meses: ['2026-10'], citas: CITAS, gestion: gestion(), corte: fuente.corte, cargando: false, error: null, onReintentar: vi.fn() } }
+    const base = { onMesesProyeccion: pedir, proyeccion: { meses: ['2026-10'], citas: CITAS, gestion: gestion(), corte: fuente.corte, rango: { desde: '2026-10-01', hasta: '2026-10-19' }, reunionesClientes: [], cargando: false, error: null, onReintentar: vi.fn() } }
     const { usuario, vista } = await abrirProyeccion(base)
     expect(pedir).toHaveBeenLastCalledWith(['2026-10'])
     fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-09-25' } })
@@ -272,7 +273,7 @@ describe('Pestaña Proyección de Citas', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('No se pudieron cargar las citas.')
     await usuario.click(screen.getByRole('button', { name: 'Reintentar' }))
     expect(base.proyeccion.onReintentar).toHaveBeenCalledTimes(1)
-    rehacer({ meses: ['2026-09', '2026-10'], citas: [...CITAS, septiembre] })
+    rehacer({ meses: ['2026-09', '2026-10'], rango: { desde: '2026-09-25', hasta: '2026-10-19' }, citas: [...CITAS, septiembre] })
     const hoja = screen.getByRole('table', { name: /Proyección de citas por analista/ })
     expect(screen.getByTestId('pc-rotulo-rango')).toHaveTextContent('25 set – 19 oct 2026')
     expect(within(fila(hoja, 'Diego Salas')).getByRole('button', { name: '3 citas de Diego Salas' })).toBeVisible()
@@ -283,7 +284,7 @@ describe('Pestaña Proyección de Citas', () => {
   it('con el mes de arriba cargando o en error, la Proyección se pinta con los meses de su propio rango', async () => {
     // Codex (19/10): el mes de arriba puede quedar fuera del rango; su carga o su
     // error no deben tapar una hoja cuyos meses ya llegaron.
-    const propia = { onMesesProyeccion: vi.fn(), proyeccion: { meses: ['2026-10'], citas: CITAS, gestion: gestion(), corte: fuente.corte, cargando: false, error: null, onReintentar: vi.fn() } }
+    const propia = { onMesesProyeccion: vi.fn(), proyeccion: { meses: ['2026-10'], citas: CITAS, gestion: gestion(), corte: fuente.corte, rango: { desde: '2026-10-01', hasta: '2026-10-19' }, reunionesClientes: [], cargando: false, error: null, onReintentar: vi.fn() } }
     const { hoja, vista } = await abrirProyeccion({ ...propia, cargando: true })
     expect(hoja.querySelectorAll('tr.pc-fila')).toHaveLength(3)
     expect(screen.getByRole('tabpanel')).not.toHaveTextContent('Cargando las citas de tu consulta…')
@@ -411,7 +412,7 @@ describe('Pestaña Proyección de Citas', () => {
 
   it('Actualizar recarga los meses del rango cuando la Proyección tiene cargador propio', async () => {
     const recargarMes = vi.fn()
-    const propia = { onMesesProyeccion: vi.fn(), proyeccion: { meses: ['2026-10'], citas: CITAS, gestion: gestion(), corte: fuente.corte, cargando: false, error: null, onReintentar: vi.fn() } }
+    const propia = { onMesesProyeccion: vi.fn(), proyeccion: { meses: ['2026-10'], citas: CITAS, gestion: gestion(), corte: fuente.corte, rango: { desde: '2026-10-01', hasta: '2026-10-19' }, reunionesClientes: [], cargando: false, error: null, onReintentar: vi.fn() } }
     const { usuario } = await abrirProyeccion({ ...propia, onReintentar: recargarMes })
     await usuario.click(screen.getByRole('button', { name: 'Actualizar' }))
     expect(propia.proyeccion.onReintentar).toHaveBeenCalledTimes(1)
@@ -478,5 +479,104 @@ describe('Pestaña Proyección de Citas', () => {
     render(<ContextoCitas value={fuente}><TableroCitas /></ContextoCitas>)
     await usuario.click(screen.getByRole('tab', { name: 'Proyección' }))
     expect(window.location.hash).toBe('#/reuniones/proyeccion/2026-10-01/2026-10-19')
+  })
+})
+
+// Fase 0b: reuniones con clientes sin lead, del lector propio de la Proyección.
+describe('Proyección con reuniones con clientes sin lead', () => {
+  const OCTUBRE_19 = { desde: '2026-10-01', hasta: '2026-10-19' }
+  const reunion = (id: string, cambios: Partial<ReunionClienteProyeccion>): ReunionClienteProyeccion => ({
+    id, leadId: null, moneda: null, monto: null, persona: `persona:${id}`, nombre: `CLIENTE ${id.toUpperCase()}`, analista: 'ana', analistaNombre: 'Ana Torres',
+    supervisor: 'Claudia Ríos', supervisorId: 'sup-1', fecha: '2026-10-10', hora: '10:00', estado: 'programada', creadoEn: '2026-10-08T15:00:00Z', ...cambios,
+  })
+  const REUNIONES = [
+    reunion('r1', { estado: 'realizada', asistioEn: '2026-10-10T16:00:00Z', nombre: 'CLIENTE UNO' }),
+    reunion('r2', { estado: 'no_show', persona: 'oculta:r2', nombre: 'Cliente fuera de tu cartera', creadoEn: '2026-10-11T15:00:00Z' }),
+  ]
+  const cargador = (cambios: Partial<NonNullable<DatosCitas['proyeccion']>> = {}) => ({ onMesesProyeccion: vi.fn(), onAbrirLead: vi.fn(), proyeccion: {
+    meses: ['2026-10'], citas: CITAS, gestion: gestion(), corte: fuente.corte, rango: OCTUBRE_19, reunionesClientes: REUNIONES,
+    cargando: false, error: null, onReintentar: vi.fn(), ...cambios } })
+
+  it('cuentan en Citas, Clientes y % Entrev.; Monto, Ticket cita, % Conv. y Proyectado quedan los de las citas con lead', async () => {
+    const { hoja: sinReuniones, vista } = await abrirProyeccion(cargador({ reunionesClientes: [] }))
+    // La señal añade su estado para el lector («60% · Por mejorar»): cuenta la cifra.
+    const cifras = (tr: HTMLElement) => within(tr).getAllByRole('cell').slice(1).map(td => td.textContent!.replace(/ · .*$/, ''))
+    let ana = fila(sinReuniones, 'Ana Torres')
+    expect(cifras(ana)).toEqual(['4', 'S/37,500', 'S/9,375', '66.7%', '50%', 'S/12,500', '1', '0', '3'])
+    vista.unmount()
+    const { hoja } = await abrirProyeccion(cargador())
+    ana = fila(hoja, 'Ana Torres')
+    // 4 citas con lead + 2 reuniones = 6 · % Entrev. (2 + 1) ÷ (3 + 2) = 60 % · lo demás, igual.
+    expect(cifras(ana)).toEqual(['6', 'S/37,500', 'S/9,375', '60%', '50%', 'S/12,500', '1', '2', '3'])
+    expect(within(ana).getByRole('button', { name: '6 citas de Ana Torres' })).toBeVisible()
+    expect(within(filaTotal(hoja)).getByRole('button', { name: '3 citas con clientes de todos los analistas' })).toBeVisible()
+  })
+
+  it('el embudo de Clientes lista estas personas (la redactada con su texto) y la lista lateral las muestra sin ficha, con su CSV', async () => {
+    const blobs: Blob[] = []
+    const original = { crear: URL.createObjectURL, revocar: URL.revokeObjectURL }
+    URL.createObjectURL = vi.fn((blob: Blob) => { blobs.push(blob); return 'blob:proyeccion' })
+    URL.revokeObjectURL = vi.fn()
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    try {
+      const { usuario, hoja } = await abrirProyeccion(cargador())
+      await usuario.click(within(hoja).getByRole('button', { name: 'Filtrar Clientes' }))
+      const menu = screen.getByRole('dialog', { name: 'Filtrar Clientes' })
+      expect(within(menu).getAllByRole('checkbox').map(c => c.getAttribute('aria-label'))).toEqual(
+        ['Seleccionar todo', 'Cliente fuera de tu cartera · 1 cita', 'CLIENTE UNO · 1 cita', 'Persona d1 · 1 cita'])
+      await usuario.click(within(menu).getByRole('checkbox', { name: 'Persona d1 · 1 cita' }))
+      await usuario.click(within(menu).getByRole('checkbox', { name: 'Cliente fuera de tu cartera · 1 cita' }))
+      await usuario.click(within(menu).getByRole('button', { name: 'Aplicar' }))
+      expect(screen.getByRole('group', { name: 'Filtros de columna' })).toHaveTextContent('Clientes CLIENTE UNO')
+      expect(within(filaTotal(hoja)).getByRole('button', { name: '1 cita con cliente de todos los analistas' })).toBeVisible()
+      await usuario.click(screen.getByRole('button', { name: 'Quitar filtro de Clientes' }))
+      await usuario.click(within(fila(hoja, 'Ana Torres')).getByRole('button', { name: '2 citas con clientes de Ana Torres' }))
+      const lista = screen.getByRole('dialog', { name: 'Citas con clientes · Ana Torres' })
+      expect(within(lista).getAllByRole('row')).toHaveLength(3)
+      // Sin lead no hay ficha que abrir: la persona es texto, no botón.
+      expect(within(lista).queryByRole('button', { name: 'CLIENTE UNO' })).not.toBeInTheDocument()
+      expect(within(lista).getByRole('row', { name: /CLIENTE UNO/ })).toHaveTextContent('Realizada—Cliente')
+      expect(within(lista).getByRole('row', { name: /Cliente fuera de tu cartera/ })).toHaveTextContent('No asistió—Cliente')
+      await usuario.click(within(lista).getByRole('button', { name: 'Exportar CSV' }))
+      const texto = await blobs[0]!.text()
+      expect(texto.split('\r\n')[1]).toBe('"r1","2026-10-10","10:00","CLIENTE UNO","Ana Torres","Claudia Ríos","Realizada","","","","Cliente"')
+      await usuario.click(within(lista).getByRole('button', { name: 'Cerrar lista' }))
+      // Las citas con lead siguen abriendo su ficha.
+      await usuario.click(within(fila(hoja, 'Ana Torres')).getByRole('button', { name: '6 citas de Ana Torres' }))
+      expect(within(screen.getByRole('dialog', { name: 'Citas · Ana Torres' })).getByRole('button', { name: 'Persona a1' })).toBeVisible()
+      expect(within(screen.getByRole('dialog', { name: 'Citas · Ana Torres' })).queryByRole('button', { name: 'CLIENTE UNO' })).not.toBeInTheDocument()
+    } finally {
+      URL.createObjectURL = original.crear
+      URL.revokeObjectURL = original.revocar
+      click.mockRestore()
+    }
+  })
+
+  it('pide el rango a la pantalla y, mientras sus reuniones no lleguen o si fallan, no pinta cifras parciales', async () => {
+    const pedirRango = vi.fn()
+    const datos = { ...cargador({ rango: null }), onRangoProyeccion: pedirRango }
+    const usuario = userEvent.setup()
+    const vista = render(<ContextoCitas value={{ ...fuente, ...datos }}><TableroCitas /></ContextoCitas>)
+    await usuario.click(screen.getByRole('tab', { name: 'Proyección' }))
+    expect(pedirRango).toHaveBeenLastCalledWith(OCTUBRE_19)
+    // Las reuniones aún son de otro rango (o de ninguno): espera.
+    expect(screen.getByText('Cargando las citas del rango…')).toBeVisible()
+    expect(screen.queryByRole('table', { name: /Proyección de citas por analista/ })).not.toBeInTheDocument()
+    const rehacer = (cambios: Partial<NonNullable<DatosCitas['proyeccion']>>) =>
+      vista.rerender(<ContextoCitas value={{ ...fuente, ...datos, proyeccion: { ...datos.proyeccion, ...cambios } }}><TableroCitas /></ContextoCitas>)
+    rehacer({ rango: OCTUBRE_19, cargando: true })
+    expect(screen.getByText('Cargando las citas del rango…')).toBeVisible()
+    rehacer({ rango: OCTUBRE_19, error: 'El rango es demasiado grande. Acorta las fechas.' })
+    expect(screen.getByRole('alert')).toHaveTextContent(/^El rango es demasiado grande\. Acorta las fechas\.Reintentar$/)
+    expect(screen.queryByRole('table', { name: /Proyección de citas por analista/ })).not.toBeInTheDocument()
+    await usuario.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(datos.proyeccion.onReintentar).toHaveBeenCalledTimes(1)
+    rehacer({ rango: OCTUBRE_19 })
+    expect(within(fila(screen.getByRole('table', { name: /Proyección de citas por analista/ }), 'Ana Torres')).getByRole('button', { name: '6 citas de Ana Torres' })).toBeVisible()
+    await usuario.click(atajo('S3'))
+    expect(pedirRango).toHaveBeenLastCalledWith({ desde: '2026-10-15', hasta: '2026-10-21' })
+    expect(screen.getByText('Cargando las citas del rango…')).toBeVisible()
+    await usuario.click(screen.getByRole('tab', { name: 'Agenda' }))
+    expect(pedirRango).toHaveBeenLastCalledWith(null)
   })
 })

@@ -3,6 +3,7 @@ import { defaults, type CitaEjemplo, type FiltrosCitas } from './modelo'
 import {
   calcularProyeccion, csvCitasProyeccion, csvProyeccion, opcionesAnalistas, opcionesMonedas, opcionesPersonas,
   periodoProyeccion, repartirEnTramos, type ConversionProyeccion, type FiltrosColumnas, type FuenteProyeccion, type PersonaProyeccion,
+  type ReunionClienteProyeccion,
 } from './proyeccion'
 import {
   atajosRango, diasPermitidos, errorRango, mesesDelRango, rangoInicial, rotuloRango, tiempoEfectivo, tramosDelRango, type RangoProyeccion,
@@ -46,7 +47,7 @@ function mesLleno() {
   return { citas, conversiones, fuente }
 }
 const fila = (hoja: ReturnType<typeof calcularProyeccion>, id: string) => hoja.filas.find(f => f.id === id)
-const ids = (lista: { cita: CitaEjemplo }[]) => lista.map(c => c.cita.id).sort()
+const ids = (lista: readonly { cita: { id: string } }[]) => lista.map(c => c.cita.id).sort()
 const con = (fuente: FuenteProyeccion, filtros: Partial<FiltrosCitas>): FuenteProyeccion => ({ ...fuente, filtros: { ...fuente.filtros, ...filtros } })
 const en = (fuente: FuenteProyeccion, desde: string, hasta: string): FuenteProyeccion => ({ ...fuente, rango: { desde, hasta } })
 
@@ -444,5 +445,111 @@ describe('Proyección de citas: % Entrev. y % Conv. con las reglas de Resultados
     const sinAsistencia = calcularProyeccion({ citas: [sinHora], filtros: defaults('2026-10'), rango: OCTUBRE,
       corte: HOY, tipoCambio: TC, conversiones: [venta('lead-v1', '2026-10-06T14:00:00Z', '2026-10-06')] })
     expect(sinAsistencia.filas[0]).toMatchObject({ personasEntrevistadas: 1, personasClientes: 0, pctConversion: 0 })
+  })
+})
+
+// Fase 0b (decisión de Miguel, 19/10/2026): las reuniones con CLIENTES sin lead son
+// citas de origen Cliente. Cuentan en Citas, Clientes, columnas de tiempo y % Entrev.;
+// Monto, Ticket cita, % Conv. y Proyectado siguen siendo los de las citas con lead.
+describe('Proyección de citas: reuniones con clientes sin lead', () => {
+  function reunion(id: string, analista: keyof typeof EQUIPOS, cambios: Partial<ReunionClienteProyeccion>): ReunionClienteProyeccion {
+    const [analistaNombre, supervisorId, supervisor] = EQUIPOS[analista]
+    return { id, leadId: null, moneda: null, monto: null, persona: `persona:${id}`, nombre: `CLIENTE ${id.toUpperCase()}`, analista, analistaNombre,
+      supervisor, supervisorId, fecha: '2026-10-12', hora: '11:00', estado: 'programada', creadoEn: '2026-10-08T15:00:00Z', ...cambios }
+  }
+  /** Ana: 3 citas con lead (2 entrevistas, 1 no asistió, una venta) y 2 reuniones con clientes (1 entrevista, 1 no asistió). */
+  function ejemplo(reuniones = true) {
+    const citas = [
+      cita('a1', 'ana', { leadId: 'lead-1', estado: 'realizada', asistioEn: '2026-10-06T16:00:00Z', monto: 10_000, creadoEn: '2026-10-02T15:00:00Z' }),
+      cita('a2', 'ana', { leadId: 'lead-2', estado: 'realizada', asistioEn: '2026-10-07T16:00:00Z', monto: 20_000, creadoEn: '2026-10-03T15:00:00Z' }),
+      cita('a3', 'ana', { leadId: 'lead-3', estado: 'no_show', monto: 30_000, creadoEn: '2026-10-04T15:00:00Z' }),
+    ]
+    const reunionesClientes = reuniones ? [
+      reunion('r1', 'ana', { estado: 'realizada', asistioEn: '2026-10-09T16:00:00Z', creadoEn: '2026-10-08T15:00:00Z' }),
+      reunion('r2', 'ana', { estado: 'no_show', persona: 'oculta:r2', nombre: 'Cliente fuera de tu cartera', creadoEn: '2026-10-11T15:00:00Z' }),
+    ] : []
+    const conversiones: ConversionProyeccion[] = [{ lead_id: 'lead-1', perfil_id: 'perfil-1', convertido_en: '2026-10-08T15:00:00Z', fecha_comercial: '2026-10-08', analista_id: 'ana', supervisor_id: 'sup-1' }]
+    return { citas, reunionesClientes, filtros: { equipo: '' }, rango: OCTUBRE, corte: HOY, tipoCambio: TC, conversiones } satisfies FuenteProyeccion
+  }
+
+  it('ejemplo: 3 citas con lead + 2 reuniones con clientes → 5 citas y 60 % Entrev.; Monto, Ticket, % Conv. y Proyectado de las 3 con lead', () => {
+    const ana = fila(calcularProyeccion(ejemplo()), 'ana')!
+    expect(ids(ana.citas)).toEqual(['a1', 'a2', 'a3', 'r1', 'r2'])
+    expect(ids(ana.citasConLead)).toEqual(['a1', 'a2', 'a3'])
+    expect([ana.referidos.length, ana.clientes.length, ana.leads.length]).toEqual([0, 2, 3])
+    // Monto 60 000 entre las 3 citas con lead (no entre 5): Ticket cita 20 000.
+    expect(ana).toMatchObject({ montoPen: 60_000, monto: 60_000, ticket: 20_000, personasEntrevistadas: 2, personasClientes: 1, pctConversion: 50 })
+    expect(ids(ana.conMonto)).toEqual(['a1', 'a2', 'a3'])
+    // % Entrev. de la hoja: (2 + 1) entrevistas ÷ (3 + 2) resueltas. El que proyecta: 2 ÷ 3.
+    expect(ids(ana.entrevistas)).toEqual(['a1', 'a2', 'r1'])
+    expect(ids(ana.resueltas)).toEqual(['a1', 'a2', 'a3', 'r1', 'r2'])
+    expect(ana.pctEntrevistas).toBeCloseTo(60, 10)
+    expect(ana.pctEntrevistasConLead).toBeCloseTo(200 / 3, 10)
+    expect(ids(ana.convertidas)).toEqual(['a1'])
+    // Ritmo de las 3 con lead: 3 en 19 de 31 días → 93/19 × 2/3 × 50 % × S/ 20 000 = S/ 32 631,58.
+    expect(ana.citasEsperadas).toBeCloseTo(93 / 19, 10)
+    expect(ana.proyectado).toBeCloseTo(93 / 19 * (2 / 3) * 0.5 * 20_000, 6)
+    expect(Math.round(ana.proyectado! * 100) / 100).toBe(32_631.58)
+    // Sin las reuniones, lo único que cambia es Citas, Clientes y % Entrev.
+    const sin = fila(calcularProyeccion(ejemplo(false)), 'ana')!
+    expect(sin).toMatchObject({ monto: ana.monto, ticket: ana.ticket, pctConversion: ana.pctConversion, proyectado: ana.proyectado, citasEsperadas: ana.citasEsperadas })
+    expect([sin.citas.length, sin.clientes.length, sin.pctEntrevistas]).toEqual([3, 0, ana.pctEntrevistasConLead])
+  })
+
+  it('un analista con solo reuniones con clientes tiene fila, sin monto, ticket, conversión ni proyectado; el total no cambia su proyectado', () => {
+    const fuente: FuenteProyeccion = { ...mesLleno().fuente, reunionesClientes: [reunion('m2', 'mateo', { estado: 'realizada', asistioEn: '2026-10-09T16:00:00Z' })] }
+    const con = calcularProyeccion(fuente)
+    const mateo = fila(con, 'mateo')!
+    expect(mateo).toMatchObject({ ticket: null, pctEntrevistas: 100, pctEntrevistasConLead: null, pctConversion: null, citasEsperadas: null, proyectado: null })
+    expect([mateo.citas.length, mateo.clientes.length, mateo.conMonto.length, mateo.citasConLead.length]).toEqual([1, 1, 0, 0])
+    const sin = calcularProyeccion(mesLleno().fuente)
+    expect(con.total).toMatchObject({ proyectado: sin.total.proyectado, monto: sin.total.monto, ticket: sin.total.ticket, pctConversion: sin.total.pctConversion })
+    expect(con.total.citas.length).toBe(sin.total.citas.length + 1)
+  })
+
+  it('el Supervisor, el embudo de Analista y el de Clientes las recortan como a las demás; un filtro de moneda las deja fuera', () => {
+    const fuente: FuenteProyeccion = { ...mesLleno().fuente, reunionesClientes: [
+      reunion('r1', 'ana', {}), reunion('r2', 'ana', { persona: 'persona:r1' }), reunion('r3', 'diego', { persona: 'oculta:r3', nombre: 'Cliente fuera de tu cartera' }),
+      reunion('r4', 'luis', { creadoEn: '2026-09-30T15:00:00Z' }), // creada fuera del rango: no entra
+    ] }
+    const hoja = calcularProyeccion(fuente)
+    expect(ids(hoja.cohorte.filter(c => c.cita.leadId === null))).toEqual(['r1', 'r2', 'r3'])
+    expect(ids(fila(calcularProyeccion(con(fuente, { equipo: 'sup-2' })), 'diego')!.clientes)).toEqual(['d1', 'r3'])
+    expect(calcularProyeccion(con(fuente, { equipo: 'sup-2' })).cohorte.some(c => c.cita.id === 'r1')).toBe(false)
+    expect(opcionesAnalistas(hoja, {}).map(o => [o.id, o.citas])).toEqual([['ana', 6], ['diego', 3], ['luis', 1]])
+    // Embudo de Clientes: por persona (las dos reuniones de r1 juntas); la redactada con el texto del servidor.
+    expect(opcionesPersonas(hoja, {}, 'cliente').map(o => [o.id, o.nombre, o.citas])).toEqual([
+      ['oculta:r3', 'Cliente fuera de tu cartera', 1], ['persona:r1', 'CLIENTE R1', 2], ['lead:lead-5', 'Persona d1', 1],
+    ])
+    const soloR1 = calcularProyeccion(fuente, { personas: { cliente: ['persona:r1'] } })
+    expect(ids(soloR1.total.clientes)).toEqual(['r1', 'r2'])
+    expect(soloR1.total.leads.length).toBe(hoja.total.leads.length)
+    // Sin moneda: un filtro de moneda las deja fuera, y no cuentan en las monedas del embudo.
+    expect(calcularProyeccion(fuente, { monedas: ['PEN'] }).cohorte.some(c => c.cita.leadId === null)).toBe(true)
+    expect(calcularProyeccion(fuente, { monedas: ['PEN'] }).total.citas.some(c => c.cita.leadId === null)).toBe(false)
+    expect(opcionesMonedas(hoja, {})).toEqual(opcionesMonedas(calcularProyeccion(mesLleno().fuente), {}))
+  })
+
+  it('una clave de persona igual a la de un lead no las empareja: la venta del lead no cierra la reunión', () => {
+    const base = ejemplo(false)
+    const poblacion: PersonaProyeccion[] = [{ lead_id: 'lead-1', identidad_persona: 'persona:p1' }]
+    const misma = reunion('r1', 'ana', { persona: 'persona:p1', estado: 'realizada', asistioEn: '2026-10-07T16:00:00Z' })
+    const con = fila(calcularProyeccion({ ...base, poblacion, reunionesClientes: [misma] }), 'ana')!
+    const sin = fila(calcularProyeccion({ ...base, poblacion }), 'ana')!
+    expect(ids(con.convertidas)).toEqual(['a1'])
+    expect([con.personasEntrevistadas, con.personasClientes, con.pctConversion, con.proyectado]).toEqual([sin.personasEntrevistadas, sin.personasClientes, sin.pctConversion, sin.proyectado])
+  })
+
+  it('columnas de tiempo por su día de creación; la lista y su CSV llevan la fila sin monto ni moneda y con origen Cliente', () => {
+    const hoja = calcularProyeccion({ ...ejemplo(), tiempo: 'semanas' })
+    const ana = fila(hoja, 'ana')!
+    // S1 1–7: a1 a2 a3 · S2 8–14: r1 r2 · S3 · S4.
+    expect(ana.porTramo.map(ids)).toEqual([['a1', 'a2', 'a3'], ['r1', 'r2'], [], []])
+    const csv = csvCitasProyeccion(ana.clientes).split('\r\n')
+    expect(csv[1]).toBe('"r1","2026-10-12","11:00","CLIENTE R1","Ana Torres","Claudia Ríos","Realizada","","","","Cliente"')
+    expect(csv[2]).toBe('"r2","2026-10-12","11:00","Cliente fuera de tu cartera","Ana Torres","Claudia Ríos","No asistió","","","","Cliente"')
+    const hojaCsv = csvProyeccion(calcularProyeccion(ejemplo()), 'Octubre').split('\r\n')
+    // Citas 5 · Monto 60 000 · Ticket 20 000 · % Entrev. 60 · % Conv. 50 · Proyectado · Referidos 0 · Clientes 2 · Leads 3.
+    expect(hojaCsv[1]).toBe('"Octubre","Claudia Ríos","Ana Torres","5","60000","20000","60","50","32631.58","0","2","3"')
   })
 })
