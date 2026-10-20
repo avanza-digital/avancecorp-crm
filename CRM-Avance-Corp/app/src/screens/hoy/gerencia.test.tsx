@@ -307,7 +307,7 @@ vi.mock('@/data/crm-queries', () => ({
   useAltasNuevasPorAnalista: () => ({ data: [], isPending: false, isError: false, refetch: () => {} }),
   useObservacionRentabilidad: () => ({ data: undefined, isPending: false, isError: false, refetch: () => {} }),
   useActualizarCapacidadLeadsObjetivo: () => ({ mutateAsync: async () => {} }),
-  // Sin cierres en coops: el bloque «Por empresa» se oculta y no toca la suite.
+  // El resumen ya no debe consultar el desglose «Por empresa».
   useCierresExternos: (...argumentos: [boolean, string]) => {
     CONSULTAS.cierresExternos(...argumentos)
     return {
@@ -496,13 +496,13 @@ describe('Hoy · gerencia — ranking por mes calendario', () => {
     expect(screen.getByLabelText('Período del panel de capacidad')).toHaveTextContent('2026-08-01|2026-08-31')
   })
 
-  it('Por empresa de Resumen usa el mes final del rango, igual que cumplimiento', () => {
+  it('Resumen conserva el mes de cumplimiento sin consultar el desglose por empresa', () => {
     montar({}, 'resumen', SETIEMBRE_2)
     fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-08-15' } })
     fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-08-20' } })
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
     expect(CONSULTAS.cumplimiento).toHaveBeenLastCalledWith(true, '2026-08-01', 'g-1')
-    expect(CONSULTAS.cierresExternos).toHaveBeenLastCalledWith(true, '2026-08-01')
+    expect(CONSULTAS.cierresExternos).not.toHaveBeenCalled()
     expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-08-15', '2026-08-20', null)
   })
 

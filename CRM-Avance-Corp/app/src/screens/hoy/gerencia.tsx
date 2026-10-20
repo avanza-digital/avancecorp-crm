@@ -25,7 +25,6 @@ import {
   metaVigente,
   capitalReal,
   objetivosCero,
-  produccionPorPersona,
 } from '@/lib/objetivos'
 import { metricasDistribucionDemo } from '@/lib/demo-metricas-distribucion'
 import {
@@ -65,7 +64,6 @@ import { AltasNuevasAnalistaPanel } from './altas-nuevas-analista'
 import { ReunionesGerenciaPanel } from './reuniones-gerencia'
 import { AvisoCierreMesPanel } from './aviso-cierre-mes'
 import { ResumenGerenciaPanel } from './resumen-gerencia'
-import { DesglosePorEmpresa } from '@/components/app/cierres-externos-seccion'
 import { CompromisosSupervisoresPanel } from './compromisos-supervisores'
 import { ObservacionRentabilidadPanel } from './observacion-rentabilidad'
 import { SolicitudesTasaGerenciaPanel } from './solicitudes-tasa-gerencia'
@@ -559,7 +557,6 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // La identidad/población se decide aparte en el panel: roster vivo hoy y foto
   // congelada únicamente para históricos.
   const metasVendedoresRanking = cumplimientoRanking?.porVendedor ?? {}
-  const produccionDelMes = useMemo(() => produccionPorPersona(cumplimientoRanking), [cumplimientoRanking])
   const metaMensualRanking = useMemo(() => {
     const semantica = semanticaMetaMensual(periodoRanking, ahoraPeriodo, periodoRanking)
     const errorCarga = !conversionesDeEjemplo
@@ -679,12 +676,6 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           Hoy: es una decisión, no una alarma que tenga que seguir a cada pestaña. */}
 
       {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={cumplimientoRankingCargando ? undefined : conversionMensualPaneles} origenFiltrado={origenActivo} fuenteConversion={fuenteActiva} lecturaFuente={lecturaFuentePaneles} reuniones={datosReuniones} equipo={datosEquipoConversionRango} equipoMensual={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensualRanking} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || conversionMensualCargando || cumplimientoRankingCargando || estaCargando(sesionReal, reuniones)} rangoCargando={!conversionesDeEjemplo && fuenteCargando} mensualCargando={!conversionesDeEjemplo && (conversionMensualCargando || cumplimientoRankingCargando)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); void qCumplimientoRanking.refetch(); reintentarReuniones(); tipoCambio.recargar() }} />}
-
-      {/* Por empresa: de dónde vino cada sol (Avance vs. COOPAC), por analista.
-          Se oculta solo si el mes no tiene cierres en cooperativas. */}
-      {esResumen && (
-        <DesglosePorEmpresa demo={modoDemo} periodo={periodoRanking.desde} porVendedor={errorFotoMensualRanking ? null : produccionDelMes} />
-      )}
 
       {/* F4.4: la trazabilidad de los reconocimientos — qué alertas atenuaron
           o pospusieron los supervisores y hasta cuándo rigen. Lectura pura. */}
