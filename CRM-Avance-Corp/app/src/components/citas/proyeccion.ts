@@ -432,10 +432,11 @@ export function csvProyeccion(hoja: HojaProyeccion, rotulo: string): string {
   ])
 }
 
+/** Cada cita con lo que la ubica en la hoja: el día (de Lima) en que se creó decide su periodo y su columna de tiempo. */
 export function csvCitasProyeccion(lista: readonly CitaProyectada[]): string {
   return archivoCsv([
-    ['Código de cita', 'Fecha', 'Hora', 'Persona', 'Analista', 'Supervisor', 'Estado', 'Moneda', 'Monto', 'Monto S/', 'Origen'],
-    ...lista.map(({ cita, enSoles, origen }) => [cita.id, cita.fecha, cita.hora, cita.nombre, cita.analistaNombre, cita.supervisor,
+    ['Código de cita', 'Creada', 'Fecha', 'Hora', 'Persona', 'Analista', 'Supervisor', 'Estado', 'Moneda', 'Monto', 'Monto S/', 'Origen'],
+    ...lista.map(({ cita, creada, enSoles, origen }) => [cita.id, creada, cita.fecha, cita.hora, cita.nombre, cita.analistaNombre, cita.supervisor,
       ESTADOS[cita.estado].label, cita.moneda, cita.monto ?? '', redondeo(enSoles), ROTULO_ORIGEN[origen]]),
   ])
 }

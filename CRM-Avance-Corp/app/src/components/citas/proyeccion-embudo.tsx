@@ -52,8 +52,18 @@ export function EmbudoColumna({ titulo, tipo, ancla, orden, opciones, seleccion,
 
   useLayoutEffect(() => {
     const r = ancla.getBoundingClientRect()
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - 288))
+    // Si no cabe debajo y arriba hay más sitio («Filtros» de las tarjetas, al pie de la pantalla), se abre hacia arriba.
+    const alto = caja.current?.scrollHeight ?? 0
+    const debajo = window.innerHeight - r.bottom - 12
+    const encima = r.top - 12
+    if (alto > debajo && encima > debajo) {
+      const top = Math.max(8, r.top - 4 - alto)
+      setPosicion({ left, top, maxHeight: r.top - 4 - top })
+      return
+    }
     const top = Math.min(r.bottom + 4, Math.max(8, window.innerHeight - 220))
-    setPosicion({ left: Math.max(8, Math.min(r.left, window.innerWidth - 288)), top, maxHeight: window.innerHeight - top - 8 })
+    setPosicion({ left, top, maxHeight: window.innerHeight - top - 8 })
   }, [ancla])
   useEffect(() => {
     const menu = caja.current
