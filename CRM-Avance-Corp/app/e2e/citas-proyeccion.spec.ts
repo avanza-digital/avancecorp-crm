@@ -122,13 +122,16 @@ test('Proyección: la hoja pinta una fila por analista, un número abre su lista
   await page.keyboard.press('Escape')
   await expect(lista).toHaveCount(0)
 
-  await hoja.getByRole('button', { name: /^% Conv\. de ANALISTA UNO: 50%/ }).click()
+  const conversion = hoja.getByRole('button', { name: /^% Conv\. de ANALISTA UNO: 50%/ })
+  await conversion.click()
   const vinculadas = page.getByRole('dialog', { name: 'Entrevistas que cerraron cliente · ANALISTA UNO' })
   await expect(vinculadas.locator('tbody tr')).toHaveCount(1)
   await page.keyboard.press('Escape')
-  // La hoja lateral devuelve el foco al cerrarse: esperar a que desaparezca antes
-  // de abrir un embudo, o ese foco tardío lo cerraría (era intermitente).
+  // La hoja lateral devuelve el foco al cerrarse (en el cuadro siguiente): esperar a
+  // que desaparezca Y a que el foco vuelva a su cifra antes de abrir un embudo, o ese
+  // foco tardío lo cerraría o lo reiniciaría (intermitente, 1 de cada 4–5 corridas).
   await expect(vinculadas).toHaveCount(0)
+  await expect(conversion).toBeFocused()
 
   const embudo = hoja.getByRole('button', { name: 'Filtrar Analista' })
   await embudo.click()
