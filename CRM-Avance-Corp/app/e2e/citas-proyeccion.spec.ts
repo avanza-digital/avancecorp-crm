@@ -368,7 +368,7 @@ test('Proyección: el mes sin citas muestra la hoja vacía sin errores y en el c
   expect(await desbordePagina(page)).toBeLessThanOrEqual(0)
 })
 
-test('Proyección: las reuniones con clientes sin lead cuentan en Citas, Clientes y % Entrev., no en Monto, Ticket ni Proyectado', async ({ page }, info) => {
+test('Proyección: las reuniones con clientes sin lead cuentan en Citas y Clientes, no en Monto, Ticket, % Entrev. ni Proyectado', async ({ page }, info) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   const hoja = await abrirProyeccion(page)
   const tres = hoja.getByRole('row', { name: /ANALISTA TRES/ })
@@ -378,8 +378,9 @@ test('Proyección: las reuniones con clientes sin lead cuentan en Citas, Cliente
   // Monto y Ticket cita: solo las 2 citas con lead (S/ 80,000 ÷ 2).
   await expect(tres.getByRole('button', { name: 'S/ 80,000 en citas de ANALISTA TRES' })).toBeVisible()
   await expect(tres.locator('td').nth(3)).toHaveText('S/40,000')
-  // % Entrev.: (1 + 1) entrevistas ÷ (1 + 2) resueltas. % Conv. y Proyectado, de las citas con lead: 2 × 100 % × 100 % × S/ 40,000.
-  await expect(tres.getByRole('button', { name: /^% Entrev\. de ANALISTA TRES: 66\.7%/ })).toBeVisible()
+  // % Entrev., el de Resultados: 1 entrevista ÷ 1 cita con lead resuelta (las reuniones no cuentan, 20/10/2026).
+  // % Conv. y Proyectado, de las citas con lead: 2 × 100 % × 100 % × S/ 40,000.
+  await expect(tres.getByRole('button', { name: /^% Entrev\. de ANALISTA TRES: 100%/ })).toBeVisible()
   await expect(tres.getByRole('button', { name: /^% Conv\. de ANALISTA TRES: 100%/ })).toBeVisible()
   await expect(tres.locator('td.pc-proyectado')).toHaveText('S/80,000')
   await page.screenshot({ path: info.outputPath('proyeccion-clientes-1440.png'), fullPage: true })

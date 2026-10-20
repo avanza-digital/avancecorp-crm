@@ -109,8 +109,10 @@ export function ProyeccionCitas({ equipo, rango, tiempo, onRango, onTiempo, onEq
   const { tc, recargar } = useTipoCambio(citas.some(c => c.moneda === 'USD' && (c.monto ?? 0) > 0), hasta < hoy ? hasta : hoy)
   const hoja = useMemo(() => calcularProyeccion({
     citas, reunionesClientes, filtros: { equipo }, rango: { desde, hasta }, tiempo, corte, tipoCambio: tc?.promedio,
-    conversiones: avance?.conversiones ?? null, poblacion: avance?.poblacion, analistaResultado: avance?.control.configuracion.analista_resultado,
-  }, columnas, orden), [citas, reunionesClientes, equipo, desde, hasta, tiempo, corte, tc?.promedio, avance, columnas, orden])
+    // Lo mismo que usa Resultados para sus tasas: % Entrev. y % Conv. salen de su código.
+    conversiones: avance?.conversiones ?? null, poblacion: avance?.poblacion, control: avance?.control,
+    asignaciones: gestion?.asignaciones, capital: avance?.capital,
+  }, columnas, orden), [citas, reunionesClientes, equipo, desde, hasta, tiempo, corte, tc?.promedio, avance, gestion?.asignaciones, columnas, orden])
   const vistaTiempo = tiempoEfectivo(tiempo, rango)
   const objetivos: ObjetivosProyeccion = {
     entrevistas: avance?.control.configuracion.entrevistas_porcentaje ?? gestion?.entrevistasPorcentaje ?? METAS_CITAS_INICIALES.entrevistas_porcentaje,

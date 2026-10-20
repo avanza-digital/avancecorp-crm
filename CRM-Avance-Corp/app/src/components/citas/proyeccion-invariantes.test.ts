@@ -3,14 +3,14 @@
 // sean cuales sean los datos, y que la Proyección y Resultados
 // (`calcularAvanceCitas`) cuenten lo mismo cuando dicen lo mismo.
 import { describe, expect, it } from 'vitest'
-import { controlCitasInicial } from '@/lib/control-citas'
+import { controlCitasInicial, type ControlCitas } from '@/lib/control-citas'
 import { fusionarConsultasCitas, type ConsultaCitasRpc } from '@/data/citas-gerencia'
 import { calcularAvanceCitas } from './avance'
 import { fechaLocalCitas } from './fecha-comercial'
-import type { GestionCitas } from './metas'
+import type { GestionCitas, LeadBaseCitas } from './metas'
 import { defaults, type CitaEjemplo } from './modelo'
 import {
-  calcularProyeccion, type FiltrosColumnas, type FuenteProyeccion, type HojaProyeccion, type MetricasProyeccion, type ReunionClienteProyeccion,
+  calcularProyeccion, opcionesAnalistas, type FiltrosColumnas, type FuenteProyeccion, type HojaProyeccion, type MetricasProyeccion, type ReunionClienteProyeccion,
 } from './proyeccion'
 import { sumarDias, type RangoProyeccion, type TiempoProyeccion } from './proyeccion-rango'
 
@@ -80,8 +80,19 @@ const ventasDeSeptiembre = (citas: readonly CitaEjemplo[], vendedor: (c: CitaEje
     [tope(sumarDias(c.fecha, 2)), c.fecha, sumarDias(c.fecha, -1), null][i % 4]!))
 }
 
-const fuente = (rango: RangoProyeccion, cambios: Partial<FuenteProyeccion> = {}): FuenteProyeccion =>
-  ({ ...lote(), filtros: { equipo: '' }, rango, corte: HOY, tipoCambio: TC, ...cambios })
+/** Reglas de gestión de producción (14/09/2026): las del lector del avance, que la pantalla pasa a la hoja. */
+const CONTROL = { version: 1, mes_inicio: '2026-09', configuracion: { ...controlCitasInicial(), mes_inicio: '2026-09' } }
+const personaDe = (lead_id: string, cambios: Partial<Persona> = {}): Persona => ({
+  lead_id, nombre: lead_id, telefono: '900000000', origen: 'formulario', moneda: 'PEN', monto_estimado: 1000, registro_manual: false, creado_por: null,
+  analista_origen_id: null, analista_origen_nombre: 'Sin analista', supervisor_origen_id: null, supervisor_origen_nombre: 'Sin supervisor',
+  primera_asignacion_en: null, ...cambios,
+})
+/** La población del avance: una persona por cada lead de las citas. */
+const poblacionDe = (citas: readonly CitaEjemplo[]) => [...new Set(citas.map(c => c.leadId))].map(lead => personaDe(lead))
+const fuente = (rango: RangoProyeccion, cambios: Partial<FuenteProyeccion> = {}): FuenteProyeccion => {
+  const { citas, conversiones } = lote()
+  return { citas, conversiones, poblacion: poblacionDe(citas), control: CONTROL, filtros: { equipo: '' }, rango, corte: HOY, tipoCambio: TC, ...cambios }
+}
 const filasYTotal = (h: HojaProyeccion): MetricasProyeccion[] => [...h.filas, h.total]
 const ids = (lista: readonly { cita: { id: string } }[]) => lista.map(c => c.cita.id).sort()
 const RANGOS: RangoProyeccion[] = [
@@ -189,9 +200,9 @@ describe('Proyección ↔ Resultados (avance mensual)', () => {
       },
     }
     const resultados = calcularAvanceCitas(gestion, citas, defaults('2026-09'), HOY, TC)
-    // Igual que la pantalla: las conversiones y la población del lector del avance.
+    // Igual que la pantalla: conversiones, población y reglas del lector del avance.
     const proyeccion = calcularProyeccion({ citas, filtros: { equipo: '' }, rango: SEPTIEMBRE, corte: HOY, tipoCambio: TC,
-      conversiones: gestion.avance!.conversiones, poblacion: gestion.avance!.poblacion })
+      conversiones: gestion.avance!.conversiones, poblacion: gestion.avance!.poblacion, control: gestion.avance!.control })
     return { citas, conversiones, resultados, proyeccion }
   }
 
@@ -227,12 +238,12 @@ describe('Proyección ↔ Resultados (avance mensual)', () => {
     }
   })
 
-  it('diferencia a propósito: una venta del mes siguiente cuenta en la Proyección (sigue su cohorte hasta el corte) y no en Resultados del mes', () => {
+  it('una venta del mes siguiente no cuenta en ninguna de las dos (hasta el 20/10 la Proyección la contaba)', () => {
     const base = escenario()
     const sinVenta = base.proyeccion.total.entrevistas.find(e => !base.proyeccion.total.convertidas.includes(e))!
     const tardia = venta(sinVenta.cita as CitaEjemplo, '2026-10-05T15:00:00Z', '2026-10-05')
     const { resultados, proyeccion } = escenario([tardia])
-    expect(proyeccion.total.personasClientes).toBe(base.proyeccion.total.personasClientes + 1)
+    expect(proyeccion.total.personasClientes).toBe(base.proyeccion.total.personasClientes)
     expect(resultados.total.clientes).toBe(base.resultados.total.clientes)
   })
 })
@@ -273,7 +284,7 @@ describe('Atribución de la venta: la fila y el total, como Resultados', () => {
     const resultados = calcularAvanceCitas(gestion, caso.citas, { ...defaults('2026-09'), equipo, analista }, HOY, TC)
     // Igual que la pantalla: conversiones, población y regla del lector del avance.
     const proyeccion = calcularProyeccion({ citas: caso.citas, filtros: { equipo }, rango: SEPTIEMBRE, corte: HOY, tipoCambio: TC,
-      conversiones: caso.conversiones, poblacion: caso.poblacion, analistaResultado: regla }, analista ? { analistas: [analista] } : {})
+      conversiones: caso.conversiones, poblacion: caso.poblacion, control: gestion.avance!.control }, analista ? { analistas: [analista] } : {})
     const consulta = `${regla} · equipo «${equipo}» · analista «${analista}»`
     expect(proyeccion.filas.map(f => f.id).sort(), consulta).toEqual(resultados.filas.map(f => f.id).sort())
     for (const f of proyeccion.filas) {
@@ -370,8 +381,8 @@ describe('Fusión de meses del rango', () => {
 })
 
 // Reuniones con CLIENTES sin lead (Fase 0b, decisión de Miguel 19/10/2026): citas de
-// origen Cliente que suman a Citas, Clientes, columnas de tiempo y % Entrev., y que
-// NO tocan ninguna métrica de prospectos (Monto, Ticket cita, % Conv., Proyectado).
+// origen Cliente que suman a Citas, Clientes y columnas de tiempo, y que NO tocan
+// ninguna métrica de prospectos (Monto, Ticket cita, % Entrev. desde el 20/10, % Conv., Proyectado).
 describe('Invariantes con reuniones con clientes sin lead', () => {
   const RESPONSABLES = [...ANALISTAS, ['sofia', 'sup-1']] as const
   /** 45 días de reuniones: todos los estados, una analista que solo tiene reuniones, personas repetidas,
@@ -400,7 +411,7 @@ describe('Invariantes con reuniones con clientes sin lead', () => {
   const prospectos = (m: MetricasProyeccion) => ({
     montoPen: m.montoPen, montoUsd: m.montoUsd, monto: m.monto, ticket: m.ticket, pendienteTc: m.pendienteTc,
     conMonto: ids(m.conMonto), citasConLead: ids(m.citasConLead), referidos: ids(m.referidos), leads: ids(m.leads),
-    entrevistasConLead: ids(m.entrevistas.filter(c => c.cita.leadId !== null)), pctEntrevistasConLead: m.pctEntrevistasConLead,
+    entrevistas: ids(m.entrevistas), resueltas: ids(m.resueltas), pctEntrevistas: m.pctEntrevistas,
     convertidas: ids(m.convertidas), personasEntrevistadas: m.personasEntrevistadas, personasClientes: m.personasClientes,
     pctConversion: m.pctConversion, citasEsperadas: m.citasEsperadas, proyectado: m.proyectado,
   })
@@ -411,10 +422,11 @@ describe('Invariantes con reuniones con clientes sin lead', () => {
     { filtros: { equipo: '' }, columnas: {}, tipoCambio: null },
   ]
 
-  it('el lote ejercita lo que importa: reuniones en la cohorte, una tasa de entrevistas distinta y una fila solo de reuniones', () => {
+  it('el lote ejercita lo que importa: reuniones realizadas y no asistidas en la cohorte, fuera de % Entrev., y una fila solo de reuniones', () => {
     const hoja = calcularProyeccion(conReuniones(OCTUBRE))
     expect(enCohorte(OCTUBRE).length).toBeGreaterThan(20)
-    expect(hoja.filas.some(f => f.pctEntrevistas !== null && f.pctEntrevistasConLead !== null && Math.abs(f.pctEntrevistas - f.pctEntrevistasConLead) > 1)).toBe(true)
+    expect(['realizada', 'no_show'].every(estado => hoja.total.clientes.some(c => c.cita.leadId === null && c.cita.estado === estado))).toBe(true)
+    expect(hoja.total.resueltas.every(c => c.cita.leadId !== null)).toBe(true)
     expect(hoja.filas.find(f => f.id === 'sofia')).toMatchObject({ citasConLead: [], ticket: null, pctConversion: null, proyectado: null })
     expect(hoja.total.convertidas.length).toBeGreaterThan(0)
   })
@@ -475,21 +487,208 @@ describe('Invariantes con reuniones con clientes sin lead', () => {
     }
   })
 
-  it.each(RANGOS)('aritmética con reuniones: % Entrev. de todas; Ticket cita × citas con lead = Monto; Proyectado con lo de las citas con lead ($desde → $hasta)', rango => {
+  it.each(RANGOS)('aritmética con reuniones: % Entrev., Ticket cita × citas con lead = Monto y Proyectado, solo con las citas con lead ($desde → $hasta)', rango => {
     const hoja = calcularProyeccion(conReuniones(rango))
     for (const m of filasYTotal(hoja)) {
       if (!m.citas.length) continue
       expect(m.pctEntrevistas).toEqual(m.resueltas.length ? expect.closeTo(m.entrevistas.length / m.resueltas.length * 100, 9) : null)
-      expect(m.entrevistas.filter(c => c.cita.leadId === null)).toEqual(m.clientes.filter(c => c.cita.leadId === null && c.cita.estado === 'realizada'))
+      expect(m.resueltas.every(c => c.cita.leadId !== null)).toBe(true)
       if (m.ticket !== null) expect(m.ticket * m.citasConLead.length).toBeCloseTo(m.monto!, 6)
       expect(m.convertidas.every(c => c.cita.leadId !== null)).toBe(true)
     }
     for (const f of hoja.filas) {
       if (f.proyectado === null) continue
-      expect(f.proyectado).toBeCloseTo(f.citasEsperadas! * (f.pctEntrevistasConLead! / 100) * (f.pctConversion! / 100) * f.ticket!, 6)
+      expect(f.proyectado).toBeCloseTo(f.citasEsperadas! * (f.pctEntrevistas! / 100) * (f.pctConversion! / 100) * f.ticket!, 6)
     }
     const suma = (f: (m: MetricasProyeccion) => number) => hoja.filas.reduce((s, m) => s + f(m), 0)
     expect([suma(m => m.citas.length), suma(m => m.resueltas.length), suma(m => m.entrevistas.length)])
       .toEqual([hoja.total.citas.length, hoja.total.resueltas.length, hoja.total.entrevistas.length])
+  })
+})
+
+// Caso de Alan (Miguel, 20/10/2026): Resultados de octubre le daba 15,0 % de entrevistas
+// y la Proyección del 1 al 20 de octubre, 11,3 %: la Proyección medía las citas CREADAS en
+// el rango y 27 de sus resultados de octubre eran de citas creadas en septiembre. Las
+// pruebas de arriba no lo veían porque sus citas se crean y se resuelven el mismo día.
+// Desde entonces las dos tasas salen del mismo código (`resultados-periodo.ts`): con el
+// rango de un mes, la misma cifra por analista y en el total, con cualquier regla de
+// gestión y con o sin filtros.
+describe('Proyección ↔ Resultados con citas creadas en un mes y resueltas en otro', () => {
+  const EQUIPO: Record<string, string> = Object.fromEntries(ANALISTAS)
+  /**
+   * El lote con la asistencia el día previsto (hasta 40 días después de crearse: muchas cruzan de mes) y lo que
+   * activa cada regla: leads de otro analista de origen, manuales propios y asignados en meses distintos.
+   */
+  function datos() {
+    const crudo = lote()
+    const citas = crudo.citas.map(c => c.asistioEn ? { ...c, asistioEn: `${c.fecha}T16:00:00Z` } : c)
+    const asistencia = new Map(citas.filter(c => c.asistioEn).map(c => [c.leadId, c.asistioEn!]))
+    // Ventas tras la nueva asistencia: el mismo día, después o antes (no vincula), como las del lote.
+    const conversiones = crudo.conversiones.map((v, i) => {
+      const dia = fechaLocalCitas(asistencia.get(v.lead_id)!)
+      return { ...v, convertido_en: `${sumarDias(dia, 2)}T15:00:00Z`, fecha_comercial: v.fecha_comercial && [sumarDias(dia, 2), dia, sumarDias(dia, -1)][i % 3]! }
+    })
+    const primera = new Map<string, CitaEjemplo>()
+    for (const c of citas) if (!primera.has(c.leadId)) primera.set(c.leadId, c)
+    const poblacion = [...primera.values()].map((c, i) => {
+      const [origen] = ANALISTAS[(ANALISTAS.findIndex(([a]) => a === c.analista) + (i % 5 === 0 ? 1 : 0)) % ANALISTAS.length]!
+      return personaDe(c.leadId, { analista_origen_id: origen, analista_origen_nombre: origen, supervisor_origen_id: EQUIPO[origen]!,
+        supervisor_origen_nombre: EQUIPO[origen]!, registro_manual: i % 7 === 0, creado_por: i % 7 === 0 ? c.analista : null, primera_asignacion_en: c.creadoEn! })
+    })
+    const asignaciones: LeadBaseCitas[] = poblacion.map(p => ({ id: p.analista_origen_id!, nombre: p.analista_origen_nombre, supervisor: p.supervisor_origen_nombre,
+      supervisorId: p.supervisor_origen_id!, leadId: p.lead_id, nombreLead: p.lead_id, telefono: '900000000', asignadoEn: p.primera_asignacion_en!,
+      manualPropio: p.registro_manual, origen: 'formulario', moneda: 'PEN', monto: 1000 }))
+    return { citas, conversiones, poblacion, asignaciones }
+  }
+  const REGLAS: Partial<ControlCitas>[] = [
+    {}, { conteo_entrevistas: 'personas_unicas' }, { base_avance: 'meta_proyectada' }, { base_depositos: 'entrevistas' },
+    { analista_resultado: 'asignacion' }, { mes_resultado: 'asignacion' }, { actividad_manuales: 'excluir', excluir_manuales_base: true },
+    // Combinaciones: todas las reglas no habituales a la vez, y dueño por asignación con conversión por entrevistas.
+    { conteo_entrevistas: 'personas_unicas', base_avance: 'meta_proyectada', base_depositos: 'entrevistas', analista_resultado: 'asignacion',
+      mes_resultado: 'asignacion', actividad_manuales: 'excluir', excluir_manuales_base: true },
+    { analista_resultado: 'asignacion', base_depositos: 'entrevistas', conteo_entrevistas: 'personas_unicas' },
+  ]
+  const CONSULTAS = [{ equipo: '', analista: '' }, { equipo: 'sup-1', analista: '' }, { equipo: 'sup-2', analista: '' }, { equipo: '', analista: 'luis' },
+    { equipo: 'sup-1', analista: 'luis' }, { equipo: 'sup-2', analista: 'luis' }]
+  const tasa = (x: number | null) => x === null ? null : Math.round(x * 1e9) / 1e9
+
+  /** Corre Resultados del mes y la Proyección con ese mes como rango sobre los MISMOS datos. */
+  function ambas(mes: string, reglas: Partial<ControlCitas> = {}, { equipo, analista } = CONSULTAS[0]!) {
+    const { citas, conversiones, poblacion, asignaciones } = datos()
+    const control = { ...CONTROL, configuracion: { ...CONTROL.configuracion, ...reglas } }
+    const gestion: GestionCitas = { citasPorLead: 1.25, entrevistasPorcentaje: 70, depositosPorcentaje: 70, asignaciones,
+      avance: { control, poblacion, conversiones, capital: [] } }
+    const resultados = calcularAvanceCitas(gestion, citas, { ...defaults(mes), equipo, analista }, HOY, TC)
+    const rango = { desde: `${mes}-01`, hasta: `${mes}-${resultados.periodo.dias}` }
+    const proyeccion = calcularProyeccion({ citas, filtros: { equipo }, rango, corte: HOY, tipoCambio: TC, conversiones, poblacion, control, asignaciones },
+      analista ? { analistas: [analista] } : {})
+    return { resultados, proyeccion }
+  }
+  type FilaResultados = Pick<ReturnType<typeof calcularAvanceCitas>['total'],
+    'resueltas' | 'visitas' | 'unicas' | 'clientes' | 'baseEntrevistas' | 'baseConversion' | 'tasaEntrevistas' | 'conversion'>
+  const cifrasProyeccion = (m: MetricasProyeccion) => ({
+    resueltas: m.resueltas.length, entrevistas: ids(m.entrevistas), personas: m.personasEntrevistadas, clientes: m.personasClientes,
+    baseEntrevistas: m.baseEntrevistas, baseConversion: m.baseConversion,
+    entrevistasPct: tasa(m.pctEntrevistas === null ? null : m.pctEntrevistas / 100), conversionPct: tasa(m.pctConversion === null ? null : m.pctConversion / 100),
+  })
+  const cifrasResultados = (r: FilaResultados) => ({
+    resueltas: r.resueltas, entrevistas: ids(r.visitas.map(cita => ({ cita }))), personas: r.unicas, clientes: r.clientes,
+    baseEntrevistas: r.baseEntrevistas, baseConversion: r.baseConversion, entrevistasPct: tasa(r.tasaEntrevistas), conversionPct: tasa(r.conversion),
+  })
+
+  it('el lote ejercita el caso: resultados del mes de citas creadas el mes anterior, que la regla de antes dejaba fuera', () => {
+    const { resultados, proyeccion } = ambas('2026-10')
+    const deSeptiembre = resultados.total.visitas.filter(c => fechaLocalCitas(c.creadoEn!) < '2026-10-01')
+    expect(deSeptiembre.length).toBeGreaterThan(0)
+    expect(ids(proyeccion.total.entrevistas)).toEqual(expect.arrayContaining(ids(deSeptiembre.map(cita => ({ cita })))))
+    expect(proyeccion.total.resueltas.filter(c => c.creada < '2026-10-01').length).toBeGreaterThanOrEqual(3)
+    expect(resultados.total.resueltas).toBe(proyeccion.total.resueltas.length)
+    // Y hay ventas que vinculan entrevistas, para que la conversión también se compare con base.
+    expect(ambas('2026-09').resultados.total.clientes).toBeGreaterThan(0)
+  })
+
+  it.each(['2026-09', '2026-10'])('con el rango del mes, % Entrev. y % Conv. y sus bases son los de Resultados, por analista y en el total, con cada regla, combinaciones y filtros (%s)', mes => {
+    for (const reglas of REGLAS) {
+      for (const consulta of CONSULTAS) {
+        const { resultados, proyeccion } = ambas(mes, reglas, consulta)
+        const nombre = `${mes} · ${JSON.stringify(reglas)} · ${JSON.stringify(consulta)}`
+        expect(cifrasProyeccion(proyeccion.total), `${nombre} · total`).toEqual(cifrasResultados(resultados.total))
+        for (const f of proyeccion.filas) {
+          const r = resultados.filas.find(x => x.id === f.id)
+          expect(r, `${nombre} · ${f.id} sin fila en Resultados`).toBeDefined()
+          expect(cifrasProyeccion(f), `${nombre} · ${f.id}`).toEqual(cifrasResultados(r!))
+        }
+        // Todo analista con resultados en el mes (o con base de meta, con «meta_proyectada») tiene fila en la Proyección.
+        const conCifra = resultados.filas.filter(x => x.resueltas > 0 || (reglas.base_avance === 'meta_proyectada' && x.baseEntrevistas > 0))
+        for (const r of conCifra) expect(proyeccion.filas.map(f => f.id), `${nombre} · ${r.id}`).toContain(r.id)
+      }
+    }
+  })
+
+  it('caso Alan: dos citas de septiembre resueltas en octubre cuentan en octubre; quien solo tiene resultados tiene fila y es opción del embudo', () => {
+    // Ana (n múltiplo de 4) y Mateo (n ≡ 3).
+    const citas = [
+      cita(0, { creadoEn: '2026-09-28T15:00:00Z', fecha: '2026-10-02', estado: 'realizada', asistioEn: '2026-10-02T16:00:00Z' }),
+      cita(4, { creadoEn: '2026-09-29T15:00:00Z', fecha: '2026-10-03', estado: 'no_show' }),
+      cita(8, { creadoEn: '2026-10-05T15:00:00Z', fecha: '2026-10-06', estado: 'realizada', asistioEn: '2026-10-06T16:00:00Z' }),
+      cita(12, { creadoEn: '2026-10-07T15:00:00Z', fecha: '2026-10-28' }),
+      cita(3, { creadoEn: '2026-09-30T15:00:00Z', fecha: '2026-10-03', estado: 'realizada', asistioEn: '2026-10-03T16:00:00Z' }),
+    ]
+    const base = { citas, conversiones: [], poblacion: poblacionDe(citas), control: CONTROL, filtros: { equipo: '' }, corte: HOY, tipoCambio: TC }
+    const hoja = calcularProyeccion({ ...base, rango: { desde: '2026-10-01', hasta: '2026-10-19' } })
+    const ana = hoja.filas.find(f => f.id === 'ana')!
+    // Citas: las 2 creadas en octubre. % Entrev.: 2 entrevistas ÷ 3 con resultado en octubre (antes: 1 ÷ 1 = 100 %).
+    expect([ids(ana.citas), ids(ana.resueltas), ids(ana.entrevistas)]).toEqual([['c12', 'c8'], ['c0', 'c4', 'c8'], ['c0', 'c8']])
+    expect(ana.pctEntrevistas).toBeCloseTo(200 / 3, 10)
+    const gestion: GestionCitas = { citasPorLead: 1.25, entrevistasPorcentaje: 70, depositosPorcentaje: 70, asignaciones: [],
+      avance: { control: CONTROL, poblacion: base.poblacion, conversiones: [], capital: [] } }
+    expect(calcularAvanceCitas(gestion, citas, defaults('2026-10'), HOY, TC).filas.find(f => f.id === 'ana')!.tasaEntrevistas).toBeCloseTo(2 / 3, 10)
+    // Mateo no creó citas en octubre, pero tuvo una entrevista: fila con Citas 0 y opción del embudo con 0 citas.
+    expect(hoja.filas.find(f => f.id === 'mateo')).toMatchObject({ citas: [], pctEntrevistas: 100, ticket: null, proyectado: null })
+    expect(opcionesAnalistas(hoja, { analistas: ['ana'] }).map(o => [o.id, o.citas])).toEqual([['ana', 2], ['mateo', 0]])
+    expect(calcularProyeccion({ ...base, rango: { desde: '2026-10-01', hasta: '2026-10-19' } }, { analistas: ['ana'] }).filas.map(f => f.id)).toEqual(['ana'])
+    // Septiembre no cuenta esos resultados: su resultado no cae en el rango.
+    expect(calcularProyeccion({ ...base, rango: SEPTIEMBRE }).total.resueltas).toEqual([])
+  })
+
+  it('«meta_proyectada» con un rango parcial: la base son los asignados en el rango (Codex, 20/10/2026)', () => {
+    // Ana: L1 asignado el 5/10 y entrevistado el 6/10; L2 asignado el 15/10, sin citas. Rango 1–10 oct, corte 20 oct, 1 cita por lead.
+    const entrevista = cita(0, { leadId: 'L1', creadoEn: '2026-10-02T15:00:00Z', fecha: '2026-10-06', estado: 'realizada', asistioEn: '2026-10-06T16:00:00Z' })
+    const asignado = (leadId: string, dia: string): LeadBaseCitas => ({ id: 'ana', nombre: 'ana', supervisor: 'sup-1', supervisorId: 'sup-1', leadId,
+      nombreLead: leadId, telefono: '900000000', asignadoEn: `${dia}T15:00:00Z`, manualPropio: false, origen: 'formulario', moneda: 'PEN', monto: 1000 })
+    const control = { ...CONTROL, configuracion: { ...CONTROL.configuracion, base_avance: 'meta_proyectada' as const, citas_por_lead: 1 } }
+    const base = { citas: [entrevista], conversiones: [], poblacion: [personaDe('L1'), personaDe('L2')], control, filtros: { equipo: '' },
+      corte: '2026-10-20T17:00:00Z', tipoCambio: TC, asignaciones: [asignado('L1', '2026-10-05'), asignado('L2', '2026-10-15')] }
+    const diez = calcularProyeccion({ ...base, rango: { desde: '2026-10-01', hasta: '2026-10-10' } }).filas.find(f => f.id === 'ana')!
+    expect([diez.baseEntrevistas, diez.pctEntrevistas]).toEqual([1, 100])
+    const mes = calcularProyeccion({ ...base, rango: { desde: '2026-10-01', hasta: '2026-10-31' } }).filas.find(f => f.id === 'ana')!
+    expect([mes.baseEntrevistas, mes.pctEntrevistas]).toEqual([2, 50])
+    // Con solo base y sin actividad en el rango, la fila existe con 0 %, como en Resultados.
+    const tarde = calcularProyeccion({ ...base, rango: { desde: '2026-10-11', hasta: '2026-10-20' } }).filas.find(f => f.id === 'ana')!
+    expect([tarde.citas.length, tarde.baseEntrevistas, tarde.pctEntrevistas]).toEqual([0, 1, 0])
+  })
+
+  it('«meta_proyectada» con supervisores distintos entre fuentes: la fila sigue al supervisor del roster, como en Resultados (Codex r2, 20/10/2026)', () => {
+    // La asignación de octubre dice que Ana es de sup-1; su cita de septiembre (fuente posterior del roster) dice sup-2. Sin actividad en octubre.
+    const deSeptiembre = cita(0, { leadId: 'L0', creadoEn: '2026-09-10T15:00:00Z', fecha: '2026-09-12', supervisor: 'sup-2', supervisorId: 'sup-2' })
+    const asignaciones: LeadBaseCitas[] = [{ id: 'ana', nombre: 'ana', supervisor: 'sup-1', supervisorId: 'sup-1', leadId: 'L1', nombreLead: 'L1',
+      telefono: '900000000', asignadoEn: '2026-10-05T15:00:00Z', manualPropio: false, origen: 'formulario', moneda: 'PEN', monto: 1000 }]
+    const control = { ...CONTROL, configuracion: { ...CONTROL.configuracion, base_avance: 'meta_proyectada' as const } }
+    const poblacion = [personaDe('L0'), personaDe('L1')]
+    const gestion: GestionCitas = { citasPorLead: 1.25, entrevistasPorcentaje: 70, depositosPorcentaje: 70, asignaciones,
+      avance: { control, poblacion, conversiones: [], capital: [] } }
+    for (const [equipo, analista] of [['sup-1', ''], ['sup-2', ''], ['', 'ana'], ['', '']] as const) {
+      const resultados = calcularAvanceCitas(gestion, [deSeptiembre], { ...defaults('2026-10'), equipo, analista }, HOY, TC)
+      const hoja = calcularProyeccion({ citas: [deSeptiembre], conversiones: [], poblacion, control, asignaciones, filtros: { equipo }, rango: OCTUBRE,
+        corte: HOY, tipoCambio: TC }, analista ? { analistas: [analista] } : {})
+      const consulta = `equipo «${equipo}» · analista «${analista}»`
+      expect(hoja.filas.map(f => [f.id, f.supervisorId]), consulta).toEqual(resultados.filas.filter(f => f.baseEntrevistas > 0).map(f => [f.id, f.supervisorId]))
+      expect([hoja.total.baseEntrevistas, hoja.total.pctEntrevistas], consulta).toEqual([resultados.total.baseEntrevistas, resultados.total.tasaEntrevistas === null ? null : resultados.total.tasaEntrevistas * 100])
+    }
+    // Con sup-1 elegido, Ana (de sup-2 en el roster) no tiene fila, aunque su asignación diga sup-1.
+    expect(calcularProyeccion({ citas: [deSeptiembre], conversiones: [], poblacion, control, asignaciones, filtros: { equipo: 'sup-1' }, rango: OCTUBRE,
+      corte: HOY, tipoCambio: TC }).filas).toEqual([])
+  })
+
+  it('sin reglas de gestión o sin la persona en la población, no hay tasa: lo mismo que muestra Resultados', () => {
+    const sinReglas = calcularProyeccion(fuente(OCTUBRE, { control: undefined }))
+    expect(sinReglas.total.citas.length).toBeGreaterThan(0)
+    for (const m of filasYTotal(sinReglas)) expect([m.pctEntrevistas, m.pctConversion, m.proyectado, m.resueltas.length]).toEqual([null, null, null, 0])
+    const borrador = calcularProyeccion(fuente(OCTUBRE, { control: { ...CONTROL, version: 0 } }))
+    for (const m of filasYTotal(borrador)) expect([m.pctEntrevistas, m.pctConversion]).toEqual([null, null])
+    // Un lead fuera de la población del avance no aporta resultados.
+    const todo = calcularProyeccion(fuente(OCTUBRE))
+    const fuera = todo.total.resueltas[0]!.cita.leadId
+    const sinEse = calcularProyeccion(fuente(OCTUBRE, { poblacion: poblacionDe(lote().citas).filter(p => p.lead_id !== fuera) }))
+    expect(sinEse.total.resueltas.some(c => c.cita.leadId === fuera)).toBe(false)
+    expect(sinEse.total.resueltas.length).toBeLessThan(todo.total.resueltas.length)
+  })
+
+  it.each(RANGOS)('con Mín/Máx, el total mide solo las filas que quedan ($desde → $hasta)', rango => {
+    for (const rangos of [{ entrevistas: { min: 50 } }, { citas: { max: 8 } }, { conversion: { max: 30 } }]) {
+      const hoja = calcularProyeccion(fuente(rango), { rangos })
+      expect(ids(hoja.total.resueltas), JSON.stringify(rangos)).toEqual(ids(hoja.filas.flatMap(f => f.resueltas)))
+      expect(ids(hoja.total.entrevistas), JSON.stringify(rangos)).toEqual(ids(hoja.filas.flatMap(f => f.entrevistas)))
+    }
   })
 })
