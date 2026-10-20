@@ -78,7 +78,9 @@ export function CondicionesTasaLeadPanel(props: Props) {
   useEffect(() => {
     if (!demo && !observacion && (q.isPending || q.isError)) onCambio(null)
   }, [demo, onCambio, q.isPending, q.isError, observacion])
-  if (!props.demo && q.isPending) return <p role="status" className="text-xs text-muted-foreground">Consultando las condiciones de inversión…</p>
+  // En observación, una recuperación posterior conserva el formulario y su
+  // borrador. Solo la primera lectura espera para restaurar la intención previa.
+  if (!props.demo && q.isPending && (!observacion || !q.isFetched)) return <p role="status" className="text-xs text-muted-foreground">Consultando las condiciones de inversión…</p>
   if (!props.demo && !observacion && q.isError) return <div role="alert" className="space-y-2 rounded-xl border border-border p-3 text-xs">
     <p>No se pudieron verificar las condiciones de inversión.</p>
     <Button type="button" variant="outline" size="sm" onClick={() => void q.refetch()}>Reintentar condiciones</Button>

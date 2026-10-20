@@ -1,0 +1,16 @@
+npm notice run app@0.0.0 test:run
+npm notice run vitest run src/components/app/condiciones-tasa-lead-consultas.test.tsx src/components/app/lead-drawer-datos.test.tsx src/lib/roles.test.ts
+
+ RUN  v4.1.11 /private/tmp/crm-citas-fecha-comercial-20261017/CRM-Avance-Corp/app
+
+(node:60530) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:60532) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:60531) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  3 passed (3)
+      Tests  105 passed (105)
+   Start at  00:05:22
+   Duration  3.68s (transform 817ms, setup 295ms, import 1.25s, tests 2.48s, environment 1.41s)

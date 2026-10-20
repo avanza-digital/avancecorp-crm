@@ -1,0 +1,67 @@
+import { useState } from 'react'
+import { render, waitFor, cleanup } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { afterEach, expect, it, vi } from 'vitest'
+import { CondicionesTasaLeadPanel } from './components/app/condiciones-tasa-lead'
+import type { EstadoCondicionesLead } from './components/app/condiciones-tasa-lead'
+import type { Lead } from './lib/tipos'
+
+const prueba = vi.hoisted(() => ({ llamadas: 0, observacion: true }))
+vi.mock('@/data/crm-api', async (original) => {
+  const real = await original<typeof import('./data/crm-api')>()
+  return { ...real, listarSolicitudesTasa: async () => {
+    prueba.llamadas++
+    await new Promise(resolve => setTimeout(resolve, 20))
+    throw new real.CrmApiError('No autorizado', '42501')
+  } }
+})
+vi.mock('@/data/crm-queries', async (original) => {
+  const real = await original<typeof import('./data/crm-queries')>()
+  return {
+    ...real,
+    usePoliticaRentabilidad: () => ({ data: { observacion_sin_aprobacion: true, vigente: { modo: prueba.observacion ? 'observacion' : 'enforcement' } }, isPending: false, isError: false }),
+    useResolucionTasa: () => ({ data: { observacion_sin_aprobacion: true, tasa_base: 15, tasa_minima_sin_autorizacion: 0.01, regla: 'primera_inversion', politica: { modo: prueba.observacion ? 'observacion' : 'enforcement', tope_tecnico: 25 } }, isPending: false, isError: false }),
+    useSolicitarTasa: () => ({ mutateAsync: vi.fn(), isPending: false }),
+    useResponderTopeTasa: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  }
+})
+const lead = { id: '00000000-0000-4000-8000-000000000001', nombre_completo: 'Persona ficticia', monto_estimado: 1000, moneda: 'PEN', dni: '00000000', etapa: 'contactado' } as Lead
+function Panel() {
+  const [, setEstado] = useState<EstadoCondicionesLead | null>(null)
+  return <CondicionesTasaLeadPanel lead={lead} demo={false} puedeEditar={false} onCambio={setEstado} />
+}
+afterEach(cleanup)
+it('REPRODUCCION: observación + 403 relanza repetidamente aunque retry sea false', async () => {
+  prueba.llamadas = 0
+  prueba.observacion = true
+  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 30000, gcTime: 300000, networkMode: 'offlineFirst' } } })
+  const vista = render(<QueryClientProvider client={cliente}><Panel /></QueryClientProvider>)
+  await waitFor(() => expect(prueba.llamadas).toBeGreaterThanOrEqual(12), { timeout: 3000, interval: 25 })
+  console.log('REPRODUCCION_LOOP', JSON.stringify({ llamadas: prueba.llamadas, retry: false, pollingPadre: false, pollingHijoMs: 60000 }))
+  vista.unmount()
+  cliente.clear()
+})
+it('CONTROL: desactivar retryOnMount detiene el ciclo con el mismo 403', async () => {
+  prueba.llamadas = 0
+  prueba.observacion = true
+  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false, retryOnMount: false, staleTime: 30000, gcTime: 300000, networkMode: 'offlineFirst' } } })
+  const vista = render(<QueryClientProvider client={cliente}><Panel /></QueryClientProvider>)
+  await waitFor(() => expect(prueba.llamadas).toBe(1))
+  await new Promise(resolve => setTimeout(resolve, 500))
+  expect(prueba.llamadas).toBe(1)
+  console.log('CONTROL_SIN_LOOP', JSON.stringify({ llamadas: prueba.llamadas, retryOnMount: false }))
+  vista.unmount()
+  cliente.clear()
+})
+it('CONTROL: enforcement muestra el error sin montar el segundo observador', async () => {
+  prueba.llamadas = 0
+  prueba.observacion = false
+  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 30000, gcTime: 300000, networkMode: 'offlineFirst' } } })
+  const vista = render(<QueryClientProvider client={cliente}><Panel /></QueryClientProvider>)
+  await waitFor(() => expect(prueba.llamadas).toBe(1))
+  await new Promise(resolve => setTimeout(resolve, 500))
+  expect(prueba.llamadas).toBe(1)
+  console.log('CONTROL_ENFORCEMENT', JSON.stringify({ llamadas: prueba.llamadas }))
+  vista.unmount()
+  cliente.clear()
+})

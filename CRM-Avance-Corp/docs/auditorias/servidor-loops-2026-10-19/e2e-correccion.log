@@ -1,0 +1,29 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh e2e/tasa-lead-sin-bucle.spec.ts e2e/tasa-lead.spec.ts e2e/solicitud-tasa.spec.ts e2e/respuestas-tasa.spec.ts e2e/notificaciones-tasa.spec.ts e2e/coordinacion-cartera-categoria.spec.ts --workers=2 --reporter=list
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 21 tests using 2 workers
+
+  ✓   2 [chromium] › e2e/coordinacion-cartera-categoria.spec.ts:5:34 › Coordinación consulta Leads y corrige categoría, móvil (12.4s)
+  ✓   1 [chromium] › e2e/coordinacion-cartera-categoria.spec.ts:5:34 › Coordinación consulta Leads y corrige categoría, escritorio (12.5s)
+  ✓   4 [chromium] › e2e/notificaciones-tasa.spec.ts:65:1 › un aviso antiguo conserva la ruta tras recargar y explica que ya no está pendiente (6.5s)
+  ✓   3 [chromium] › e2e/notificaciones-tasa.spec.ts:8:1 › Gerencia activa avisos, envía prueba y los desactiva con el worker real (7.7s)
+  ✓   5 [chromium] › e2e/notificaciones-tasa.spec.ts:73:1 › abrir el aviso sin sesión conserva la solicitud y la enfoca después del login (4.5s)
+  ✓   6 [chromium] › e2e/notificaciones-tasa.spec.ts:97:1 › manifiesto e iconos existen y el móvil mantiene controles visibles (5.3s)
+  ✓   7 [chromium] › e2e/respuestas-tasa.spec.ts:59:1 › aprobación: sonido, aviso sobre otra ventana, detalle y lectura persistente (20.9s)
+  ✓   8 [chromium] › e2e/respuestas-tasa.spec.ts:103:1 › rechazo y tope: un timbre por lote, filtro propio, sin leer hasta abrir (29.5s)
+  ✓  10 [chromium] › e2e/respuestas-tasa.spec.ts:163:1 › dos pestañas: una alerta y lectura sincronizada, enlace ajeno no revela datos (19.8s)
+  ✓   9 [chromium] › e2e/respuestas-tasa.spec.ts:137:1 › permiso denegado y red caída conservan bandeja; cerrar sesión retira los avisos (32.0s)
+  ✓  11 [chromium] › e2e/solicitud-tasa.spec.ts:5:3 › motivo editable y contrato bloqueado hasta la respuesta de Gerencia (1280px) (4.7s)
+  ✓  12 [chromium] › e2e/solicitud-tasa.spec.ts:5:3 › motivo editable y contrato bloqueado hasta la respuesta de Gerencia (390px) (4.5s)
+  ✓  13 [chromium] › e2e/tasa-lead-sin-bucle.spec.ts:33:3 › coordinador: ficha y consultas de tasa respetan la capacidad de lectura (3.9s)
+  ✓  14 [chromium] › e2e/tasa-lead-sin-bucle.spec.ts:33:3 › vendedor: ficha y consultas de tasa respetan la capacidad de lectura (3.8s)
+  ✓  15 [chromium] › e2e/tasa-lead-sin-bucle.spec.ts:33:3 › supervisor: ficha y consultas de tasa respetan la capacidad de lectura (3.7s)
+  ✓  16 [chromium] › e2e/tasa-lead-sin-bucle.spec.ts:33:3 › gerencia: ficha y consultas de tasa respetan la capacidad de lectura (3.9s)
+  ✓  17 [chromium] › e2e/tasa-lead-sin-bucle.spec.ts:33:3 › directorio: ficha y consultas de tasa respetan la capacidad de lectura (3.8s)
+  ✓  18 [chromium] › e2e/tasa-lead-sin-bucle.spec.ts:69:1 › 403 en observación no crea ráfagas ni vuelve a consultarse al reabrir la ficha (4.0s)
+  ✓  19 [chromium] › e2e/tasa-lead-sin-bucle.spec.ts:97:1 › una sesión vencida recupera las solicitudes al renovarse, sin cerrar el formulario (3.8s)
+  ✓  20 [chromium] › e2e/tasa-lead.spec.ts:12:3 › solicitar y recibir una tasa desde el lead (1440px), sin alta prematura (11.7s)
+  ✓  21 [chromium] › e2e/tasa-lead.spec.ts:12:3 › solicitar y recibir una tasa desde el lead (390px), sin alta prematura (11.6s)
+
+  21 passed (1.8m)

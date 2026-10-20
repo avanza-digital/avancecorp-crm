@@ -352,12 +352,15 @@ export interface Pagina<T> {
 export class CrmApiError extends Error {
   readonly code: string
   readonly correlationId: string
+  /** Código original, cuando el mensaje de UX agrupa causas con distinta recuperación. */
+  readonly codigoOrigen: string | undefined
 
-  constructor(message: string, code = 'CRM_API_ERROR', correlationId = idCorrelacion()) {
+  constructor(message: string, code = 'CRM_API_ERROR', correlationId = idCorrelacion(), codigoOrigen?: string) {
     super(message)
     this.name = 'CrmApiError'
     this.code = code
     this.correlationId = correlationId
+    this.codigoOrigen = codigoOrigen
   }
 }
 
@@ -2812,7 +2815,7 @@ function aErrorApi(
     code = 'REGLA_SERVIDOR'
     if (error.message) mensaje = error.message
   }
-  const fallo = new CrmApiError(mensaje, code)
+  const fallo = new CrmApiError(mensaje, code, undefined, codigoPg)
   registrarError(contexto, fallo, { pg: codigoPg })
   return fallo
 }

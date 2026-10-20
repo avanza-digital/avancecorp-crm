@@ -41,6 +41,7 @@ export const ACCIONES = [
                         // del guard de crm.tomar_lead_libre: supervisión
                         // asigna por el reparto, jamás por esta puerta)
   'verCartera',         // pantalla unificada Clientes+Contratos ('mi-cartera')
+  'verSolicitudesTasa', // Coordinación no consulta condiciones ni solicitudes de tasa.
   'altaDirectaCliente', // «Nuevo cliente» en Mi cartera = alta SIN lead. Cerrada
                         // al analista (decisión de Miguel, 15/09/2026): su
                         // cliente nuevo nace CONVIRTIENDO un lead, para que el
@@ -70,6 +71,7 @@ export const CAPS: Record<Rol, Caps> = {
   // tarjeta ICS pide SIEMPRE el perfil propio (perfil_id = yo.id, espejo de la
   // RLS "cada quien SU fila" en crm.agenda_ics): nadie exporta agenda ajena.
   vendedor: {
+    verSolicitudesTasa: true,
     verTodo: false, verEquipo: false, filtrarPorVendedor: false,
     altaDirectaCliente: false,
     reasignar: false, repartirLeads: false, repartirCola: false, verCartera: true,
@@ -82,6 +84,7 @@ export const CAPS: Record<Rol, Caps> = {
     verReportes: true, editarMetas: false, editarCapacidad: false, soloLecturaTotal: false,
   },
   supervisor: {
+    verSolicitudesTasa: true,
     verTodo: false, verEquipo: true, filtrarPorVendedor: true,
     altaDirectaCliente: true,
     reasignar: true, repartirLeads: true, repartirCola: false, verCartera: true,
@@ -94,6 +97,7 @@ export const CAPS: Record<Rol, Caps> = {
     verReportes: true, editarMetas: false, editarCapacidad: false, soloLecturaTotal: false,
   },
   gerencia: {
+    verSolicitudesTasa: true,
     verTodo: true, verEquipo: true, filtrarPorVendedor: true,
     altaDirectaCliente: true,
     reasignar: true, repartirLeads: true, repartirCola: true, verCartera: true,
@@ -106,6 +110,7 @@ export const CAPS: Record<Rol, Caps> = {
     verReportes: true, editarMetas: true, editarCapacidad: true, soloLecturaTotal: false,
   },
   directorio: {
+    verSolicitudesTasa: true,
     verTodo: true, verEquipo: true, filtrarPorVendedor: true,
     altaDirectaCliente: false,
     reasignar: false, repartirLeads: false, repartirCola: false, verCartera: true,
@@ -123,6 +128,7 @@ export const CAPS: Record<Rol, Caps> = {
   // La lectura global no concede gestión comercial: reparto y corrección de
   // categoría tienen sus propias puertas, revalidadas por el servidor.
   coordinador: {
+    verSolicitudesTasa: false,
     verTodo: true, verEquipo: true, filtrarPorVendedor: true,
     altaDirectaCliente: false,
     reasignar: false, repartirLeads: false, repartirCola: true, verCartera: true,

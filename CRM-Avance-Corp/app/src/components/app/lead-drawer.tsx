@@ -307,7 +307,7 @@ function Ficha({ l }: { l: Lead }) {
           onAgenda={() => { refAgenda.current?.focus(); refAgenda.current?.scrollIntoView({ block: 'nearest' }) }}
           onHistorial={() => { refActividad.current?.focus(); refActividad.current?.scrollIntoView({ block: 'nearest' }) }} />}
         <SeccionPotencial lead={l} />
-        {!esTerminal && tieneAnalista && <SolicitudTasaLeadPlegable lead={l} demo={Boolean(yo?.demo)} puedeEditar={puedeConvertir} onCambio={setCondicionesLead} />}
+        {!esTerminal && tieneAnalista && can(rol, 'verSolicitudesTasa') && <SolicitudTasaLeadPlegable lead={l} demo={Boolean(yo?.demo)} puedeEditar={puedeConvertir} onCambio={setCondicionesLead} />}
         {!esTerminal && <EstadoSlaFicha leadId={l.id} onActuar={escribe ? actuarSobreAviso : undefined} />}
         <div ref={refAgenda} tabIndex={-1} className="rounded-lg focus-visible:outline-2 focus-visible:outline-ring"><ProximaAccion l={l} escribe={escribe} activa={!esTerminal} pedirCita={pedirCita} /></div>
         {/* `activa` faltaba AQUÍ y solo aquí: la ficha de un convertido seguía
