@@ -1,0 +1,22 @@
+
+ RUN  v4.1.11 /private/tmp/crm-loops-20261019/CRM-Avance-Corp/app
+
+(node:50764) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | src/loop-diagnostico.test.tsx > REPRODUCCION: observación + 403 relanza repetidamente aunque retry sea false
+REPRODUCCION_LOOP {"llamadas":12,"retry":false,"pollingPadre":false,"pollingHijoMs":60000}
+
+ ✓ src/loop-diagnostico.test.tsx > REPRODUCCION: observación + 403 relanza repetidamente aunque retry sea false 299ms
+stdout | src/loop-diagnostico.test.tsx > CONTROL: desactivar retryOnMount detiene el ciclo con el mismo 403
+CONTROL_SIN_LOOP {"llamadas":1,"retryOnMount":false}
+
+stdout | src/loop-diagnostico.test.tsx > CONTROL: enforcement muestra el error sin montar el segundo observador
+CONTROL_ENFORCEMENT {"llamadas":1}
+
+ ✓ src/loop-diagnostico.test.tsx > CONTROL: desactivar retryOnMount detiene el ciclo con el mismo 403 506ms
+ ✓ src/loop-diagnostico.test.tsx > CONTROL: enforcement muestra el error sin montar el segundo observador 510ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  23:33:37
+   Duration  2.42s (transform 342ms, setup 87ms, import 522ms, tests 1.32s, environment 420ms)

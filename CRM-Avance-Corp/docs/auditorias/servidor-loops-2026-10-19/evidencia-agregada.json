@@ -1,0 +1,1512 @@
+{
+  "window": {
+    "iso_timestamp_start": "2026-10-19T05:00:00Z",
+    "iso_timestamp_end": "2026-10-20T04:29:35Z"
+  },
+  "project": "dctqcbznekcyxhjujuci",
+  "source_commit": "a980bb719bde",
+  "buildId": "build-20261020T035759531Z",
+  "endpoints": {
+    "result": [
+      {
+        "n": 9292,
+        "path": "/rest/v1/rpc/gestion_vigente_fn",
+        "status": "200",
+        "users": 25
+      },
+      {
+        "n": 8051,
+        "path": "/rest/v1/rpc/solicitudes_tasa_fn",
+        "status": "200",
+        "users": 26
+      },
+      {
+        "n": 7809,
+        "path": "/rest/v1/rpc/cartera_pagina_fn",
+        "status": "200",
+        "users": 25
+      },
+      {
+        "n": 6161,
+        "path": "/rest/v1/rpc/estado_sla_leads_v2_fn",
+        "status": "200",
+        "users": 28
+      },
+      {
+        "n": 6056,
+        "path": "/rest/v1/rpc/cartera_filtrada_fn",
+        "status": "200",
+        "users": 28
+      },
+      {
+        "n": 5371,
+        "path": "/rest/v1/rpc/resolver_tasa_lead_fn",
+        "status": "200",
+        "users": 24
+      },
+      {
+        "n": 5239,
+        "path": "/rest/v1/rpc/avisos_sla_resumen_v2_fn",
+        "status": "200",
+        "users": 28
+      },
+      {
+        "n": 4887,
+        "path": "/rest/v1/rpc/politica_rentabilidad_fn",
+        "status": "200",
+        "users": 26
+      },
+      {
+        "n": 4769,
+        "path": "/rest/v1/rpc/potencial_leads_fn",
+        "status": "200",
+        "users": 25
+      },
+      {
+        "n": 4678,
+        "path": "/rest/v1/rpc/tareas_pendientes_fn",
+        "status": "200",
+        "users": 29
+      },
+      {
+        "n": 4444,
+        "path": "/rest/v1/leads",
+        "status": "200",
+        "users": 25
+      },
+      {
+        "n": 4435,
+        "path": "/rest/v1/rpc/recorrido_leads_fn",
+        "status": "200",
+        "users": 25
+      },
+      {
+        "n": 4344,
+        "path": "/rest/v1/actividades",
+        "status": "200",
+        "users": 25
+      },
+      {
+        "n": 3715,
+        "path": "/rest/v1/rpc/actividades_de_lead_fn",
+        "status": "200",
+        "users": 25
+      },
+      {
+        "n": 3589,
+        "path": "/rest/v1/rpc/equipo_visible_fn",
+        "status": "200",
+        "users": 29
+      },
+      {
+        "n": 3581,
+        "path": "/rest/v1/rpc/postventa_agenda_fn",
+        "status": "200",
+        "users": 29
+      },
+      {
+        "n": 3477,
+        "path": "/rest/v1/rpc/cumplimiento_metas_v2_fn",
+        "status": "200",
+        "users": 29
+      },
+      {
+        "n": 3416,
+        "path": "/rest/v1/rpc/configuracion_metas_fn",
+        "status": "200",
+        "users": 27
+      },
+      {
+        "n": 3390,
+        "path": "/rest/v1/rpc/documento_lead_fn",
+        "status": "200",
+        "users": 25
+      },
+      {
+        "n": 3163,
+        "path": "/rest/v1/rpc/solicitudes_tasa_lead_fn",
+        "status": "200",
+        "users": 24
+      },
+      {
+        "n": 2930,
+        "path": "/rest/v1/rpc/gestion_diaria_analista_fn",
+        "status": "200",
+        "users": 21
+      },
+      {
+        "n": 2769,
+        "path": "/auth/v1/user",
+        "status": "200",
+        "users": 29
+      },
+      {
+        "n": 2718,
+        "path": "/rest/v1/rpc/mi_acceso_fn",
+        "status": "200",
+        "users": 29
+      },
+      {
+        "n": 2125,
+        "path": "/rest/v1/rpc/cola_accion_v3_fn",
+        "status": "200",
+        "users": 23
+      },
+      {
+        "n": 1757,
+        "path": "/rest/v1/rpc/solicitudes_tasa_lead_fn",
+        "status": "403",
+        "users": 1
+      },
+      {
+        "n": 1559,
+        "path": "/rest/v1/rpc/resumen_cartera_fn",
+        "status": "200",
+        "users": 22
+      },
+      {
+        "n": 1545,
+        "path": "/rest/v1/recordatorios_disponibilidad",
+        "status": "200",
+        "users": 22
+      },
+      {
+        "n": 1436,
+        "path": "/rest/v1/rpc/obtener_base_gestion",
+        "status": "200",
+        "users": 21
+      },
+      {
+        "n": 1371,
+        "path": "/rest/v1/rpc/llamadas_celular_bandeja_fn",
+        "status": "200",
+        "users": 15
+      },
+      {
+        "n": 1370,
+        "path": "/rest/v1/rpc/llamadas_celular_resueltas_hoy_fn",
+        "status": "200",
+        "users": 15
+      },
+      {
+        "n": 1285,
+        "path": "/rest/v1/rpc/gestion_diaria_cola_trabajo_fn",
+        "status": "200",
+        "users": 15
+      },
+      {
+        "n": 1105,
+        "path": "/rest/v1/rpc/conversion_mensual_fn",
+        "status": "200",
+        "users": 25
+      },
+      {
+        "n": 863,
+        "path": "/rest/v1/rpc/cartera_inversionistas_filtrada_fn",
+        "status": "200",
+        "users": 22
+      },
+      {
+        "n": 829,
+        "path": "/rest/v1/rpc/cartera_inversionistas_estado_fn",
+        "status": "200",
+        "users": 22
+      },
+      {
+        "n": 667,
+        "path": "/rest/v1/rpc/registrar_llamada_v4",
+        "status": "200",
+        "users": 17
+      },
+      {
+        "n": 527,
+        "path": "/rest/v1/tareas",
+        "status": "200",
+        "users": 20
+      },
+      {
+        "n": 496,
+        "path": "/rest/v1/rpc/gestion_diaria_avisos_fn",
+        "status": "200",
+        "users": 4
+      },
+      {
+        "n": 466,
+        "path": "/rest/v1/alertas_reconocimientos_vigentes",
+        "status": "200",
+        "users": 5
+      },
+      {
+        "n": 397,
+        "path": "/auth/v1/token",
+        "status": "200",
+        "users": 1
+      },
+      {
+        "n": 382,
+        "path": "/rest/v1/rpc/postventa_estado_fn",
+        "status": "200",
+        "users": 20
+      },
+      {
+        "n": 346,
+        "path": "/rest/v1/rpc/inversionista_ficha_fn",
+        "status": "200",
+        "users": 14
+      },
+      {
+        "n": 345,
+        "path": "/rest/v1/rpc/facturacion_diaria_v2_fn",
+        "status": "200",
+        "users": 6
+      },
+      {
+        "n": 312,
+        "path": "/rest/v1/rpc/citas_gerencia_consulta_v2_fn",
+        "status": "200",
+        "users": 5
+      },
+      {
+        "n": 304,
+        "path": "/rest/v1/rpc/cierres_estado_fn",
+        "status": "200",
+        "users": 20
+      },
+      {
+        "n": 281,
+        "path": "/rest/v1/rpc/contexto_conversion_inversion_fn",
+        "status": "200",
+        "users": 8
+      }
+    ]
+  },
+  "errors": {
+    "result": [
+      {
+        "n": 1757,
+        "path": "/rest/v1/rpc/solicitudes_tasa_lead_fn",
+        "status": "403",
+        "users": 1
+      },
+      {
+        "n": 123,
+        "path": "/rest/v1/rpc/recorrido_leads_fn",
+        "status": "404",
+        "users": 12
+      },
+      {
+        "n": 84,
+        "path": "/rest/v1/rpc/preparar_persona_lead_inversion_fn",
+        "status": "500",
+        "users": 7
+      },
+      {
+        "n": 38,
+        "path": "/auth/v1/token",
+        "status": "400",
+        "users": 1
+      },
+      {
+        "n": 22,
+        "path": "/rest/v1/rpc/cerrar_tarea_v2",
+        "status": "400",
+        "users": 2
+      },
+      {
+        "n": 21,
+        "path": "/rest/v1/rpc/cerrar_reunion_v3",
+        "status": "400",
+        "users": 7
+      },
+      {
+        "n": 9,
+        "path": "/rest/v1/rpc/confirmar_inversion_revisada_fn",
+        "status": "500",
+        "users": 2
+      },
+      {
+        "n": 3,
+        "path": "/rest/v1/rpc/registrar_llamada_v4",
+        "status": "400",
+        "users": 2
+      },
+      {
+        "n": 2,
+        "path": "/rest/v1/rpc/solicitud_inversion_fn",
+        "status": "500",
+        "users": 1
+      },
+      {
+        "n": 2,
+        "path": "/rest/v1/rpc/cola_accion_v3_fn",
+        "status": "400",
+        "users": 1
+      },
+      {
+        "n": 2,
+        "path": "/rest/v1/rpc/potencial_leads_fn",
+        "status": "502",
+        "users": 2
+      },
+      {
+        "n": 2,
+        "path": "/rest/v1/rpc/preparar_inversion_fn",
+        "status": "500",
+        "users": 1
+      },
+      {
+        "n": 1,
+        "path": "/rest/v1/rpc/postventa_agendar_fn",
+        "status": "400",
+        "users": 1
+      },
+      {
+        "n": 1,
+        "path": "/rest/v1/rpc/gestion_diaria_cola_trabajo_fn",
+        "status": "502",
+        "users": 1
+      },
+      {
+        "n": 1,
+        "path": "/rest/v1/rpc/actividades_de_lead_fn",
+        "status": "502",
+        "users": 1
+      },
+      {
+        "n": 1,
+        "path": "/rest/v1/rpc/recorrido_leads_fn",
+        "status": "502",
+        "users": 1
+      },
+      {
+        "n": 1,
+        "path": "/rest/v1/rpc/metricas_conversiones_fn",
+        "status": "500",
+        "users": 1
+      },
+      {
+        "n": 1,
+        "path": "/rest/v1/rpc/tareas_pendientes_fn",
+        "status": "400",
+        "users": 1
+      }
+    ]
+  },
+  "db_levels": {
+    "result": [
+      {
+        "code": "00000",
+        "n": 11725,
+        "severity": "LOG"
+      },
+      {
+        "code": "42501",
+        "n": 2091,
+        "severity": "ERROR"
+      },
+      {
+        "code": "P0409",
+        "n": 104,
+        "severity": "ERROR"
+      },
+      {
+        "code": "08P01",
+        "n": 43,
+        "severity": "LOG"
+      },
+      {
+        "code": "22023",
+        "n": 31,
+        "severity": "ERROR"
+      },
+      {
+        "code": "P0001",
+        "n": 25,
+        "severity": "ERROR"
+      },
+      {
+        "code": "P0002",
+        "n": 4,
+        "severity": "ERROR"
+      },
+      {
+        "code": "25006",
+        "n": 3,
+        "severity": "ERROR"
+      },
+      {
+        "code": "22007",
+        "n": 3,
+        "severity": "ERROR"
+      },
+      {
+        "code": "42P01",
+        "n": 2,
+        "severity": "ERROR"
+      },
+      {
+        "code": "08006",
+        "n": 2,
+        "severity": "LOG"
+      },
+      {
+        "code": "57014",
+        "n": 2,
+        "severity": "ERROR"
+      },
+      {
+        "code": "55000",
+        "n": 1,
+        "severity": "ERROR"
+      },
+      {
+        "code": "42703",
+        "n": 1,
+        "severity": "ERROR"
+      }
+    ]
+  },
+  "pg_errors": {
+    "result": [
+      {
+        "code": "42501",
+        "event_message": "No autorizado",
+        "first_utc": "2026-10-19T17:08:31.018000",
+        "last_utc": "2026-10-19T17:33:43.753000",
+        "n": 2089
+      },
+      {
+        "code": "P0409",
+        "event_message": "Antes de convertir, registra que asistió a su cita y que la entrevista se realizó, con su resultado. Revisa los pasos en la ficha del lead.",
+        "first_utc": "2026-10-19T14:48:07.113000",
+        "last_utc": "2026-10-19T23:14:40.459000",
+        "n": 102
+      },
+      {
+        "code": "P0001",
+        "event_message": "Tarea no encontrada, cerrada o fuera de tu ámbito",
+        "first_utc": "2026-10-19T16:33:54.788000",
+        "last_utc": "2026-10-19T21:57:22.484000",
+        "n": 22
+      },
+      {
+        "code": "22023",
+        "event_message": "Describe el otro motivo de cancelacion",
+        "first_utc": "2026-10-19T14:59:01.116000",
+        "last_utc": "2026-10-19T23:19:27.656000",
+        "n": 21
+      },
+      {
+        "code": "22023",
+        "event_message": "Cursor incompatible; reinicia la paginacion",
+        "first_utc": "2026-10-19T14:18:00.580000",
+        "last_utc": "2026-10-19T14:31:22.602000",
+        "n": 5
+      },
+      {
+        "code": "P0002",
+        "event_message": "Solicitud no encontrada",
+        "first_utc": "2026-10-19T14:48:27.147000",
+        "last_utc": "2026-10-19T14:52:30.746000",
+        "n": 3
+      },
+      {
+        "code": "25006",
+        "event_message": "cannot execute DELETE in a read-only transaction",
+        "first_utc": "2026-10-20T04:23:00.608000",
+        "last_utc": "2026-10-20T04:25:44.769000",
+        "n": 3
+      },
+      {
+        "code": "22023",
+        "event_message": "Tarea no encontrada, cerrada o de otro lead",
+        "first_utc": "2026-10-19T21:15:54.352000",
+        "last_utc": "2026-10-19T21:34:50.631000",
+        "n": 3
+      },
+      {
+        "code": "57014",
+        "event_message": "canceling statement due to statement timeout",
+        "first_utc": "2026-10-19T17:02:52.877000",
+        "last_utc": "2026-10-20T00:12:43.365000",
+        "n": 2
+      },
+      {
+        "code": "42P01",
+        "event_message": "invalid reference to FROM-clause entry for table \"t\"",
+        "first_utc": "2026-10-19T21:05:23.899000",
+        "last_utc": "2026-10-19T21:05:23.899000",
+        "n": 1
+      },
+      {
+        "code": "42501",
+        "event_message": "Lead fuera de tu cartera",
+        "first_utc": "2026-10-19T16:38:22.156000",
+        "last_utc": "2026-10-19T16:38:22.156000",
+        "n": 1
+      },
+      {
+        "code": "42703",
+        "event_message": "column \"creado_por\" does not exist",
+        "first_utc": "2026-10-19T16:18:52.121000",
+        "last_utc": "2026-10-19T16:18:52.121000",
+        "n": 1
+      },
+      {
+        "code": "55000",
+        "event_message": "Historial distinto del paquete ensayado",
+        "first_utc": "2026-10-19T14:38:41.951000",
+        "last_utc": "2026-10-19T14:38:41.951000",
+        "n": 1
+      },
+      {
+        "code": "P0001",
+        "event_message": "SOLO_LECTURA",
+        "first_utc": "2026-10-19T17:13:29.647000",
+        "last_utc": "2026-10-19T17:13:29.647000",
+        "n": 1
+      },
+      {
+        "code": "22007",
+        "event_message": "invalid input syntax for type date: \"2025-10-20 2026-10-19\"",
+        "first_utc": "2026-10-19T22:20:18.575000",
+        "last_utc": "2026-10-19T22:20:18.575000",
+        "n": 1
+      },
+      {
+        "code": "P0002",
+        "event_message": "Lead no encontrado o fuera de tu ámbito",
+        "first_utc": "2026-10-19T16:38:22.152000",
+        "last_utc": "2026-10-19T16:38:22.152000",
+        "n": 1
+      },
+      {
+        "code": "P0409",
+        "event_message": "Sube el comprobante válido antes de confirmar la inversión",
+        "first_utc": "2026-10-19T14:53:46.568000",
+        "last_utc": "2026-10-19T14:53:46.568000",
+        "n": 1
+      },
+      {
+        "code": "P0001",
+        "event_message": "ROLLBACK_A_PROPOSITO >>  | octubre citas=609 es_cliente=0 ms=507.3 | ago-oct citas=1104 es_cliente=0 ms=764.3",
+        "first_utc": "2026-10-19T17:17:09.046000",
+        "last_utc": "2026-10-19T17:17:09.046000",
+        "n": 1
+      },
+      {
+        "code": "22023",
+        "event_message": "Periodo invalido",
+        "first_utc": "2026-10-19T21:11:33.278000",
+        "last_utc": "2026-10-19T21:11:33.278000",
+        "n": 1
+      },
+      {
+        "code": "22007",
+        "event_message": "invalid input syntax for type date: \"2026-10-01 2026-10-19\"",
+        "first_utc": "2026-10-19T22:20:13.253000",
+        "last_utc": "2026-10-19T22:20:13.253000",
+        "n": 1
+      },
+      {
+        "code": "42P01",
+        "event_message": "relation \"crm.contratos\" does not exist",
+        "first_utc": "2026-10-19T21:13:20.140000",
+        "last_utc": "2026-10-19T21:13:20.140000",
+        "n": 1
+      },
+      {
+        "code": "P0001",
+        "event_message": "Contadores crudos de leads/citas SIN declarar: funcion crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text,text,text), funcion crm.gestiones_resumen_fn(date,date,uuid[]), funcion private.citas_clientes_core(date,date,uuid[],integer,timestamp with time zone,uuid), funcion private.conversion_cierres_coordinacion(uuid,date,date,integer), funcion private.facturacion_lista_base(date,date,date[],uuid[],boolean,uuid,boolean,text[],text,integer,integer,jsonb), funcion private.facturacion_lista_nombres_base(date,date,date[],uuid[],boolean,uuid,boolean,text[],text,integer,integer,jsonb), funcion private.gestion_diaria_cola_hechos(uuid,timestamp with time zone), funcion private.llamadas_celular_operacion_hoy(uuid,uuid,timestamp with time zone), funcion private.recorrido_evaluar(uuid[]). O beben del nucleo, o se declaran con su razon.",
+        "first_utc": "2026-10-19T17:13:42.830000",
+        "last_utc": "2026-10-19T17:13:42.830000",
+        "n": 1
+      },
+      {
+        "code": "42501",
+        "event_message": "Solo puedes consultar autores de tu equipo",
+        "first_utc": "2026-10-19T21:24:16.826000",
+        "last_utc": "2026-10-19T21:24:16.826000",
+        "n": 1
+      },
+      {
+        "code": "P0409",
+        "event_message": "El documento no coincide con el lead; corrige su identidad antes de invertir",
+        "first_utc": "2026-10-19T16:42:38.380000",
+        "last_utc": "2026-10-19T16:42:38.380000",
+        "n": 1
+      },
+      {
+        "code": "22007",
+        "event_message": "invalid input syntax for type date: \"2026-10-01 2026-10-31\"",
+        "first_utc": "2026-10-19T22:20:16.007000",
+        "last_utc": "2026-10-19T22:20:16.007000",
+        "n": 1
+      }
+    ]
+  },
+  "bad_timeline": {
+    "result": [
+      {
+        "hour_utc": "2026-10-19T05:00:00",
+        "n": 5,
+        "path": "/rest/v1/rpc/recorrido_leads_fn",
+        "status": "404"
+      },
+      {
+        "hour_utc": "2026-10-19T05:00:00",
+        "n": 1,
+        "path": "/rest/v1/rpc/tareas_pendientes_fn",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T06:00:00",
+        "n": 2,
+        "path": "/rest/v1/rpc/recorrido_leads_fn",
+        "status": "404"
+      },
+      {
+        "hour_utc": "2026-10-19T13:00:00",
+        "n": 26,
+        "path": "/rest/v1/rpc/recorrido_leads_fn",
+        "status": "404"
+      },
+      {
+        "hour_utc": "2026-10-19T13:00:00",
+        "n": 1,
+        "path": "/auth/v1/token",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T14:00:00",
+        "n": 90,
+        "path": "/rest/v1/rpc/recorrido_leads_fn",
+        "status": "404"
+      },
+      {
+        "hour_utc": "2026-10-19T14:00:00",
+        "n": 2,
+        "path": "/rest/v1/rpc/cola_accion_v3_fn",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T14:00:00",
+        "n": 2,
+        "path": "/rest/v1/rpc/preparar_inversion_fn",
+        "status": "500"
+      },
+      {
+        "hour_utc": "2026-10-19T14:00:00",
+        "n": 2,
+        "path": "/rest/v1/rpc/solicitud_inversion_fn",
+        "status": "500"
+      },
+      {
+        "hour_utc": "2026-10-19T14:00:00",
+        "n": 1,
+        "path": "/rest/v1/rpc/cerrar_reunion_v3",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T14:00:00",
+        "n": 1,
+        "path": "/rest/v1/rpc/confirmar_inversion_revisada_fn",
+        "status": "500"
+      },
+      {
+        "hour_utc": "2026-10-19T15:00:00",
+        "n": 5,
+        "path": "/rest/v1/rpc/preparar_persona_lead_inversion_fn",
+        "status": "500"
+      },
+      {
+        "hour_utc": "2026-10-19T15:00:00",
+        "n": 1,
+        "path": "/auth/v1/token",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T16:00:00",
+        "n": 49,
+        "path": "/rest/v1/rpc/preparar_persona_lead_inversion_fn",
+        "status": "500"
+      },
+      {
+        "hour_utc": "2026-10-19T16:00:00",
+        "n": 1,
+        "path": "/auth/v1/token",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T16:00:00",
+        "n": 1,
+        "path": "/rest/v1/rpc/gestion_diaria_cola_trabajo_fn",
+        "status": "502"
+      },
+      {
+        "hour_utc": "2026-10-19T16:00:00",
+        "n": 1,
+        "path": "/rest/v1/rpc/cerrar_tarea_v2",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T16:00:00",
+        "n": 1,
+        "path": "/rest/v1/rpc/potencial_leads_fn",
+        "status": "502"
+      },
+      {
+        "hour_utc": "2026-10-19T17:00:00",
+        "n": 1757,
+        "path": "/rest/v1/rpc/solicitudes_tasa_lead_fn",
+        "status": "403"
+      },
+      {
+        "hour_utc": "2026-10-19T17:00:00",
+        "n": 2,
+        "path": "/auth/v1/token",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T17:00:00",
+        "n": 1,
+        "path": "/rest/v1/rpc/preparar_persona_lead_inversion_fn",
+        "status": "500"
+      },
+      {
+        "hour_utc": "2026-10-19T17:00:00",
+        "n": 1,
+        "path": "/rest/v1/rpc/metricas_conversiones_fn",
+        "status": "500"
+      },
+      {
+        "hour_utc": "2026-10-19T18:00:00",
+        "n": 2,
+        "path": "/auth/v1/token",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T19:00:00",
+        "n": 16,
+        "path": "/rest/v1/rpc/preparar_persona_lead_inversion_fn",
+        "status": "500"
+      },
+      {
+        "hour_utc": "2026-10-19T19:00:00",
+        "n": 9,
+        "path": "/rest/v1/rpc/cerrar_reunion_v3",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T19:00:00",
+        "n": 8,
+        "path": "/rest/v1/rpc/confirmar_inversion_revisada_fn",
+        "status": "500"
+      },
+      {
+        "hour_utc": "2026-10-19T19:00:00",
+        "n": 1,
+        "path": "/rest/v1/rpc/postventa_agendar_fn",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T20:00:00",
+        "n": 2,
+        "path": "/rest/v1/rpc/cerrar_reunion_v3",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T20:00:00",
+        "n": 1,
+        "path": "/rest/v1/rpc/potencial_leads_fn",
+        "status": "502"
+      },
+      {
+        "hour_utc": "2026-10-19T20:00:00",
+        "n": 1,
+        "path": "/rest/v1/rpc/recorrido_leads_fn",
+        "status": "502"
+      },
+      {
+        "hour_utc": "2026-10-19T20:00:00",
+        "n": 1,
+        "path": "/rest/v1/rpc/actividades_de_lead_fn",
+        "status": "502"
+      },
+      {
+        "hour_utc": "2026-10-19T20:00:00",
+        "n": 1,
+        "path": "/rest/v1/rpc/cerrar_tarea_v2",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T21:00:00",
+        "n": 20,
+        "path": "/rest/v1/rpc/cerrar_tarea_v2",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T21:00:00",
+        "n": 3,
+        "path": "/rest/v1/rpc/registrar_llamada_v4",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T21:00:00",
+        "n": 1,
+        "path": "/rest/v1/rpc/preparar_persona_lead_inversion_fn",
+        "status": "500"
+      },
+      {
+        "hour_utc": "2026-10-19T21:00:00",
+        "n": 1,
+        "path": "/rest/v1/rpc/cerrar_reunion_v3",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T22:00:00",
+        "n": 7,
+        "path": "/rest/v1/rpc/cerrar_reunion_v3",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T23:00:00",
+        "n": 12,
+        "path": "/rest/v1/rpc/preparar_persona_lead_inversion_fn",
+        "status": "500"
+      },
+      {
+        "hour_utc": "2026-10-19T23:00:00",
+        "n": 1,
+        "path": "/rest/v1/rpc/cerrar_reunion_v3",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-19T23:00:00",
+        "n": 1,
+        "path": "/auth/v1/token",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-20T00:00:00",
+        "n": 2,
+        "path": "/auth/v1/token",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-20T01:00:00",
+        "n": 8,
+        "path": "/auth/v1/token",
+        "status": "400"
+      },
+      {
+        "hour_utc": "2026-10-20T04:00:00",
+        "n": 20,
+        "path": "/auth/v1/token",
+        "status": "400"
+      }
+    ]
+  },
+  "denied_minutes": {
+    "result": [
+      {
+        "minute_utc": "2026-10-19T17:22:00",
+        "n": 153
+      },
+      {
+        "minute_utc": "2026-10-19T17:12:00",
+        "n": 145
+      },
+      {
+        "minute_utc": "2026-10-19T17:13:00",
+        "n": 145
+      },
+      {
+        "minute_utc": "2026-10-19T17:11:00",
+        "n": 140
+      },
+      {
+        "minute_utc": "2026-10-19T17:10:00",
+        "n": 140
+      },
+      {
+        "minute_utc": "2026-10-19T17:15:00",
+        "n": 139
+      },
+      {
+        "minute_utc": "2026-10-19T17:19:00",
+        "n": 139
+      },
+      {
+        "minute_utc": "2026-10-19T17:14:00",
+        "n": 135
+      },
+      {
+        "minute_utc": "2026-10-19T17:20:00",
+        "n": 129
+      },
+      {
+        "minute_utc": "2026-10-19T17:21:00",
+        "n": 123
+      },
+      {
+        "minute_utc": "2026-10-19T17:23:00",
+        "n": 109
+      },
+      {
+        "minute_utc": "2026-10-19T17:09:00",
+        "n": 98
+      }
+    ]
+  },
+  "denied_detail": {
+    "result": [
+      {
+        "actor_hash": "0EC8192B8692",
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "client": "supabase-js/2.110.2; runtime=web",
+        "first_utc": "2026-10-19T17:08:30.923000",
+        "last_utc": "2026-10-19T17:33:43.651000",
+        "n": 1757,
+        "session_hash": "ED7E8D49CEE2"
+      }
+    ]
+  },
+  "pg_noauth_context": {
+    "result": [
+      {
+        "app": "PostgREST 14.5",
+        "db_user": "authenticator",
+        "functions": [
+          "PL/pgSQL function private.solicitudes_tasa_impl(text[],integer,boolean,uuid,uuid) line 13 at RAISE",
+          "PL/pgSQL function crm.solicitudes_tasa_lead_fn(uuid,text[],integer) line 4 at RETURN"
+        ],
+        "n": 2089
+      }
+    ]
+  },
+  "traffic_hourly": {
+    "result": [
+      {
+        "errors": 6,
+        "hour_utc": "2026-10-19T05:00:00",
+        "p95_origin": 1289.9,
+        "requests": 344
+      },
+      {
+        "errors": 2,
+        "hour_utc": "2026-10-19T06:00:00",
+        "p95_origin": 1636.6,
+        "requests": 128
+      },
+      {
+        "errors": 0,
+        "hour_utc": "2026-10-19T07:00:00",
+        "p95_origin": 396,
+        "requests": 26
+      },
+      {
+        "errors": 0,
+        "hour_utc": "2026-10-19T11:00:00",
+        "p95_origin": 2821.1,
+        "requests": 14
+      },
+      {
+        "errors": 0,
+        "hour_utc": "2026-10-19T12:00:00",
+        "p95_origin": 272.2,
+        "requests": 5
+      },
+      {
+        "errors": 26,
+        "hour_utc": "2026-10-19T13:00:00",
+        "p95_origin": 684,
+        "requests": 741
+      },
+      {
+        "errors": 98,
+        "hour_utc": "2026-10-19T14:00:00",
+        "p95_origin": 973.9,
+        "requests": 10767
+      },
+      {
+        "errors": 6,
+        "hour_utc": "2026-10-19T15:00:00",
+        "p95_origin": 1013,
+        "requests": 16828
+      },
+      {
+        "errors": 52,
+        "hour_utc": "2026-10-19T16:00:00",
+        "p95_origin": 991,
+        "requests": 15763
+      },
+      {
+        "errors": 1759,
+        "hour_utc": "2026-10-19T17:00:00",
+        "p95_origin": 856,
+        "requests": 15169
+      },
+      {
+        "errors": 2,
+        "hour_utc": "2026-10-19T18:00:00",
+        "p95_origin": 1118.1,
+        "requests": 5978
+      },
+      {
+        "errors": 34,
+        "hour_utc": "2026-10-19T19:00:00",
+        "p95_origin": 889,
+        "requests": 8521
+      },
+      {
+        "errors": 6,
+        "hour_utc": "2026-10-19T20:00:00",
+        "p95_origin": 1028,
+        "requests": 15740
+      },
+      {
+        "errors": 25,
+        "hour_utc": "2026-10-19T21:00:00",
+        "p95_origin": 1074,
+        "requests": 18746
+      },
+      {
+        "errors": 7,
+        "hour_utc": "2026-10-19T22:00:00",
+        "p95_origin": 873.9,
+        "requests": 13844
+      },
+      {
+        "errors": 13,
+        "hour_utc": "2026-10-19T23:00:00",
+        "p95_origin": 892.3,
+        "requests": 5694
+      },
+      {
+        "errors": 0,
+        "hour_utc": "2026-10-20T00:00:00",
+        "p95_origin": 1284.7,
+        "requests": 1059
+      },
+      {
+        "errors": 0,
+        "hour_utc": "2026-10-20T01:00:00",
+        "p95_origin": 1182.6,
+        "requests": 1490
+      },
+      {
+        "errors": 0,
+        "hour_utc": "2026-10-20T02:00:00",
+        "p95_origin": 3717.8,
+        "requests": 336
+      },
+      {
+        "errors": 0,
+        "hour_utc": "2026-10-20T03:00:00",
+        "p95_origin": 4247.2,
+        "requests": 385
+      },
+      {
+        "errors": 0,
+        "hour_utc": "2026-10-20T04:00:00",
+        "p95_origin": 2796,
+        "requests": 101
+      }
+    ]
+  },
+  "missing_rpc": {
+    "result": [
+      {
+        "first_utc": "2026-10-19T13:35:48.621000",
+        "last_utc": "2026-10-20T03:08:24.837000",
+        "n": 4435,
+        "status": "200"
+      },
+      {
+        "first_utc": "2026-10-19T05:25:17.052000",
+        "last_utc": "2026-10-19T14:39:04.148000",
+        "n": 123,
+        "status": "404"
+      },
+      {
+        "first_utc": "2026-10-19T20:36:40.993000",
+        "last_utc": "2026-10-19T20:36:40.993000",
+        "n": 1,
+        "status": "502"
+      }
+    ]
+  },
+  "function_counts": {
+    "result": [
+      {
+        "n": 669,
+        "path": "/functions/v1/crm-tipo-cambio",
+        "status": "200"
+      },
+      {
+        "n": 262,
+        "path": "/functions/v1/crm-capital-valorar",
+        "status": "200"
+      },
+      {
+        "n": 60,
+        "path": "/functions/v1/notificar-pagos",
+        "status": "200"
+      },
+      {
+        "n": 40,
+        "path": "/functions/v1/crm-contrato-pdf-v2",
+        "status": "200"
+      },
+      {
+        "n": 30,
+        "path": "/functions/v1/crm-importar-leads",
+        "status": "200"
+      },
+      {
+        "n": 17,
+        "path": "/functions/v1/crm-contrato-pdf-v2",
+        "status": "204"
+      },
+      {
+        "n": 14,
+        "path": "/functions/v1/crm-tipo-cambio",
+        "status": "502"
+      },
+      {
+        "n": 13,
+        "path": "/functions/v1/crm-notificaciones-tasa",
+        "status": "200"
+      },
+      {
+        "n": 12,
+        "path": "/functions/v1/crm-notificaciones-tasa",
+        "status": "204"
+      },
+      {
+        "n": 8,
+        "path": "/functions/v1/crm-inversion-documento",
+        "status": "204"
+      },
+      {
+        "n": 7,
+        "path": "/functions/v1/crm-inversion-documento",
+        "status": "200"
+      },
+      {
+        "n": 7,
+        "path": "/functions/v1/crm-agenda-ics",
+        "status": "200"
+      },
+      {
+        "n": 6,
+        "path": "/functions/v1/crm-inversion-bienvenida",
+        "status": "200"
+      },
+      {
+        "n": 5,
+        "path": "/functions/v1/crm-contrato-pdf-v2",
+        "status": "202"
+      },
+      {
+        "n": 4,
+        "path": "/functions/v1/crm-inversion-bienvenida",
+        "status": "204"
+      },
+      {
+        "n": 4,
+        "path": "/functions/v1/crm-inversion-portal",
+        "status": "204"
+      },
+      {
+        "n": 3,
+        "path": "/functions/v1/crm-agenda-ics",
+        "status": "404"
+      },
+      {
+        "n": 3,
+        "path": "/functions/v1/crm-inversion-portal",
+        "status": "200"
+      },
+      {
+        "n": 2,
+        "path": "/functions/v1/notificar-cambio-cuenta",
+        "status": "200"
+      },
+      {
+        "n": 1,
+        "path": "/functions/v1/crm-llamadas-ingesta",
+        "status": "200"
+      },
+      {
+        "n": 1,
+        "path": "/functions/v1/ciclo-contratos",
+        "status": "200"
+      },
+      {
+        "n": 1,
+        "path": "/functions/v1/notificar-pagos",
+        "status": "401"
+      },
+      {
+        "n": 1,
+        "path": "/functions/v1/ciclo-contratos",
+        "status": "401"
+      }
+    ]
+  },
+  "function_failures": {
+    "result": [
+      {
+        "agent": "Google-Calendar-Importer",
+        "error_code": "",
+        "execution_ms": "599",
+        "path": "/functions/v1/crm-agenda-ics",
+        "status": "404",
+        "timestamp": "2026-10-19T13:18:17.295000"
+      },
+      {
+        "agent": "pg_net/0.20.4",
+        "error_code": "",
+        "execution_ms": "843",
+        "path": "/functions/v1/notificar-pagos",
+        "status": "401",
+        "timestamp": "2026-10-19T14:00:00.962000"
+      },
+      {
+        "agent": "pg_net/0.20.4",
+        "error_code": "",
+        "execution_ms": "431",
+        "path": "/functions/v1/ciclo-contratos",
+        "status": "401",
+        "timestamp": "2026-10-19T14:10:00.483000"
+      },
+      {
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+        "error_code": "EDGE_FUNCTION_ERROR",
+        "execution_ms": "614",
+        "path": "/functions/v1/crm-tipo-cambio",
+        "status": "502",
+        "timestamp": "2026-10-19T14:56:16.787000"
+      },
+      {
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+        "error_code": "EDGE_FUNCTION_ERROR",
+        "execution_ms": "690",
+        "path": "/functions/v1/crm-tipo-cambio",
+        "status": "502",
+        "timestamp": "2026-10-19T14:58:41.448000"
+      },
+      {
+        "agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "error_code": "EDGE_FUNCTION_ERROR",
+        "execution_ms": "631",
+        "path": "/functions/v1/crm-tipo-cambio",
+        "status": "502",
+        "timestamp": "2026-10-19T15:02:14.525000"
+      },
+      {
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+        "error_code": "EDGE_FUNCTION_ERROR",
+        "execution_ms": "810",
+        "path": "/functions/v1/crm-tipo-cambio",
+        "status": "502",
+        "timestamp": "2026-10-19T15:22:33.029000"
+      },
+      {
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+        "error_code": "EDGE_FUNCTION_ERROR",
+        "execution_ms": "10136",
+        "path": "/functions/v1/crm-tipo-cambio",
+        "status": "502",
+        "timestamp": "2026-10-19T15:23:51.851000"
+      },
+      {
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+        "error_code": "EDGE_FUNCTION_ERROR",
+        "execution_ms": "639",
+        "path": "/functions/v1/crm-tipo-cambio",
+        "status": "502",
+        "timestamp": "2026-10-19T17:16:44.925000"
+      },
+      {
+        "agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "error_code": "EDGE_FUNCTION_ERROR",
+        "execution_ms": "500",
+        "path": "/functions/v1/crm-tipo-cambio",
+        "status": "502",
+        "timestamp": "2026-10-19T17:17:23.757000"
+      },
+      {
+        "agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "error_code": "EDGE_FUNCTION_ERROR",
+        "execution_ms": "543",
+        "path": "/functions/v1/crm-tipo-cambio",
+        "status": "502",
+        "timestamp": "2026-10-19T17:23:08.952000"
+      },
+      {
+        "agent": "Google-Calendar-Importer",
+        "error_code": "",
+        "execution_ms": "496",
+        "path": "/functions/v1/crm-agenda-ics",
+        "status": "404",
+        "timestamp": "2026-10-19T19:18:16.850000"
+      },
+      {
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+        "error_code": "EDGE_FUNCTION_ERROR",
+        "execution_ms": "601",
+        "path": "/functions/v1/crm-tipo-cambio",
+        "status": "502",
+        "timestamp": "2026-10-19T21:20:03.876000"
+      },
+      {
+        "agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "error_code": "EDGE_FUNCTION_ERROR",
+        "execution_ms": "553",
+        "path": "/functions/v1/crm-tipo-cambio",
+        "status": "502",
+        "timestamp": "2026-10-19T22:33:23.089000"
+      },
+      {
+        "agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "error_code": "EDGE_FUNCTION_ERROR",
+        "execution_ms": "513",
+        "path": "/functions/v1/crm-tipo-cambio",
+        "status": "502",
+        "timestamp": "2026-10-19T22:37:44.653000"
+      },
+      {
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "error_code": "EDGE_FUNCTION_ERROR",
+        "execution_ms": "622",
+        "path": "/functions/v1/crm-tipo-cambio",
+        "status": "502",
+        "timestamp": "2026-10-19T22:48:44.639000"
+      },
+      {
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "error_code": "EDGE_FUNCTION_ERROR",
+        "execution_ms": "716",
+        "path": "/functions/v1/crm-tipo-cambio",
+        "status": "502",
+        "timestamp": "2026-10-20T00:11:29.699000"
+      },
+      {
+        "agent": "Google-Calendar-Importer",
+        "error_code": "",
+        "execution_ms": "488",
+        "path": "/functions/v1/crm-agenda-ics",
+        "status": "404",
+        "timestamp": "2026-10-20T01:18:17.256000"
+      },
+      {
+        "agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "error_code": "EDGE_FUNCTION_ERROR",
+        "execution_ms": "719",
+        "path": "/functions/v1/crm-tipo-cambio",
+        "status": "502",
+        "timestamp": "2026-10-20T03:08:13.958000"
+      }
+    ]
+  },
+  "conversion_bursts": {
+    "result": [
+      {
+        "actor_hash": "AFB38347B975",
+        "minute_utc": "2026-10-19T16:59:00",
+        "n": 17
+      },
+      {
+        "actor_hash": "AFB38347B975",
+        "minute_utc": "2026-10-19T16:56:00",
+        "n": 6
+      },
+      {
+        "actor_hash": "AFB38347B975",
+        "minute_utc": "2026-10-19T16:57:00",
+        "n": 6
+      },
+      {
+        "actor_hash": "AFB38347B975",
+        "minute_utc": "2026-10-19T19:45:00",
+        "n": 4
+      },
+      {
+        "actor_hash": "AFB38347B975",
+        "minute_utc": "2026-10-19T16:20:00",
+        "n": 4
+      },
+      {
+        "actor_hash": "538A6697478E",
+        "minute_utc": "2026-10-19T23:11:00",
+        "n": 3
+      },
+      {
+        "actor_hash": "4B77C391E221",
+        "minute_utc": "2026-10-19T16:33:00",
+        "n": 3
+      },
+      {
+        "actor_hash": "AFB38347B975",
+        "minute_utc": "2026-10-19T19:46:00",
+        "n": 3
+      },
+      {
+        "actor_hash": "AFB38347B975",
+        "minute_utc": "2026-10-19T19:48:00",
+        "n": 3
+      },
+      {
+        "actor_hash": "AFB38347B975",
+        "minute_utc": "2026-10-19T19:47:00",
+        "n": 3
+      },
+      {
+        "actor_hash": "AFB38347B975",
+        "minute_utc": "2026-10-19T16:21:00",
+        "n": 3
+      },
+      {
+        "actor_hash": "538A6697478E",
+        "minute_utc": "2026-10-19T23:07:00",
+        "n": 2
+      }
+    ]
+  },
+  "auth_failures": {
+    "result": [
+      {
+        "code": "invalid_credentials",
+        "first_utc": "2026-10-19T13:08:41.000000",
+        "last_utc": "2026-10-20T04:24:15.000000",
+        "msg": "request completed",
+        "n": 39,
+        "path": "/token"
+      },
+      {
+        "code": "unexpected_failure",
+        "first_utc": "2026-10-20T01:04:02.000000",
+        "last_utc": "2026-10-20T01:04:02.000000",
+        "msg": "request completed",
+        "n": 1,
+        "path": "/token"
+      }
+    ]
+  },
+  "resumen": {
+    "peticiones_http_crm_incluye_options": 131679,
+    "preflight_options": 7230,
+    "errores_http_crm": 2036,
+    "rechazos403_tasas": 1757,
+    "porcentaje_errores_atribuidos_al_patron": 86.3,
+    "rol_afectado": "coordinador",
+    "modo_politica_tasa": "observacion",
+    "sql_errores_no_autorizado": 2089,
+    "reproduccion": "3 pruebas PASS; 12 consultas en 299ms, controles retryOnMount false y enforcement: 1 consulta en 500ms",
+    "source_commit": "a980bb719bde",
+    "mismo_codigo_durante_incidente": "sin diff de condiciones-tasa-lead, tasa-politica, query-client desde6479402d"
+  }
+}

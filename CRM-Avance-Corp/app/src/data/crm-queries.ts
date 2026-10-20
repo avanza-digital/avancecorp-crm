@@ -20,6 +20,7 @@ import type { ConversionMensual } from '@/lib/conversion-mensual'
 import type { MetricasConversionesEquipo } from '@/lib/metricas-conversiones-equipo'
 import { cumplimientoDesdeRpc } from '@/lib/objetivos'
 import {
+  CrmApiError,
   listarEquipoReportes,
   actualizarCapacidadLeadsObjetivo,
   anularCierreAvance,
@@ -967,12 +968,23 @@ export function useResolucionTasa(clienteId: string, categoria: CategoriaContrat
   })
 }
 
-/** Rentabilidad: solicitudes de tasa visibles para el actor. Se refresca solo mientras hay pendientes que esperar. */
+/** Rentabilidad: solicitudes visibles con refresco periódico opcional, detenido ante un permiso denegado. */
 export function useSolicitudesTasa(estados: EstadoSolicitudTasa[] | null, habilitada: boolean, refrescarCadaMs: number | false = false, opciones?: OpcionesSolicitudesTasa) {
   return useQuery({
     queryKey: crmQueryKeys.solicitudesTasa(estados, opciones),
     queryFn: ({ signal }) => listarSolicitudesTasa(estados, signal, opciones),
-    enabled: habilitada,
+    // Detiene también polling, foco, reconexión e invalidaciones tras un 403.
+    // refetch() explícito sigue disponible; Auth limpia la caché al cambiar sesión.
+    enabled: (consulta) => {
+      const error = consulta.state.error
+      // SIN_PERMISO también representa un JWT vencido. Ese caso debe recuperar
+      // su lectura después de renovar el token, sin confundirlo con un 403.
+      const codigo = error instanceof CrmApiError ? error.codigoOrigen ?? error.code : codigoDeError(error)
+      return habilitada && !['SIN_PERMISO', '42501'].includes(codigo ?? '')
+    },
+    // Padre e hijo observan la misma clave: montar al hijo tras un error no debe
+    // relanzar la petición y volver a desmontarlo por el estado pendiente.
+    retryOnMount: !opciones?.leadId,
     refetchInterval: refrescarCadaMs,
   })
 }

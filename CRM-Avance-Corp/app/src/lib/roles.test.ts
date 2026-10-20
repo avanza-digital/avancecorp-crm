@@ -105,6 +105,7 @@ describe('capacidades por rol', () => {
 
   it('habilita Gerencia como operador total del CRM', () => {
     expect(CAPS.gerencia).toEqual({
+      verSolicitudesTasa: true,
       verTodo: true,
       verEquipo: true,
       filtrarPorVendedor: true,
@@ -150,6 +151,14 @@ describe('capacidades por rol', () => {
     expect(can('directorio', 'verFacturacion')).toBe(true)
     expect(can('coordinador', 'verFacturacion')).toBe(true)
     expect(can(null, 'verFacturacion')).toBe(false)
+  })
+
+  it('Coordinación consulta leads pero no condiciones ni solicitudes de tasa', () => {
+    expect(ROLES.filter((rol) => can(rol, 'verSolicitudesTasa'))).toEqual(['vendedor', 'supervisor', 'gerencia', 'directorio'])
+    expect(can('coordinador', 'verLeads')).toBe(true)
+    expect(can('coordinador', 'verSolicitudesTasa')).toBe(false)
+    expect(can(null, 'verSolicitudesTasa')).toBe(false)
+    expect(can(undefined, 'verSolicitudesTasa')).toBe(false)
   })
 
   it('Coordinación consulta Ranking sin adquirir escrituras ni perder el reparto', () => {
