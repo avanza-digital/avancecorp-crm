@@ -3,10 +3,16 @@ import { equipoCitas } from './modelo'
 import type { CitaConLead } from './datos'
 import type { DepositoEjemplo } from './depositos'
 import type { GestionCitas } from './metas'
-/** Citas fusionadas de los meses del rango de Proyección (lo provee la pantalla). */
+import type { ReunionClienteProyeccion } from './proyeccion'
+import type { RangoProyeccion } from './proyeccion-rango'
+/** Citas fusionadas de los meses del rango de Proyección y las reuniones con clientes sin lead de ese rango (lo provee la pantalla). */
 export interface DatosProyeccionCitas {
   meses: string[]; citas: CitaConLead[]; gestion: GestionCitas | undefined; corte: string;
+  /** Rango al que corresponden `reunionesClientes` (null: aún no se pidió ninguno). */
+  rango: RangoProyeccion | null; reunionesClientes: ReunionClienteProyeccion[];
   cargando: boolean; error: string | null; onReintentar: () => void;
+  /** «Actualizar»: relee todo el rango (no solo lo que falló). */
+  onActualizar?: () => void;
 }
 export interface DatosCitas {
   citas: CitaConLead[]; corte: string; depositos: DepositoEjemplo[]; depositosDisponibles: boolean;
@@ -15,8 +21,9 @@ export interface DatosCitas {
   mesInicial: string; modoDemo: boolean; meses: string[];
   cargando?: boolean; error?: string | null; onReintentar?: () => void;
   onMes?: (mes: string) => void; onAbrirLead?: (id: string, tareaId: string) => void;
-  /** Proyección avisa qué meses necesita su rango; sin cargador usa las citas de arriba. */
-  onMesesProyeccion?: (meses: string[]) => void; proyeccion?: DatosProyeccionCitas;
+  /** Proyección avisa qué meses y qué rango necesita (null o vacío: ninguno); sin cargador usa las citas de arriba. */
+  onMesesProyeccion?: (meses: string[]) => void; onRangoProyeccion?: (rango: RangoProyeccion | null) => void;
+  proyeccion?: DatosProyeccionCitas;
 }
 export const ContextoCitas = createContext<DatosCitas | null>(null)
 export function useDatosCitas() {

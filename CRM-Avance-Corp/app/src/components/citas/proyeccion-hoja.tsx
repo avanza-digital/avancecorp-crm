@@ -14,7 +14,7 @@ import { fechaLocalCitas } from './fecha-comercial'
 import {
   COLUMNA_DE_ORIGEN, ORDEN_INICIAL, ORIGENES, calcularProyeccion, csvProyeccion, opcionesAnalistas, opcionesMonedas,
   opcionesPersonas, type ColumnaNumerica, type ColumnaProyeccion, type FiltrosColumnas,
-  type MetricasProyeccion, type OrdenProyeccion, type OrigenCita,
+  type MetricasProyeccion, type OrdenProyeccion, type OrigenCita, type ReunionClienteProyeccion,
 } from './proyeccion'
 import {
   diasPermitidos, mesesDelRango, rotuloRango, tiempoEfectivo, type RangoProyeccion, type TiempoProyeccion, type TramoProyeccion,
@@ -53,6 +53,7 @@ const ETIQUETAS_CITAS: Record<'citas' | OrigenCita, [string, string]> = {
 }
 const etiquetaCitas = (tipo: 'citas' | OrigenCita, n: number) => ETIQUETAS_CITAS[tipo][n === 1 ? 0 : 1]
 const SIN_CITAS: never[] = []
+const SIN_REUNIONES: readonly ReunionClienteProyeccion[] = []
 const listaDe = (m: MetricasProyeccion, tipo: TipoLista) => tipo === 'citas' ? m.citas : tipo === 'monto' ? m.conMonto
   : tipo === 'entrevistas' ? m.entrevistas : tipo === 'conversion' ? m.convertidas : m[COLUMNA_DE_ORIGEN[tipo]]
 const soles = (valor: number | null) => valor === null ? '—' : `S/ ${numero(valor)}`
@@ -116,12 +117,15 @@ export interface PropsProyeccion {
 
 export function ProyeccionCitas({ equipo, rango, tiempo, onRango, onTiempo, onEquipo }: PropsProyeccion) {
   const datos = useDatosCitas()
-  // Con cargador, las citas son las de los meses del rango ya fusionados; sin él
-  // (ejemplo y pruebas), las de arriba. Mientras falte un mes no hay cifras.
+  // Con cargador, las citas son las de los meses del rango ya fusionados más las
+  // reuniones con clientes sin lead de ESE rango; sin él (ejemplo y pruebas), las
+  // de arriba. Mientras falte un mes o esas reuniones no hay cifras.
   const meses = mesesDelRango(rango).join(',')
   const delRango = datos.proyeccion
-  const preparado = !delRango || (delRango.meses.join(',') === meses && !delRango.cargando && !delRango.error)
+  const preparado = !delRango || (delRango.meses.join(',') === meses && delRango.rango?.desde === rango.desde
+    && delRango.rango.hasta === rango.hasta && !delRango.cargando && !delRango.error)
   const citas = preparado ? (delRango ?? datos).citas : SIN_CITAS
+  const reunionesClientes = preparado && delRango ? delRango.reunionesClientes : SIN_REUNIONES
   const gestion = (delRango ?? datos).gestion
   const corte = delRango?.corte || datos.corte
   const avance = gestion?.avance
@@ -143,9 +147,9 @@ export function ProyeccionCitas({ equipo, rango, tiempo, onRango, onTiempo, onEq
   const hoy = fechaLocalCitas(corte)
   const { tc, recargar } = useTipoCambio(citas.some(c => c.moneda === 'USD' && (c.monto ?? 0) > 0), hasta < hoy ? hasta : hoy)
   const hoja = useMemo(() => calcularProyeccion({
-    citas, filtros: { equipo }, rango: { desde, hasta }, tiempo, corte, tipoCambio: tc?.promedio,
+    citas, reunionesClientes, filtros: { equipo }, rango: { desde, hasta }, tiempo, corte, tipoCambio: tc?.promedio,
     conversiones: avance?.conversiones ?? null, poblacion: avance?.poblacion, analistaResultado: avance?.control.configuracion.analista_resultado,
-  }, columnas, orden), [citas, equipo, desde, hasta, tiempo, corte, tc?.promedio, avance, columnas, orden])
+  }, columnas, orden), [citas, reunionesClientes, equipo, desde, hasta, tiempo, corte, tc?.promedio, avance, columnas, orden])
   const vistaTiempo = tiempoEfectivo(tiempo, rango)
   const objetivos = {
     entrevistas: avance?.control.configuracion.entrevistas_porcentaje ?? gestion?.entrevistasPorcentaje ?? METAS_CITAS_INICIALES.entrevistas_porcentaje,
@@ -207,7 +211,7 @@ export function ProyeccionCitas({ equipo, rango, tiempo, onRango, onTiempo, onEq
   const origenMenu = menu ? ORIGEN_DE_COLUMNA[menu.columna] : undefined
 
   // Barra única: Supervisor · periodo · columnas de tiempo · acciones (estas, solo con la hoja lista).
-  const supervisores = supervisoresDe([datos.equipo, citas], equipo)
+  const supervisores = supervisoresDe([datos.equipo, citas, reunionesClientes], equipo)
   const barra = (conAcciones: boolean) => <BarraRango rango={rango} hoy={hoy} onRango={onRango}
     antes={<label className="pc-fecha pc-supervisor">Supervisor<Select aria-label="Supervisor" className="h-8" value={equipo} onChange={e => onEquipo(e.target.value)}>
       <option value="">Todos</option>{supervisores.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}

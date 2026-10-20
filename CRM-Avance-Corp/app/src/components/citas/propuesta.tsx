@@ -80,7 +80,7 @@ export function TableroCitas({ conservarConsulta = false }: { conservarConsulta?
   const consultaSesion = useConsultaGerencia()
   const guardarConsulta = conservarConsulta ? consultaSesion?.setConsulta : undefined
   const guardada = conservarConsulta ? consultaSesion?.consulta.citas : undefined
-  const { citas: CITAS, equipo: EQUIPO, gestion, corte, modoDemo, mesInicial, cargando, error: errorCarga, onReintentar, onMes, onMesesProyeccion, proyeccion } = useDatosCitas()
+  const { citas: CITAS, equipo: EQUIPO, gestion, corte, modoDemo, mesInicial, cargando, error: errorCarga, onReintentar, onMes, onMesesProyeccion, onRangoProyeccion, proyeccion } = useDatosCitas()
   const inicial = () => defaults(mesInicial)
   const desdeEnlace = () => {
     const consulta = leerHash().consultaCitas
@@ -111,6 +111,12 @@ export function TableroCitas({ conservarConsulta = false }: { conservarConsulta?
   const rangoProyeccion = { desde: rangoMes.desde, hasta: rangoMes.hasta }
   const mesesProyeccion = vista === 'proyeccion' && !errorRango(rangoProyeccion) ? mesesDelRango(rangoProyeccion).join(',') : ''
   useEffect(() => { onMesesProyeccion?.(mesesProyeccion ? mesesProyeccion.split(',') : []) }, [mesesProyeccion, onMesesProyeccion])
+  // Y el rango exacto, para las reuniones con clientes sin lead (una consulta por rango).
+  const rangoPedido = mesesProyeccion ? `${rangoProyeccion.desde}|${rangoProyeccion.hasta}` : ''
+  useEffect(() => {
+    const [desde = '', hasta = ''] = rangoPedido.split('|')
+    onRangoProyeccion?.(rangoPedido ? { desde, hasta } : null)
+  }, [rangoPedido, onRangoProyeccion])
   useEffect(() => {
     guardarConsulta?.(anterior => ({ ...anterior, citas: { filtros, vista, pagina, rango: { ...rangoMes, tiempo } } }))
   }, [filtros, vista, pagina, rangoMes, tiempo, guardarConsulta])
@@ -273,7 +279,7 @@ export function TableroCitas({ conservarConsulta = false }: { conservarConsulta?
         <div><h1 className="citas-titulo-seccion">Citas del equipo</h1><p className="citas-nota">Seguimiento, recuperación y metas por lead{modoDemo ? ' · Datos de ejemplo' : ''}</p></div>
         <div className="flex max-w-full flex-wrap gap-2"><Button variant="ghost" aria-label="Cómo usar Citas" onClick={() => setGuia(true)}><CircleHelp aria-hidden />Ayuda</Button>
           {/* Con cargador propio, la Proyección recarga los meses de SU rango. */}
-          <Button variant="outline" onClick={propia ? propia.onReintentar : onReintentar} disabled={propia ? propia.cargando : cargando}>Actualizar</Button>
+          <Button variant="outline" onClick={propia ? propia.onActualizar ?? propia.onReintentar : onReintentar} disabled={propia ? propia.cargando : cargando}>Actualizar</Button>
           {vista !== 'proyeccion' && <Button variant="outline" onClick={exportar} disabled={Boolean(error || errorCarga || cargando || !citas.length)}><Download aria-hidden />Exportar citas</Button>}</div>
       </div>
       <div id="consulta-citas" tabIndex={-1} className="outline-none">

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { sb } from '@/lib/supabase'
 import { crmQueryKeys } from './crm-queries'
 import { CrmApiError } from './crm-api'
-import { defaults, rango } from '@/components/citas/modelo'
+import { defaults, rango, type EstadoCita } from '@/components/citas/modelo'
 import type { CitaConLead } from '@/components/citas/datos'
 import type { DepositoEjemplo } from '@/components/citas/depositos'
 import type { GestionCitas } from '@/components/citas/metas'
@@ -63,13 +63,14 @@ export const ConsultaCitasSchema = v.variant('version',[
     conversiones:v.pipe(v.array(v.object({lead_id:Id,perfil_id:Id,convertido_en:Instante,fecha_comercial:v.nullable(FechaSchema)})),v.maxLength(10000)) }),
 ])
 export type ConsultaCitasRpc = v.InferOutput<typeof ConsultaCitasSchema>
+type TareaCita = v.InferOutput<typeof CitaSchema>
 export function adaptarDepositos(datos: ConsultaCitasRpc): DepositoEjemplo[] {
   return datos.version===2 ? datos.conversiones.filter(c => c.fecha_comercial !== null).map(c => ({
     id:`conversion-${c.lead_id}`,leadId:c.lead_id,fuente:'conversion_cliente',
     depositadoEn:c.convertido_en,confirmadoEn:c.convertido_en,fechaComercial:c.fecha_comercial!,monto:null,moneda:null,
   })) : []
 }
-const fechaLima = (fecha: string) => new Intl.DateTimeFormat('en-CA', {timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(fecha))
+export const fechaLima = (fecha: string) => new Intl.DateTimeFormat('en-CA', {timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(fecha))
 const rotulo = (valor: string) => valor === 'sin_clasificar' ? 'Sin clasificar' : valor.replaceAll('_',' ').replace(/^./,c => c.toUpperCase())
 
 export function adaptarGestion(datos: ConsultaCitasRpc): GestionCitas | undefined {
@@ -91,6 +92,14 @@ export function adaptarGestion(datos: ConsultaCitasRpc): GestionCitas | undefine
   }
 }
 
+/** Estado de la tarea en el vocabulario de Citas (`ESTADOS`): una pendiente ya vencida al corte es «vencida» y
+ * una cancelada que no canceló el asesor es «sistema». Lo comparten las citas con lead y las reuniones con
+ * clientes sin lead de la Proyección (Fase 0b). */
+export function estadoDeCita(c: { estado: TareaCita['estado']; vence_en: string; cancelada_por: string | null }, generadoEn: string): EstadoCita {
+  return c.estado==='pendiente' ? Date.parse(c.vence_en)<=Date.parse(generadoEn) ? 'vencida' : 'programada'
+    : c.estado==='completada' ? 'realizada' : c.estado==='cancelada' && c.cancelada_por!=='asesor' ? 'sistema' : c.estado
+}
+
 export function adaptarCitas(datos: ConsultaCitasRpc): CitaConLead[] {
   const comerciales = new Map(datos.version === 2 ? datos.conversiones.map(c => [c.lead_id, c.fecha_comercial]) : [])
   // La marca heredada comparaba el último cierre con vence_en por instante.
@@ -109,8 +118,7 @@ export function adaptarCitas(datos: ConsultaCitasRpc): CitaConLead[] {
     id:c.id,leadId:c.lead_id,nombre:c.nombre,telefono:c.telefono,analista:c.analista_id ?? 'sin_analista',
     analistaNombre:c.analista_nombre,supervisor:c.supervisor_nombre,supervisorId:c.supervisor_id ?? 'sin_supervisor',
     fecha:fechaLima(c.vence_en),hora:horaLima(c.vence_en),
-    estado:c.estado_comercial ?? (c.estado==='pendiente' ? Date.parse(c.vence_en)<=Date.parse(datos.generado_en) ? 'vencida' : 'programada'
-      : c.estado==='completada' ? 'realizada' : c.estado==='cancelada' && c.cancelada_por!=='asesor' ? 'sistema' : c.estado),
+    estado:c.estado_comercial ?? estadoDeCita(c,datos.generado_en),
     modalidad:rotulo(c.modalidad),origen:rotulo(c.origen),moneda:c.moneda,monto:c.monto_estimado,
     resultado:rotulo(c.resultado),nota:c.nota,cerrado:cierreCompatible(c),
     seguimiento:c.estado==='completada' && !cierreCompatible(c),
@@ -193,6 +201,16 @@ export async function cargarCitasGerencia(mes: string, signal?: AbortSignal): Pr
   return resultado.output
 }
 
+/** Cadencia y caché de las lecturas de Citas; la comparten las reuniones con clientes de la Proyección. */
+export const CADENCIA_CITAS = {
+  staleTime:30_000,
+  // Incluye cambios de otros analistas y el paso de programada a vencida.
+  refetchInterval:60_000,
+  refetchIntervalInBackground:false,
+  refetchOnWindowFocus:true,
+  refetchOnReconnect:true,
+} as const
+
 /** Opciones de la consulta mensual: las comparten el mes de la pantalla y los meses del rango de Proyección. */
 export function opcionesCitasGerencia(mes: string, actorId: string | null, habilitada: boolean) {
   // Clave por actor/mes y sin placeholderData: nunca presenta otro período.
@@ -200,12 +218,7 @@ export function opcionesCitasGerencia(mes: string, actorId: string | null, habil
     queryKey:crmQueryKeys.citasGerencia(actorId,mes),
     queryFn:({signal}: {signal: AbortSignal}) => cargarCitasGerencia(mes,signal),
     enabled:habilitada && Boolean(actorId) && Boolean(rango(defaults(mes))[0]),
-    staleTime:30_000,
-    // Incluye cambios de otros analistas y el paso de programada a vencida.
-    refetchInterval:60_000,
-    refetchIntervalInBackground:false,
-    refetchOnWindowFocus:true,
-    refetchOnReconnect:true,
+    ...CADENCIA_CITAS,
     retry:1,
   }
 }

@@ -3,9 +3,11 @@ import * as v from 'valibot'
 const mocks = vi.hoisted(() => ({ rpc: vi.fn(), schema: vi.fn(), abortSignal: vi.fn() }))
 vi.mock('@/lib/supabase', () => ({ sb: { schema: mocks.schema } }))
 import {
-  cargarCitasClientesProyeccion, citasClientesProyeccionCoherentes, CitasClientesProyeccionSchema,
-  type CitasClientesProyeccionRpc,
+  adaptarCitasClientesProyeccion, cargarCitasClientesProyeccion, citasClientesProyeccionCoherentes, CitasClientesProyeccionSchema,
+  esRangoDemasiadoGrande, opcionesCitasClientesProyeccion, type CitasClientesProyeccionRpc,
 } from './citas-clientes-proyeccion'
+import { CrmApiError } from './crm-api'
+import { crmQueryKeys } from './crm-queries'
 
 // Payload EJECUTADO en el banco Docker (19/10/2026) por crm.citas_clientes_proyeccion_fn como el
 // vendedor sintético V1, F6 encendida: datos inventados. Incluye perfil visible, persona F6
@@ -196,5 +198,82 @@ describe('carga de la proyección de reuniones con clientes', () => {
 
   it('rechaza un payload que no corresponde al rango pedido', async () => {
     await expect(cargarCitasClientesProyeccion('2026-09-01', '2026-09-30')).rejects.toMatchObject({ code: 'CITAS_CONTRATO' })
+  })
+})
+
+describe('reuniones con clientes como citas de la Proyección', () => {
+  it('cada reunión es una cita sin lead, monto ni moneda, con la persona del servidor y el estado de Citas', () => {
+    const reuniones = adaptarCitasClientesProyeccion(copia())
+    expect(reuniones.map(r => [r.id.slice(-2), r.estado, r.persona.split(':')[0], r.nombre])).toEqual([
+      // Pendientes con fecha anterior al corte: «vencida», como en Citas.
+      ['f4', 'vencida', 'perfil', 'CLIENTE PERFIL TRES'], ['d1', 'realizada', 'perfil', 'CLIENTE PERFIL TRES'],
+      ['d2', 'realizada', 'persona', 'CLIENTE PERSONA UNO'], ['d4', 'no_show', 'oculta', 'Cliente fuera de tu cartera'],
+      ['dc', 'vencida', 'persona', 'CLIENTE PERSONA UNO'],
+    ])
+    const d1 = reuniones.find(r => r.id.endsWith('d1'))!
+    expect(d1).toEqual({
+      id: '00000000-0000-0000-0000-0000000000d1', leadId: null, moneda: null, monto: null,
+      persona: 'perfil:00000000-0000-0000-0000-0000000000c3', nombre: 'CLIENTE PERFIL TRES',
+      analista: '00000000-0000-0000-0000-0000000000e3', analistaNombre: 'VENDEDOR UNO',
+      supervisor: 'SUPERVISOR UNO', supervisorId: '00000000-0000-0000-0000-0000000000e2',
+      fecha: '2026-10-07', hora: '10:00', estado: 'realizada', creadoEn: '2026-10-05T10:00:00-05:00',
+      asistioEn: '2026-10-07T11:00:00-05:00',
+    })
+    // La persona redactada conserva su clave propia y el texto del servidor, sin datos personales.
+    expect(reuniones.find(r => r.id.endsWith('d4'))).toMatchObject({ persona: 'oculta:00000000-0000-0000-0000-0000000000d4', nombre: 'Cliente fuera de tu cartera' })
+    expect(reuniones.find(r => r.id.endsWith('d4'))).not.toHaveProperty('asistioEn')
+  })
+
+  it('mapea todos los estados y los responsables vacíos igual que Citas', () => {
+    const d = copia()
+    const [f4, d1, d2, d4, dc] = d.citas
+    Object.assign(f4!, { vence_en: '2026-10-25T10:00:00-05:00' })
+    Object.assign(d1!, { estado: 'cancelada', cancelada_por: 'asesor', asistencia_registrada_en: null })
+    Object.assign(d2!, { estado: 'cancelada', cancelada_por: 'sistema', asistencia_registrada_en: null })
+    Object.assign(d4!, { estado: 'reprogramada', analista_id: null, analista_nombre: 'Sin analista', supervisor_id: null, supervisor_nombre: 'Sin supervisor' })
+    Object.assign(dc!, { estado: 'no_show' })
+    const reuniones = adaptarCitasClientesProyeccion(d)
+    expect(reuniones.map(r => r.estado)).toEqual(['programada', 'cancelada', 'sistema', 'reprogramada', 'no_show'])
+    expect(reuniones[3]).toMatchObject({ analista: 'sin_analista', analistaNombre: 'Sin analista', supervisor: 'Sin supervisor', supervisorId: 'sin_supervisor' })
+  })
+
+  it('un rango demasiado grande (54000 o 57014) da un mensaje claro y no se reintenta solo', async () => {
+    for (const code of ['54000', '57014']) {
+      responder(null, { code, message: 'canceling statement due to statement timeout' })
+      const error = await cargarCitasClientesProyeccion('2026-10-01', '2026-10-31').catch((e: unknown) => e)
+      expect(error).toMatchObject({ code, message: 'El rango es demasiado grande. Acorta las fechas.' })
+      expect(esRangoDemasiadoGrande(error)).toBe(true)
+    }
+    expect(esRangoDemasiadoGrande(new CrmApiError('No autorizado', '42501'))).toBe(false)
+    const { retry, refetchInterval } = opcionesCitasClientesProyeccion({ desde: '2026-10-01', hasta: '2026-10-31' }, 'actor', true)
+    expect(refetchInterval({ state: { error: new CrmApiError('x', '57014') } })).toBe(false)
+    expect(refetchInterval({ state: { error: null } })).toBe(60_000)
+    expect(retry(0, new CrmApiError('x', '54000'))).toBe(false)
+    expect(retry(0, new CrmApiError('x', '57014'))).toBe(false)
+    expect(retry(0, new CrmApiError('x', '08006'))).toBe(true)
+    expect(retry(1, new CrmApiError('x', '08006'))).toBe(false)
+    // Codex (19/10): tampoco se vuelve a pedir solo al recuperar el foco ni la conexión.
+    const { refetchOnWindowFocus, refetchOnReconnect } = opcionesCitasClientesProyeccion({ desde: '2026-10-01', hasta: '2026-10-31' }, 'actor', true)
+    for (const refrescar of [refetchOnWindowFocus, refetchOnReconnect]) {
+      expect(refrescar({ state: { error: new CrmApiError('x', '57014') } })).toBe(false)
+      expect(refrescar({ state: { error: new CrmApiError('x', '54000') } })).toBe(false)
+      expect(refrescar({ state: { error: new CrmApiError('x', '08006') } })).toBe(true)
+      expect(refrescar({ state: { error: null } })).toBe(true)
+    }
+  })
+
+  it('una consulta por rango y actor, bajo el detalle de Citas; sin rango, sin actor o en demostración no consulta', async () => {
+    const rango = { desde: '2026-10-01', hasta: '2026-10-19' }
+    const opciones = opcionesCitasClientesProyeccion(rango, 'actor', true)
+    expect(opciones.queryKey).toEqual([...crmQueryKeys.citasGerenciaPrefijo(), 'clientes-proyeccion', 'actor', '2026-10-01', '2026-10-19'])
+    // Foco y conexión refrescan salvo con un rango demasiado grande (ver el caso de 54000/57014).
+    expect(opciones).toMatchObject({ enabled: true, staleTime: 30_000, refetchIntervalInBackground: false })
+    expect([opciones.refetchOnWindowFocus({ state: { error: null } }), opciones.refetchOnReconnect({ state: { error: null } })]).toEqual([true, true])
+    expect(opcionesCitasClientesProyeccion(null, 'actor', true).enabled).toBe(false)
+    expect(opcionesCitasClientesProyeccion(rango, null, true).enabled).toBe(false)
+    expect(opcionesCitasClientesProyeccion(rango, 'actor', false).enabled).toBe(false)
+    responder({ ...copia(), periodo: { desde: '2026-10-01', hasta: '2026-10-19' } })
+    await expect(opciones.queryFn({ signal: new AbortController().signal })).resolves.toMatchObject({ periodo: rango })
+    expect(mocks.rpc).toHaveBeenCalledWith('citas_clientes_proyeccion_fn', { p_desde: '2026-10-01', p_hasta: '2026-10-19' })
   })
 })

@@ -1,11 +1,13 @@
 import { useMemo } from 'react'
-import { useQueries, type UseQueryResult } from '@tanstack/react-query'
+import { useQueries, useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth-context'
 import { can } from '@/lib/roles'
 import { useCRMData } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
 import { useCitasGerencia, adaptarCitas, fusionarConsultasCitas, opcionesCitasGerencia, type ConsultaCitasRpc } from '@/data/citas-gerencia'
+import { adaptarCitasClientesProyeccion, opcionesCitasClientesProyeccion } from '@/data/citas-clientes-proyeccion'
 import type { DatosProyeccionCitas } from '@/components/citas/contexto'
+import type { RangoProyeccion } from '@/components/citas/proyeccion-rango'
 import { defaults, rango } from '@/components/citas/modelo'
 
 /** La misma lectura y adaptación para el módulo Citas y el Resumen móvil. */
@@ -48,11 +50,15 @@ const combinarMeses = (resultados: UseQueryResult<ConsultaCitasRpc>[]) => ({
   datos: resultados.every(r => r.data) ? resultados.map(r => r.data!) : null,
   error: resultados.find(r => r.isError)?.error ?? null,
   reintentar: () => { for (const r of resultados) if (r.isError) void r.refetch() },
+  actualizar: () => { for (const r of resultados) void r.refetch() },
 })
+
+type MesesProyeccion = Omit<DatosProyeccionCitas, 'rango' | 'reunionesClientes'>
+const mensaje = (error: unknown, respaldo: string) => error instanceof Error ? error.message : respaldo
 
 /** Meses completos de un rango de Proyección: misma consulta y caché que el mes de
  * la pantalla. Mientras falte alguno no hay datos (nunca cifras parciales). */
-export function useMesesCitasGerencia(meses: readonly string[]): DatosProyeccionCitas {
+export function useMesesCitasGerencia(meses: readonly string[]): MesesProyeccion {
   const { yo } = useAuth()
   const habilitada = can(yo?.rol, 'verCitasEquipo') && !yo?.demo
   const estado = useQueries({
@@ -63,7 +69,28 @@ export function useMesesCitasGerencia(meses: readonly string[]): DatosProyeccion
   return {
     meses: [...meses], ...(fusion ?? { citas: [], gestion: undefined, corte: '' }),
     cargando: !fusion && !estado.error,
-    error: estado.error ? (estado.error instanceof Error ? estado.error.message : 'No se pudieron cargar las citas.') : null,
-    onReintentar: estado.reintentar,
+    error: estado.error ? mensaje(estado.error, 'No se pudieron cargar las citas.') : null,
+    onReintentar: estado.reintentar, onActualizar: estado.actualizar,
+  }
+}
+
+/** Datos de la Proyección: los meses del rango y, en UNA consulta por rango, sus
+ * reuniones con clientes sin lead (Fase 0b). Mientras falte cualquiera, o si una
+ * falla, no hay datos: nunca cifras parciales. En demostración no consulta. */
+export function useDatosProyeccionCitas(meses: readonly string[], rango: RangoProyeccion | null): DatosProyeccionCitas {
+  const { yo } = useAuth()
+  const habilitada = can(yo?.rol, 'verCitasEquipo') && !yo?.demo
+  const delRango = useMesesCitasGerencia(meses)
+  const consulta = useQuery(opcionesCitasClientesProyeccion(rango, yo?.id ?? null, habilitada))
+  const reuniones = useMemo(() => consulta.data ? adaptarCitasClientesProyeccion(consulta.data) : null, [consulta.data])
+  const error = delRango.error ?? (consulta.isError ? mensaje(consulta.error, 'No se pudieron cargar las reuniones con clientes.') : null)
+  const listo = !error && !delRango.cargando && reuniones !== null
+  return {
+    ...delRango, rango,
+    citas: listo ? delRango.citas : [], reunionesClientes: listo ? reuniones : [],
+    cargando: !error && !listo, error,
+    onReintentar: () => { delRango.onReintentar(); if (consulta.isError) void consulta.refetch() },
+    // «Actualizar»: vuelve a leer TODO, también lo que ya llegó (reuniones nuevas de otros analistas).
+    onActualizar: () => { delRango.onActualizar?.(); void consulta.refetch() },
   }
 }

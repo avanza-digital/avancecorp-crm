@@ -1,14 +1,19 @@
 import * as v from 'valibot'
 import { sb } from '@/lib/supabase'
 import { CrmApiError } from './crm-api'
+import { crmQueryKeys } from './crm-queries'
+import { CADENCIA_CITAS, estadoDeCita, fechaLima } from './citas-gerencia'
 import { camposIdentidadCliente, identidadClienteValida } from '@/lib/sujeto-gestion'
 import { FechaSchema } from '@/lib/esquemas-rpc'
+import { horaLima } from '@/components/citas/contexto'
+import type { ReunionClienteProyeccion } from '@/components/citas/proyeccion'
+import type { RangoProyeccion } from '@/components/citas/proyeccion-rango'
 
 /**
  * Proyección de citas, Fase 0b (19/10/2026): reuniones con CLIENTES que no tienen lead,
  * contadas por fecha de CREACIÓN (día de Lima), sin paginar. Puerta
  * `crm.citas_clientes_proyeccion_fn` → núcleo `private.citas_clientes_proyeccion`
- * (migración 20261019213516 + enmienda 20261019224227). BORRADOR: todavía no lo usa ninguna pantalla.
+ * (migración 20261019213516 + enmienda 20261019224227). La usa la pestaña Proyección de Citas.
  *
  * `generado_en` es el CORTE (enmienda 20261019224227): el servidor sólo devuelve reuniones
  * creadas, y asistencias registradas, hasta ese instante; por eso el validador lo exige.
@@ -62,9 +67,6 @@ export const CitasClientesProyeccionSchema = v.object({
 export type CitasClientesProyeccionRpc = v.InferOutput<typeof CitasClientesProyeccionSchema>
 export type CitaClienteProyeccion = CitasClientesProyeccionRpc['citas'][number]
 
-const fechaLima = (instante: string) => new Intl.DateTimeFormat('en-CA', {
-  timeZone:'America/Lima', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date(instante))
-
 /** El payload corresponde a lo pedido: mismo período, ids únicos y cada cita GENERADA dentro del rango. */
 export function citasClientesProyeccionCoherentes(d: CitasClientesProyeccionRpc, desde: string, hasta: string): boolean {
   if (d.periodo.desde !== desde || d.periodo.hasta !== hasta) return false
@@ -77,19 +79,21 @@ export function citasClientesProyeccionCoherentes(d: CitasClientesProyeccionRpc,
   })
 }
 
-type RespuestaSinTipos = { data: unknown; error: { code?: string | null; message?: string | null } | null }
-type ConsultaSinTipos = PromiseLike<RespuestaSinTipos> & { abortSignal: (s: AbortSignal) => PromiseLike<RespuestaSinTipos> }
-
-/**
- * La puerta todavía no sale de `gen:types` (se instala con la migración 20261019213516).
- * Misma llamada que `.rpc()` tipado; la respuesta se valida siempre con su esquema.
- * Se retira el cast cuando los tipos generados la conozcan.
- */
-function rpcProyeccionClientes(args: { p_desde: string; p_hasta: string }, signal?: AbortSignal): PromiseLike<RespuestaSinTipos> {
+/** Puerta tipada (tipos generados tras instalar 20261019213516 y su enmienda); la respuesta se valida siempre con su esquema. */
+async function rpcProyeccionClientes(args: { p_desde: string; p_hasta: string }, signal?: AbortSignal) {
   if (!sb) throw new CrmApiError('No se pudo conectar con el CRM.', 'CITAS_SIN_CONEXION')
-  const crm = sb.schema('crm') as unknown as { rpc: (fn: string, a: Record<string, unknown>) => ConsultaSinTipos }
-  const consulta = crm.rpc('citas_clientes_proyeccion_fn', args)
+  const consulta = sb.schema('crm').rpc('citas_clientes_proyeccion_fn', args)
   return signal ? consulta.abortSignal(signal) : consulta
+}
+
+/** Más de 10 000 reuniones (54000) o la consulta agotó su tiempo (57014): el rango es demasiado grande. */
+const RANGO_DEMASIADO_GRANDE = new Set(['54000', '57014'])
+export const esRangoDemasiadoGrande = (error: unknown) => error instanceof CrmApiError && RANGO_DEMASIADO_GRANDE.has(error.code)
+
+function mensajeDeError(code: string | null | undefined): string {
+  if (code === 'PGRST202') return 'Las reuniones con clientes de la Proyección aún no están habilitadas en este servidor.'
+  if (code && RANGO_DEMASIADO_GRANDE.has(code)) return 'El rango es demasiado grande. Acorta las fechas.'
+  return 'No se pudieron cargar las reuniones con clientes. Reintenta la consulta.'
 }
 
 /** Reuniones con clientes sin lead generadas entre `desde` y `hasta` (YYYY-MM-DD, día de Lima; hasta un año). */
@@ -98,12 +102,43 @@ export async function cargarCitasClientesProyeccion(desde: string, hasta: string
     throw new CrmApiError('Selecciona un rango válido.', 'CITAS_PERIODO')
   }
   const { data, error } = await rpcProyeccionClientes({ p_desde: desde, p_hasta: hasta }, signal)
-  if (error) throw new CrmApiError(error.code === 'PGRST202'
-    ? 'Las reuniones con clientes de la Proyección aún no están habilitadas en este servidor.'
-    : 'No se pudieron cargar las reuniones con clientes. Reintenta la consulta.', error.code ?? undefined)
+  if (error) throw new CrmApiError(mensajeDeError(error.code), error.code ?? undefined)
   const resultado = v.safeParse(CitasClientesProyeccionSchema, data)
   if (!resultado.success || !citasClientesProyeccionCoherentes(resultado.output, desde, hasta)) {
     throw new CrmApiError('La respuesta de reuniones con clientes está incompleta o no corresponde al rango.', 'CITAS_CONTRATO')
   }
   return resultado.output
+}
+
+/**
+ * Cada reunión como cita de la hoja: origen Cliente, sin lead, monto ni moneda; analista y supervisor del
+ * lector (con los mismos «sin analista» / «sin supervisor» que Citas) y el estado en el vocabulario de Citas.
+ */
+export function adaptarCitasClientesProyeccion(datos: CitasClientesProyeccionRpc): ReunionClienteProyeccion[] {
+  return datos.citas.map(c => ({
+    id: c.id, leadId: null, moneda: null, monto: null, persona: c.identidad_persona, nombre: c.sujeto_nombre,
+    analista: c.analista_id ?? 'sin_analista', analistaNombre: c.analista_nombre,
+    supervisor: c.supervisor_nombre, supervisorId: c.supervisor_id ?? 'sin_supervisor',
+    fecha: fechaLima(c.vence_en), hora: horaLima(c.vence_en), estado: estadoDeCita(c, datos.generado_en), creadoEn: c.creado_en,
+    ...(c.asistencia_registrada_en ? { asistioEn: c.asistencia_registrada_en } : {}),
+  }))
+}
+
+/**
+ * Una consulta por rango, con la cadencia y la caché de los meses de Citas. Sin rango (otra pestaña) o en
+ * demostración no consulta. Un rango demasiado grande no se reintenta ni se refresca solo: fallaría igual.
+ */
+export function opcionesCitasClientesProyeccion(rango: RangoProyeccion | null, actorId: string | null, habilitada: boolean) {
+  const desde = rango?.desde ?? '', hasta = rango?.hasta ?? ''
+  return {
+    queryKey: crmQueryKeys.citasClientesProyeccion(actorId, desde, hasta),
+    queryFn: ({ signal }: { signal: AbortSignal }) => cargarCitasClientesProyeccion(desde, hasta, signal),
+    enabled: habilitada && Boolean(actorId) && rango !== null,
+    ...CADENCIA_CITAS,
+    refetchInterval: (consulta: { state: { error: unknown } }) => esRangoDemasiadoGrande(consulta.state.error) ? false : CADENCIA_CITAS.refetchInterval,
+    // Codex 19/10: ni al recuperar el foco ni la conexión (fallaría igual).
+    refetchOnWindowFocus: (consulta: { state: { error: unknown } }) => !esRangoDemasiadoGrande(consulta.state.error),
+    refetchOnReconnect: (consulta: { state: { error: unknown } }) => !esRangoDemasiadoGrande(consulta.state.error),
+    retry: (fallos: number, error: Error) => fallos < 1 && !esRangoDemasiadoGrande(error),
+  }
 }

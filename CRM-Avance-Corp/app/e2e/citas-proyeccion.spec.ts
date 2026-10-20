@@ -2,9 +2,10 @@ import { expect, test, type Page } from '@playwright/test'
 import { loginReal, montarBackendReal } from './_helpers'
 
 // Datos ficticios: tres analistas en dos equipos, citas creadas en octubre (y dos
-// a fines de septiembre, una con fecha en octubre) y una conversión posterior a su
+// a fines de septiembre, una con fecha en octubre) y dos conversiones posteriores a su
 // entrevista. El servidor entrega cada mes por la fecha prevista de la cita. La consulta V2 no está instalada en el
-// backend simulado y la pantalla cae a la consulta V1, que responde este mock.
+// backend simulado y la pantalla cae a la consulta V1, que responde este mock. Además, tres reuniones de
+// ANALISTA TRES con clientes SIN lead (Fase 0b), del lector propio de la Proyección.
 const id = (n: number) => `85000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const ANALISTAS = [
   { n: 20, nombre: 'ANALISTA UNO', sup: 30, supNombre: 'SUPERVISORA NORTE' },
@@ -19,8 +20,29 @@ const CITAS = [
   [2, 106, 'realizada', '2026-10-08', '2026-10-08', 'PEN', 50000, 'formulario'], [2, 107, 'cancelada', '2026-10-15', '2026-10-15', 'PEN', 30000, 'referido'],
   [0, 109, 'programada', '2026-09-30', '2026-10-05', 'PEN', 8000, 'formulario'], [2, 108, 'programada', '2026-09-28', '2026-09-29', 'PEN', 7000, 'formulario'],
 ] as const
+// [tarea, persona, creada, prevista, estado, asistencia] de ANALISTA TRES (SUPERVISOR SUR).
+const REUNIONES_CLIENTES = [
+  [201, 'persona', '2026-10-06', '2026-10-07', 'completada', '2026-10-07T16:00:00Z'],
+  [202, 'perfil', '2026-10-09', '2026-10-10', 'no_show', null],
+  [203, 'oculta', '2026-10-11', '2026-10-25', 'pendiente', null],
+] as const
 
 async function montarProyeccion(page: Page) {
+  // Una llamada por rango: las reuniones con clientes sin lead CREADAS (día de Lima) en él.
+  await page.route('**/rest/v1/rpc/citas_clientes_proyeccion_fn', async route => {
+    const { p_desde: desde, p_hasta: hasta } = route.request().postDataJSON() as { p_desde: string; p_hasta: string }
+    const citas = REUNIONES_CLIENTES.filter(([, , creada]) => creada >= desde && creada <= hasta).map(([n, persona, creada, prevista, estado, asistencia]) => {
+      const cliente = id(n + 100)
+      const identidad = persona === 'oculta'
+        ? { sujeto_tipo: 'inversionista', sujeto_id: null, sujeto_nombre: 'Cliente fuera de tu cartera', inversionista_id: null, perfil_id: null, identidad_visible: false, identidad_persona: `oculta:${id(n)}` }
+        : persona === 'persona'
+          ? { sujeto_tipo: 'inversionista', sujeto_id: cliente, sujeto_nombre: 'CLIENTE SIN LEAD UNO', inversionista_id: cliente, perfil_id: null, identidad_visible: true, identidad_persona: `persona:${cliente}` }
+          : { sujeto_tipo: 'perfil', sujeto_id: cliente, sujeto_nombre: 'CLIENTE SIN LEAD DOS', inversionista_id: null, perfil_id: cliente, identidad_visible: true, identidad_persona: `perfil:${cliente}` }
+      return { id: id(n), creado_en: `${creada}T15:00:00Z`, vence_en: `${prevista}T15:00:00Z`, estado, cancelada_por: null, asistencia_registrada_en: asistencia,
+        analista_id: id(22), analista_nombre: 'ANALISTA TRES', supervisor_id: id(31), supervisor_nombre: 'SUPERVISOR SUR', ...identidad }
+    })
+    await route.fulfill({ json: { version: 1, periodo: { desde, hasta }, criterio: 'creado_en', generado_en: '2026-10-19T17:00:00Z', citas } })
+  })
   await page.route('**/rest/v1/rpc/citas_gerencia_consulta_fn', async route => {
     const { p_desde: desde, p_hasta: hasta } = route.request().postDataJSON() as { p_desde: string; p_hasta: string }
     const mes = desde.slice(0, 7)
@@ -39,12 +61,14 @@ async function montarProyeccion(page: Page) {
     })
     const leads = citas.map(c => c.lead_id)
     const conversion = { lead_id: id(101), perfil_id: id(501), convertido_en: `${mes}-06T15:00:00Z`, fecha_comercial: `${mes}-06` }
+    // ANALISTA TRES vende a quien entrevistó el 08/10 (lead 106): su fila tiene % Conv. y Proyectado.
+    const conversionTres = { lead_id: id(106), perfil_id: id(506), convertido_en: `${mes}-10T15:00:00Z`, fecha_comercial: `${mes}-10` }
     const configuracion = { citas_por_lead: 1.25, entrevistas_porcentaje: 70, depositos_porcentaje: 70, excluir_manuales_base: false,
       actividad_manuales: 'incluir', conteo_entrevistas: 'citas_realizadas', base_avance: 'actividad_real', base_depositos: 'personas_entrevistadas',
       mes_resultado: 'evento', analista_resultado: 'evento', mes_inicio: mes, mostrar_meta_citas: false }
     await route.fulfill({ json: {
       version: 2, periodo: { desde, hasta }, generado_en: '2026-10-19T17:00:00Z', citas, citas_clientes: 0,
-      disponibilidad_depositos: 'conversion_cliente', criterio_depositos: 'fecha_comercial', conversiones: delMes ? [conversion] : [],
+      disponibilidad_depositos: 'conversion_cliente', criterio_depositos: 'fecha_comercial', conversiones: delMes ? [conversion, conversionTres] : [],
       gestion: { version: 2, citas_por_lead: 1.25, entrevistas_porcentaje: 70, depositos_porcentaje: 70, actividad_manuales: 'incluir',
         control: { version: 1, mes_inicio: mes, configuracion }, asignaciones: [], capital: [],
         poblacion: citas.map((c, i) => ({ lead_id: leads[i], nombre: c.nombre, telefono: c.telefono, origen: c.origen, moneda: c.moneda,
@@ -52,7 +76,8 @@ async function montarProyeccion(page: Page) {
           primera_asignacion_en: `${mes}-01T15:00:00Z`, analista_origen_nombre: c.analista_nombre, supervisor_origen_id: c.supervisor_id,
           supervisor_origen_nombre: c.supervisor_nombre })),
         conversiones: delMes ? [{ ...conversion, analista_id: id(20), analista_nombre: 'ANALISTA UNO', supervisor_id: id(30),
-          supervisor_nombre: 'SUPERVISORA NORTE', contrato_id: null }] : [] },
+          supervisor_nombre: 'SUPERVISORA NORTE', contrato_id: null }, { ...conversionTres, analista_id: id(22), analista_nombre: 'ANALISTA TRES',
+          supervisor_id: id(31), supervisor_nombre: 'SUPERVISOR SUR', contrato_id: null }] : [] },
     } })
   })
 }
@@ -123,7 +148,8 @@ test('Proyección: la hoja pinta una fila por analista, un número abre su lista
   await page.getByLabel('Desde', { exact: true }).fill('2026-09-25')
   await expect(page.getByTestId('pc-rotulo-rango')).toHaveText('25 set – 19 oct 2026')
   await expect(hoja.getByRole('button', { name: '5 citas de ANALISTA UNO' })).toBeVisible()
-  await expect(hoja.getByRole('button', { name: '3 citas de ANALISTA TRES' })).toBeVisible()
+  // ANALISTA TRES: 3 citas con lead (una de septiembre) + 3 reuniones con clientes sin lead.
+  await expect(hoja.getByRole('button', { name: '6 citas de ANALISTA TRES' })).toBeVisible()
   await atajo(page, 'S3').click()
   await expect(page.getByTestId('pc-rotulo-rango')).toHaveText('15–21 oct 2026')
   await expect(hoja.locator('tr.pc-fila')).toHaveCount(2)
@@ -142,7 +168,8 @@ test('Proyección: Semanas y Días ponen columnas de tiempo antes de Citas y cad
   await expect(tiempo(page, 'Semanas')).toHaveAttribute('aria-pressed', 'true')
   await expect(hoja.locator('thead th.pc-tiempo .sr-only')).toHaveText(['S1 1–7 oct', 'S2 8–14 oct', 'S3 15–19 oct'])
   await expect(hoja.locator('thead th.pc-tcierre')).toContainText('Citas')
-  expect(await uno.locator('td').evaluateAll(celdas => celdas.slice(0, 5).map(td => td.textContent))).toEqual(['1', '3', '1', '0', '4'])
+  // El # depende del orden (las reuniones con clientes suben a ANALISTA TRES): se comparan tramos y Citas.
+  expect(await uno.locator('td').evaluateAll(celdas => celdas.slice(1, 5).map(td => td.textContent))).toEqual(['3', '1', '0', '4'])
   const sumas = await hoja.locator('tbody tr, tfoot tr').evaluateAll(filas => filas.map(tr => {
     const n = [...tr.querySelectorAll('td')].map(td => Number(td.textContent))
     return n[1]! + n[2]! + n[3]! - n[4]!
@@ -225,4 +252,45 @@ test('Proyección: el mes sin citas muestra la hoja vacía sin errores y en el c
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0)
   }
   await page.screenshot({ path: info.outputPath('proyeccion-320.png') })
+})
+
+test('Proyección: las reuniones con clientes sin lead cuentan en Citas, Clientes y % Entrev., no en Monto, Ticket ni Proyectado', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  const hoja = await abrirProyeccion(page)
+  const tres = hoja.getByRole('row', { name: /ANALISTA TRES/ })
+  // 2 citas con lead (106 realizada, 107 cancelada) + 3 reuniones (completada, no asistió, pendiente).
+  await expect(tres.getByRole('button', { name: '5 citas de ANALISTA TRES' })).toBeVisible()
+  await expect(tres.getByRole('button', { name: '3 citas con clientes de ANALISTA TRES' })).toBeVisible()
+  // Monto y Ticket cita: solo las 2 citas con lead (S/ 80,000 ÷ 2).
+  await expect(tres.getByRole('button', { name: 'S/ 80,000 en citas de ANALISTA TRES' })).toBeVisible()
+  await expect(tres.locator('td').nth(3)).toHaveText('S/40,000')
+  // % Entrev.: (1 + 1) entrevistas ÷ (1 + 2) resueltas. % Conv. y Proyectado, de las citas con lead: 2 × 100 % × 100 % × S/ 40,000.
+  await expect(tres.getByRole('button', { name: /^% Entrev\. de ANALISTA TRES: 66\.7%/ })).toBeVisible()
+  await expect(tres.getByRole('button', { name: /^% Conv\. de ANALISTA TRES: 100%/ })).toBeVisible()
+  await expect(tres.locator('td.pc-proyectado')).toHaveText('S/80,000')
+  await page.screenshot({ path: info.outputPath('proyeccion-clientes-1440.png'), fullPage: true })
+
+  // Embudo de Clientes: estas personas, la redactada con el texto del servidor.
+  await hoja.getByRole('button', { name: 'Filtrar Clientes' }).click()
+  const menu = page.getByRole('dialog', { name: 'Filtrar Clientes' })
+  await expect(menu.getByRole('checkbox')).toHaveCount(4)
+  for (const nombre of ['Cliente fuera de tu cartera · 1 cita', 'CLIENTE SIN LEAD DOS · 1 cita', 'CLIENTE SIN LEAD UNO · 1 cita']) {
+    await expect(menu.getByRole('checkbox', { name: nombre })).toBeChecked()
+  }
+  await page.keyboard.press('Escape')
+  await expect(menu).toHaveCount(0)
+
+  // Lista de Clientes: sin botón de ficha (no tienen lead), monto «—» y origen Cliente.
+  await tres.getByRole('button', { name: '3 citas con clientes de ANALISTA TRES' }).click()
+  const lista = page.getByRole('dialog', { name: 'Citas con clientes · ANALISTA TRES' })
+  await expect(lista.getByTestId('pc-detalle-conteo')).toHaveText('1–19 oct 2026 · 3 citas')
+  await expect(lista.locator('tbody tr')).toHaveCount(3)
+  await expect(lista.locator('tbody button')).toHaveCount(0)
+  await expect(lista.getByRole('row', { name: /CLIENTE SIN LEAD UNO/ })).toContainText('Realizada')
+  await expect(lista.getByRole('row', { name: /CLIENTE SIN LEAD DOS/ })).toContainText('No asistió')
+  await expect(lista.getByRole('row', { name: /Cliente fuera de tu cartera/ })).toContainText('Programada')
+  await expect(lista.locator('tbody td.pc-num')).toHaveText(['—', '—', '—'])
+  await expect(lista.locator('tbody .pc-origen')).toHaveText(['Cliente', 'Cliente', 'Cliente'])
+  await page.keyboard.press('Escape')
+  await expect(lista).toHaveCount(0)
 })

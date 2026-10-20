@@ -240,6 +240,10 @@ export const crmQueryKeys = {
   citasGerenciaPrefijo: () => [...crmQueryKeys.metricasReunionesPrefijo(), 'detalle'] as const,
   citasGerencia: (actorId: string | null, mes: string) =>
     [...crmQueryKeys.citasGerenciaPrefijo(), actorId, mes] as const,
+  // Reuniones con clientes sin lead de un rango de la Proyección (Fase 0b): bajo el detalle de
+  // citas, para que lo que lo invalida (control de citas, escrituras comerciales) también las refresque.
+  citasClientesProyeccion: (actorId: string | null, desde: string, hasta: string) =>
+    [...crmQueryKeys.citasGerenciaPrefijo(), 'clientes-proyeccion', actorId, desde, hasta] as const,
   // Métricas del ÁMBITO OPERATIVO (RPC de F1: los tiles dejan de contar filas).
   // Prefijo PROPIO, separado de metricas(): el puente transitorio del store
   // (persistir/resincronizarReal) las invalida tras CADA mutación de leads, y
