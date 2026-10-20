@@ -1,0 +1,71 @@
+.aviso-cierre-compacto {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.aviso-cierre-ancla { position: relative; }
+.aviso-cierre-ancla:has(.aviso-cierre-detalle) { z-index: 30; }
+.gerencia-inteligencia .gi-toolbar-compacta .aviso-cierre-alarma { text-align: left; }
+
+.aviso-cierre-compacto .aviso-cierre-disparador {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--gi-muted, var(--muted-foreground));
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  text-align: right;
+}
+
+.aviso-cierre-disparador > svg { width: 15px; height: 15px; flex-shrink: 0; }
+.aviso-cierre-disparador:hover { text-decoration: underline; text-underline-offset: 3px; }
+.aviso-cierre-compacto button:focus-visible { outline: 2px solid var(--gi-blue); outline-offset: 3px; }
+
+.aviso-cierre-detalle {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  width: 360px;
+  max-width: calc(100vw - 48px);
+  padding: 18px 38px 18px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 12px 32px rgb(20 41 67 / 14%);
+  text-align: left;
+}
+
+.aviso-cierre-detalle h2 { font-size: 13px; font-weight: 600; line-height: 1.5; }
+.aviso-cierre-detalle h2::first-letter { text-transform: uppercase; }
+.aviso-cierre-detalle p { margin-top: 7px; color: var(--muted-foreground); font-size: 13px; line-height: 1.6; }
+.aviso-cierre-compacto .aviso-cierre-cerrar {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.aviso-cierre-cerrar > svg { width: 16px; height: 16px; }
+.aviso-cierre-cerrar:hover { background: var(--muted); }
+
+@media (pointer: coarse) {
+  .aviso-cierre-compacto .aviso-cierre-disparador { min-height: 44px; }
+  .aviso-cierre-compacto .aviso-cierre-cerrar { width: 44px; height: 44px; top: 0; right: 0; }
+  .aviso-cierre-detalle { padding-right: 46px; }
+}

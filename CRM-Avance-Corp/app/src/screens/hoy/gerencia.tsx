@@ -130,7 +130,7 @@ function MetaItem({ label, actual, objetivo, progreso, mensajeSinProgreso, nota 
   )
 }
 
-function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar, fuente, onCambiarFuente, filtroVisible, filtroDeshabilitado, filtroSellado, modo, mes, mesMaximo, etiquetaMes, onCambiarMes, compacta }: { periodo: PeriodoGerencia; borrador: PeriodoGerencia; onCambiarBorrador: (campo: keyof PeriodoGerencia, valor: string) => void; onAplicar: () => void; fuente: FiltroFuentesConversion; onCambiarFuente: (fuente: FiltroFuentesConversion) => void; filtroVisible: boolean; filtroDeshabilitado: boolean; filtroSellado: boolean; modo: 'rango' | 'mes' | 'mixto'; mes: string; mesMaximo: string; etiquetaMes: string; onCambiarMes: (mes: string) => void; compacta: boolean }): JSX.Element {
+function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar, fuente, onCambiarFuente, filtroVisible, filtroDeshabilitado, filtroSellado, modo, mes, mesMaximo, etiquetaMes, onCambiarMes, compacta, avisoCierre }: { periodo: PeriodoGerencia; borrador: PeriodoGerencia; onCambiarBorrador: (campo: keyof PeriodoGerencia, valor: string) => void; onAplicar: () => void; fuente: FiltroFuentesConversion; onCambiarFuente: (fuente: FiltroFuentesConversion) => void; filtroVisible: boolean; filtroDeshabilitado: boolean; filtroSellado: boolean; modo: 'rango' | 'mes' | 'mixto'; mes: string; mesMaximo: string; etiquetaMes: string; onCambiarMes: (mes: string) => void; compacta: boolean; avisoCierre: boolean }): JSX.Element {
   const validacion = validarPeriodoGerencia(borrador)
   const sinCambios = borrador.desde === periodo.desde && borrador.hasta === periodo.hasta
   const hoyLima = periodoInicialGerencia().hasta
@@ -195,13 +195,14 @@ function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar, fue
           <button type="button" disabled={!validacion.valido || sinCambios} onClick={onAplicar} className="gi-apply">Aplicar</button>
           {selectorFuente}
         </div>
-        {modo === 'mixto' && (
+        {modo === 'mixto' && !compacta && (
           <p role="status" className="mt-1.5 text-[11px] font-medium text-[var(--gi-muted)]">
             {filtroDeshabilitado
               ? `Ejemplo · ${etiquetaRango} · filtro no disponible.`
               : `Rango: ${etiquetaRango} · Meta mensual: ${etiquetaMes}.`}
           </p>
         )}
+        {compacta && avisoCierre && <AvisoCierreMesPanel compacto />}
         {!validacion.valido && (
           <p id="error-periodo-gerencia" role="alert" className="mt-1.5 text-[11px] font-semibold text-destructive">
             {validacion.mensaje}
@@ -639,7 +640,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     onActualizar={() => { reintentarConversionMensual(); if (sesionReal) void qCumplimientoRanking.refetch() }}
     onMetas={() => { setPeriodo(periodoRanking); setOrigenFiltrado(null); escribirHash('metas') }}
     onCompleto={() => cambiarResumen(true)}
-    aviso={sesionReal ? <AvisoCierreMesPanel /> : null}
+    aviso={sesionReal ? <AvisoCierreMesPanel compacto /> : null}
   />
 
   return (
@@ -647,6 +648,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
       {seccion === 'resumen' && esMovil && resumenCompleto && <Button ref={volverCompactoRef} variant="outline" onClick={() => cambiarResumen(false)}>Volver al resumen compacto</Button>}
       <CabeceraGerencia
         compacta={esResumen}
+        avisoCierre={sesionReal}
         periodo={periodo}
         borrador={borrador}
         onCambiarBorrador={(campo, valor) => setBorrador((actual) => ({ ...actual, [campo]: valor }))}
@@ -666,10 +668,9 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
         }}
       />
 
-      {/* El aviso del ciclo del cierre de mes, en TODAS las secciones: la
-          alarma de un ciclo atascado no puede depender de qué pestaña se mire.
-          Solo en sesión real — el estado habla de la maquinaria de verdad. */}
-      {sesionReal && <AvisoCierreMesPanel />}
+      {/* Resumen lo integra en la cabecera; las demás secciones conservan el
+          panel. Un ciclo atascado mantiene su alarma visible en ambas vistas. */}
+      {sesionReal && !esResumen && <AvisoCierreMesPanel />}
 
       {/* Hasta qué día cuentan las ventas de cada mes, y el botón de Gerencia
           para ampliarlo o reabrir el mes sellado. Junto al aviso, pero solo en

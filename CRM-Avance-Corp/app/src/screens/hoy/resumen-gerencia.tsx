@@ -587,7 +587,7 @@ export function ResumenGerenciaPanel({
 
       <div className={`grid gap-4 ${esFuenteCartera ? '' : 'xl:grid-cols-[minmax(0,1.35fr)_minmax(330px,.8fr)]'}`}>
         {!esFuenteCartera && <section data-gi-panel className="gi-card p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="gi-title">Resultados por semana de ingreso</h2><span className="gi-caption">Prospectos del período y cuántos cerraron, agrupados por su semana de ingreso</span></div>
+          <h2 className="gi-title">Resultados por semana de ingreso</h2>
           {tendenciaEquipo == null
             ? <div className="mt-3 grid h-[260px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] px-4 text-center text-xs font-medium text-[var(--gi-muted)]">Tendencia no disponible</div>
             : valoresEvolucion.length > 0

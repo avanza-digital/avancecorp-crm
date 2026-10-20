@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const dobles = vi.hoisted(() => ({
@@ -68,7 +68,7 @@ describe('AvisoCierreMesPanel', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('atascado: ALARMA con role="alert" — sin ella un cron roto es invisible', () => {
+  it.each([false, true])('atascado: la alarma permanece visible, compacto=%s', (compacto) => {
     dobles.cierreEstado = estado({
       mes: '2026-06',
       estado: 'atascado',
@@ -76,11 +76,45 @@ describe('AvisoCierreMesPanel', () => {
       mes_nombre: 'junio',
       dias_para_cierre: 0,
     })
-    render(<AvisoCierreMesPanel />)
+    render(<AvisoCierreMesPanel compacto={compacto} />)
 
     const alarma = screen.getByRole('alert')
     expect(alarma).toHaveTextContent('El cierre de junio está atascado')
     expect(alarma).toHaveTextContent(/Debió sellarse el 10 jul\. 2026/)
+  })
+
+  it('el aviso compacto abre el detalle, cierra con Escape o fuera y devuelve el foco', () => {
+    dobles.cierreEstado = estado({
+      mes: '2026-09', estado: 'en_ventana', cierra_el: '2026-10-22',
+      mes_nombre: 'setiembre', dias_para_cierre: 2,
+    })
+    render(<AvisoCierreMesPanel compacto />)
+    const boton = screen.getByRole('button', { name: 'Cierre de setiembre: 22 oct.' })
+    expect(boton).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText(/Quedan 2 días de ajuste/)).not.toBeInTheDocument()
+    fireEvent.click(boton)
+    expect(screen.getByRole('region', { name: 'setiembre se cierra el 22 oct. 2026' }))
+      .toHaveTextContent(/Quedan 2 días de ajuste/)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(boton).toHaveFocus()
+    expect(boton).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(boton)
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar detalle del cierre' }))
+    expect(boton).toHaveFocus()
+    fireEvent.click(boton)
+    fireEvent.pointerDown(document.body)
+    expect(boton).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('el día del cierre muestra hoy y conserva la explicación al abrir', () => {
+    dobles.cierreEstado = estado({
+      mes: '2026-09', estado: 'hoy', cierra_el: '2026-10-22',
+      mes_nombre: 'setiembre', dias_para_cierre: 0,
+    })
+    render(<AvisoCierreMesPanel compacto />)
+    fireEvent.click(screen.getByRole('button', { name: 'Cierre de setiembre: hoy' }))
+    expect(screen.getByText(/El ciclo automático pasa a las 09:20 de Lima/)).toBeVisible()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('en DEMO no consulta ni pinta: el demo es hermético y esta maquinaria es real', () => {
