@@ -1,3 +1,8 @@
+// Pendientes de un analista en la ficha del supervisor / Gerencia (H3+G4a), desde el
+// 20/10/2026 por `crm.gestion_diaria_pendientes_v3_fn`: la lista va DE LO MÁS RECIENTE A LO
+// MÁS ANTIGUO (vence_en descendente; en «Vencidas», lo que venció hace menos arriba y lo más
+// viejo al final) y el cursor avanza hacia atrás. Decisión de Miguel («quiero que sea al
+// revés»). La v2 sigue ascendente para los bundles publicados: no se mezclan.
 import { identidadClienteValida } from './sujeto-gestion'
 import * as v from 'valibot'
 import type { Lead, Tarea } from './tipos'
@@ -30,7 +35,7 @@ export const PendienteSupervisorSchema = v.strictObject({
 })
 export type PendienteSupervisor = v.InferOutput<typeof PendienteSupervisorSchema>
 export const PaginaPendientesSchema = v.strictObject({
-  version: v.union([v.literal(1), v.literal(2)]), zona: v.literal('America/Lima'), supervisor_id: Uuid, analista_id: Uuid,
+  version: v.literal(3), zona: v.literal('America/Lima'), supervisor_id: Uuid, analista_id: Uuid,
   generado_en: Fecha, pendientes_al: Fecha, solo_vencidas: v.boolean(),
   limite: v.pipe(Natural, v.minValue(1), v.maxValue(100)),
   resumen: v.strictObject({ tareas_pendientes: Natural, tareas_vencidas: Natural }),
@@ -42,11 +47,16 @@ export interface PedidoPendientes {
   supervisor: string; analista: string; soloVencidas: boolean; limite: number; cursor: CursorPendientes | null
 }
 
+/**
+ * El orden de la lista: negativo si `a` va ANTES que `b`. De lo más reciente a lo más antiguo
+ * (vence_en descendente, empate por id descendente), el mismo que pone la v3 del servidor y
+ * el que recorre su cursor («después de» = más antiguo que la última fila).
+ */
 export function compararPendientes(a: Pick<PendienteSupervisor, 'vence_en' | 'id'>, b: Pick<PendienteSupervisor, 'vence_en' | 'id'>): number {
   const x = instantePendiente(a.vence_en), y = instantePendiente(b.vence_en)
   if (x === null || y === null) throw new Error('Fecha de tarea inválida')
   const idA = a.id.toLowerCase(), idB = b.id.toLowerCase()
-  return x < y ? -1 : x > y ? 1 : idA < idB ? -1 : idA > idB ? 1 : 0
+  return x > y ? -1 : x < y ? 1 : idA > idB ? -1 : idA < idB ? 1 : 0
 }
 
 /** Frontera estricta: jamás descartar una fila para aparentar lista completa. */
@@ -88,7 +98,7 @@ export function unirPaginasPendientes(paginas: readonly PaginaPendientes[]): Pen
   return [...porId.values()].sort(compararPendientes)
 }
 
-/** Sólo demo: el store demo sí es completo y ya está acotado por su ámbito. */
+/** Sólo demo: el store demo sí es completo y ya está acotado por su ámbito. Mismo orden y cursor que la v3. */
 export function pendientesDesdeDemo(pedido: PedidoPendientes, tareas: readonly Tarea[], leads: readonly Lead[], ahora: number): PaginaPendientes {
   const base = tareas.filter(t => t.activo && t.estado === 'pendiente' && t.vendedor_id === pedido.analista)
   const porId = new Map(leads.filter(l => l.activo).map(l => [l.id, l]))
@@ -105,7 +115,7 @@ export function pendientesDesdeDemo(pedido: PedidoPendientes, tareas: readonly T
   const seleccion = (pedido.soloVencidas ? vencidas : items).sort(compararPendientes)
     .filter(t => !pedido.cursor || compararPendientes(t, { id: pedido.cursor.despues_id, vence_en: pedido.cursor.despues_de }) > 0)
   const pagina = seleccion.slice(0, pedido.limite), ultima = pagina.at(-1), hayMas = seleccion.length > pedido.limite
-  return { version: 1, zona: 'America/Lima', supervisor_id: pedido.supervisor, analista_id: pedido.analista,
+  return { version: 3, zona: 'America/Lima', supervisor_id: pedido.supervisor, analista_id: pedido.analista,
     generado_en: new Date(ahora).toISOString(), pendientes_al: new Date(ahora).toISOString(),
     solo_vencidas: pedido.soloVencidas, limite: pedido.limite,
     resumen: { tareas_pendientes: items.length, tareas_vencidas: vencidas.length }, items: pagina,

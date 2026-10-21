@@ -55,7 +55,7 @@ test('H5: consultas iguales con 1 y 32 analistas, bajo demanda y panel estable',
       return responderRegistroV2(route, { json: { version: 1, zona: 'America/Lima', desde: dia, hasta: dia,
         generado_en: instante, limite: 26, items: [] } })
     })
-    await page.route('**/rest/v1/rpc/gestion_diaria_pendientes_v2_fn', route => {
+    await page.route('**/rest/v1/rpc/gestion_diaria_pendientes_v3_fn', route => {
       lecturas.pendientes++
       return route.fulfill({ status: 500, json: { code: 'XX000', message: 'No se debe consultar una pestaña no visitada' } })
     })

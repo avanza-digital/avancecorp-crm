@@ -22,16 +22,18 @@ async function preparar(page: Page) {
       creado_por:analista,autor_nombre:'ANA H3',creado_en:`${dia}T15:0${5-i}:00Z`}))
     return responderRegistroV2(route, {json:{version:1,zona:'America/Lima',desde:dia,hasta:dia,limite:26,generado_en:new Date().toISOString(),items}})
   })
-  await page.route('**/rest/v1/rpc/gestion_diaria_pendientes_v2_fn',route=>{
+  await page.route('**/rest/v1/rpc/gestion_diaria_pendientes_v3_fn',route=>{
     estado.consultas++
     if(estado.error) return route.fulfill({status:estado.error==='42501'?403:400,json:{code:estado.error,message:'Error de prueba'}})
     const pedido=route.request().postDataJSON();expect(pedido.p_analista_id).toBe(analista)
+    // Como la v3: de lo más reciente a lo más antiguo (las 25 futuras, ids 64…40, y luego las 30 vencidas de hoy, ids 39…10);
+    // el cursor avanza hacia atrás. Las dos sin persona visible van en la primera página.
     const todas=Array.from({length:55},(_,i)=>tareaPendiente(10+i,{vendedor_id:analista,
       vence_en:i<30?`${dia}T00:00:00Z`:`2099-01-01T00:00:00Z`,lead_id:lead.id,lead_nombre:lead.nombre_completo,
-      ...(i===1?{referencia_tipo:'perfil',lead_id:null,lead_nombre:null}:i===2?{referencia_tipo:'postventa',lead_id:null,lead_nombre:null}:{}),
-    }))
-    const despues=pedido.p_despues_id?Number(pedido.p_despues_id.slice(-12)):0
-    const posibles=todas.filter(t=>(!pedido.p_solo_vencidas||Number(t.id.slice(-12))<40)&&Number(t.id.slice(-12))>despues)
+      ...(i===53?{referencia_tipo:'perfil',lead_id:null,lead_nombre:null}:i===54?{referencia_tipo:'postventa',lead_id:null,lead_nombre:null}:{}),
+    })).reverse()
+    const despues=pedido.p_despues_id?Number(pedido.p_despues_id.slice(-12)):Infinity
+    const posibles=todas.filter(t=>(!pedido.p_solo_vencidas||Number(t.id.slice(-12))<40)&&Number(t.id.slice(-12))<despues)
     const items=posibles.slice(0,25),ultimo=items.at(-1)!,hayMas=posibles.length>25,ahora=new Date().toISOString()
     return route.fulfill({json:paginaPendientes(items,{supervisor_id:UID,analista_id:analista,solo_vencidas:pedido.p_solo_vencidas,
       generado_en:ahora,pendientes_al:ahora,resumen:{tareas_pendientes:55,tareas_vencidas:30},hay_mas:hayMas,

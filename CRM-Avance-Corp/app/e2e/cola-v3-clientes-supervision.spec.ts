@@ -4,7 +4,8 @@
 // argumentos y aplica la regla del servidor para clientes (`p_etapa` los
 // excluye; `p_analista_id` filtra a su responsable). No acredita RLS: eso lo
 // hace el gate del banco. Hoy abre ahora el detalle por analista mediante
-// `gestion_diaria_pendientes_v2_fn`; se conserva la identidad del cliente.
+// `gestion_diaria_pendientes_v3_fn` (de lo más reciente a lo más antiguo); se
+// conserva la identidad del cliente.
 import { expect, test, type Page } from '@playwright/test'
 import { loginReal, UID } from './_helpers'
 import { montarLecturasHoySupervisor } from './_hoy-supervisor'
@@ -80,7 +81,7 @@ test('Hoy del supervisor: la tarea del cliente dice que es de un cliente y abre 
       supervisor_id: UID, generado_en: corte, pendientes_al: corte } })
   })
   const pedidos: Record<string, unknown>[] = []
-  await page.route('**/rest/v1/rpc/gestion_diaria_pendientes_v2_fn', async route => {
+  await page.route('**/rest/v1/rpc/gestion_diaria_pendientes_v3_fn', async route => {
     const pedido = route.request().postDataJSON()
     pedidos.push(pedido)
     const propias = CLIENTES.filter(c => c.responsable === pedido.p_analista_id)
@@ -90,8 +91,8 @@ test('Hoy del supervisor: la tarea del cliente dice que es de un cliente y abre 
       referencia_tipo: c.inversionista_id ? 'postventa' : 'perfil', lead_id: null, lead_nombre: null,
       sujeto_tipo: c.inversionista_id ? 'inversionista' : 'perfil', sujeto_id: c.inversionista_id ?? c.perfil_id,
       sujeto_nombre: c.nombre, inversionista_id: c.inversionista_id, perfil_id: c.perfil_id, identidad_visible: true,
-    }))
-    await route.fulfill({ json: paginaPendientes(items, { version: 2, supervisor_id: UID,
+    })).sort((a, b) => b.vence_en.localeCompare(a.vence_en) || b.id.localeCompare(a.id)) // como la v3: de lo más reciente a lo más antiguo
+    await route.fulfill({ json: paginaPendientes(items, { version: 3, supervisor_id: UID,
       analista_id: pedido.p_analista_id, solo_vencidas: pedido.p_solo_vencidas, limite: pedido.p_limite,
       generado_en: corte, pendientes_al: corte,
       resumen: { tareas_pendientes: propias.length, tareas_vencidas: propias.filter(c => c.vencida).length } }) })

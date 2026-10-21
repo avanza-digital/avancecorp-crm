@@ -144,7 +144,10 @@ interface FilaComun {
   clave: string
   nombre_completo: string
   grupo: GrupoDia
-  /** Instante que ordena dentro del grupo (vencimiento o límite); null al final. */
+  /**
+   * Instante que ordena dentro del grupo (vencimiento o límite): lo más reciente
+   * primero, salvo en «Hoy», que va por hora (20/10/2026); null al final.
+   */
   referencia_en: string | null
   severidad: 'critica' | 'media' | 'baja'
 }
@@ -187,6 +190,12 @@ const GRUPO_DE_BUCKET: Record<string, GrupoDia> = {
  * (`crm.politica_abandono`). Un lead aparece UNA sola vez, en su grupo más
  * urgente. Las tareas de clientes entran en «Vencidas» o «Hoy» según su bucket,
  * una fila por tarea. Función pura: no llama a nada y no decide negocio, solo ordena.
+ *
+ * Dentro de cada grupo, el MISMO orden que `crm.gestion_diaria_cola_trabajo_fn`
+ * (Miguel, 20/10/2026, «quiero que sea al revés»): en Sin primer intento, Vencidas
+ * y Sin conversación va primero lo más reciente (lo que venció hace menos arriba,
+ * lo más viejo al final); en «Hoy» nada está vencido y se va por hora, lo más
+ * próximo primero. Sin referencia, al final; empate, por clave.
  *
  * NO se reutiliza `seleccionarPrioridadesVendedor` (screens/hoy): aquella es el
  * TOP-3 de la franja «Ahora» sobre la cola v1 y sigue gobernando esa pantalla.
@@ -247,11 +256,12 @@ export function ordenarColaDiaria(
   return filas.sort((a, b) => {
     const porGrupo = ORDEN_GRUPO[a.grupo] - ORDEN_GRUPO[b.grupo]
     if (porGrupo !== 0) return porGrupo
-    // Dentro del grupo, lo más antiguo primero; sin referencia, al final.
+    // Dentro del grupo: «Hoy» por hora; en los demás, lo más reciente primero. Sin referencia, al final.
     if (a.referencia_en === b.referencia_en) return a.clave.localeCompare(b.clave)
     if (a.referencia_en === null) return 1
     if (b.referencia_en === null) return -1
-    return a.referencia_en.localeCompare(b.referencia_en)
+    const porHora = a.referencia_en.localeCompare(b.referencia_en)
+    return a.grupo === 'tarea_hoy' ? porHora : -porHora
   })
 }
 

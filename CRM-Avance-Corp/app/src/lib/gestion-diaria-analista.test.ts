@@ -48,13 +48,27 @@ describe('ordenarColaDiaria', () => {
     expect(ordenarColaDiaria(cola, cartera).map((f) => f.lead_id)).toEqual(['nuevo', 'vencida', 'hoy', 'abandonado'])
   })
 
-  it('dentro de un grupo manda lo más antiguo, y lo que no trae referencia va al final', () => {
+  it('dentro de Vencidas manda lo más reciente (lo que venció hace menos), y lo que no trae referencia va al final', () => {
     const cola = [
-      item('b', 'tarea_vencida', '2026-09-19T15:00:00Z'),
-      item('sin', 'tarea_vencida', null),
       item('a', 'tarea_vencida', '2026-09-18T15:00:00Z'),
+      item('sin', 'tarea_vencida', null),
+      item('b', 'tarea_vencida', '2026-09-19T15:00:00Z'),
     ]
-    expect(ordenarColaDiaria(cola, []).map((f) => f.lead_id)).toEqual(['a', 'b', 'sin'])
+    expect(ordenarColaDiaria(cola, []).map((f) => f.lead_id)).toEqual(['b', 'a', 'sin'])
+  })
+
+  it('Sin primer intento y Sin conversación también van de lo más reciente a lo más antiguo; «Hoy» sigue por hora', () => {
+    const cola = [
+      item('viejo', 'primera_atencion', '2026-09-18T14:00:00Z'),
+      item('nuevo', 'primera_atencion', '2026-09-20T14:00:00Z'),
+      item('tarde', 'tarea_hoy', '2026-09-20T22:00:00Z'),
+      item('temprano', 'tarea_hoy', '2026-09-20T15:00:00Z'),
+    ]
+    const cartera = [
+      senal('ab-20', { sin_conversacion: true, dias_sin_conversacion: 20, ultima_conversacion_en: '2026-08-31T12:00:00Z' }),
+      senal('ab-8', { sin_conversacion: true, dias_sin_conversacion: 8, ultima_conversacion_en: '2026-09-12T12:00:00Z' }),
+    ]
+    expect(ordenarColaDiaria(cola, cartera).map((f) => f.lead_id)).toEqual(['nuevo', 'viejo', 'temprano', 'tarde', 'ab-8', 'ab-20'])
   })
 
   it('un lead aparece UNA vez, en su grupo más urgente, y los buckets ajenos no entran', () => {
@@ -84,8 +98,9 @@ describe('ordenarColaDiaria', () => {
       cliente('c-hoy-2', 'tarea_hoy', '2026-09-20T20:00:00Z', { perfil_id: 'p-1', nombre: 'SOLO PORTAL' }),
     ]
     const filas = ordenarColaDiaria(cola, [])
+    // Vencidas: la del lead (19/09) venció hace menos que la de ROSA (18/09); Hoy por hora.
     expect(filas.map((f) => `${f.grupo}:${f.clave}`)).toEqual([
-      'primera_atencion:lead:nuevo', 'tarea_vencida:tarea:c-venc', 'tarea_vencida:lead:lv', 'tarea_hoy:tarea:c-hoy-2', 'tarea_hoy:tarea:c-hoy-1',
+      'primera_atencion:lead:nuevo', 'tarea_vencida:lead:lv', 'tarea_vencida:tarea:c-venc', 'tarea_hoy:tarea:c-hoy-2', 'tarea_hoy:tarea:c-hoy-1',
     ])
     // La misma persona con dos tareas = dos filas, cada una con su tarea.
     const rosa = filas.filter((f) => f.nombre_completo === 'ROSA CLIENTE')
@@ -287,8 +302,9 @@ describe('espejo demo', () => {
       { ...base, id: 'dos-sujetos', perfil_id: 'p-2', inversionista_id: 'inv-6', titulo: 'Llamar a ROTA', vence_en: '2026-09-19T15:00:00Z' },
     ]
     const filas = filasDiariasDemo(d.cartera, ahora, dia, deClientes, 'a1')
+    // Vencidas de lo más reciente a lo más antiguo: l3 (19/09 15:00) antes que ROSA (19/09 10:00); Hoy por hora.
     expect(filas.map((f) => `${f.grupo}:${f.clave}`)).toEqual([
-      'primera_atencion:lead:l1', 'tarea_vencida:tarea:cv', 'tarea_vencida:lead:l3', 'tarea_hoy:tarea:ch1', 'tarea_hoy:tarea:ch2',
+      'primera_atencion:lead:l1', 'tarea_vencida:lead:l3', 'tarea_vencida:tarea:cv', 'tarea_hoy:tarea:ch1', 'tarea_hoy:tarea:ch2',
     ])
     expect(filas.filter((f) => f.tipo === 'cliente').map((f) => f.nombre_completo)).toEqual(['ROSA DÍAZ', 'ROSA DÍAZ', 'LUIS PORTAL'])
   })
@@ -305,7 +321,7 @@ describe('finDelDiaLima', () => {
 })
 
 describe('filtro «Todo» y el siguiente al guardar (27/09/2026)', () => {
-  // Dos sin primer intento, una vencida, ninguna de hoy y una sin conversación.
+  // Dos sin primer intento (n2 es la más reciente: va primero), una vencida, ninguna de hoy y una sin conversación.
   const filas = ordenarColaDiaria(
     [item('n1', 'primera_atencion', '2026-09-20T10:00:00Z'), item('n2', 'primera_atencion', '2026-09-20T11:00:00Z'), item('v1', 'tarea_vencida', '2026-09-19T10:00:00Z')],
     [senal('s1', { sin_conversacion: true, dias_sin_conversacion: 9 })],
@@ -315,23 +331,23 @@ describe('filtro «Todo» y el siguiente al guardar (27/09/2026)', () => {
   const L = (id: string) => `lead:${id}`
 
   it('«Todo» es la cola entera en el orden de los grupos; un grupo, solo lo suyo', () => {
-    expect(ids(filasDelFiltro(grupos, 'todo'))).toEqual(['n1', 'n2', 'v1', 's1'])
+    expect(ids(filasDelFiltro(grupos, 'todo'))).toEqual(['n2', 'n1', 'v1', 's1'])
     expect(ids(filasDelFiltro(grupos, 'tarea_vencida'))).toEqual(['v1'])
     expect(filasDelFiltro(grupos, 'tarea_hoy')).toEqual([])
   })
 
   it('al guardar pasa a la que venía DETRÁS en la lista que se miraba', () => {
-    expect(siguienteTrasGuardar(grupos, 'todo', L('n1'))).toEqual({ filtro: 'todo', clave: L('n2') })
+    expect(siguienteTrasGuardar(grupos, 'todo', L('n2'))).toEqual({ filtro: 'todo', clave: L('n1') })
     expect(siguienteTrasGuardar(grupos, 'todo', L('v1'))).toEqual({ filtro: 'todo', clave: L('s1') })
   })
 
   it('si el guardado era el último, pasa al nuevo último de esa lista', () => {
     expect(siguienteTrasGuardar(grupos, 'todo', L('s1'))).toEqual({ filtro: 'todo', clave: L('v1') })
-    expect(siguienteTrasGuardar(grupos, 'primera_atencion', L('n2'))).toEqual({ filtro: 'primera_atencion', clave: L('n1') })
+    expect(siguienteTrasGuardar(grupos, 'primera_atencion', L('n1'))).toEqual({ filtro: 'primera_atencion', clave: L('n2') })
   })
 
   it('si el grupo se queda vacío, sigue con la cola entera desde el principio', () => {
-    expect(siguienteTrasGuardar(grupos, 'tarea_vencida', L('v1'))).toEqual({ filtro: 'todo', clave: L('n1') })
+    expect(siguienteTrasGuardar(grupos, 'tarea_vencida', L('v1'))).toEqual({ filtro: 'todo', clave: L('n2') })
   })
 
   it('un guardado que no estaba en la lista mirada deja «Ahora» en la primera de esa lista', () => {
@@ -339,10 +355,11 @@ describe('filtro «Todo» y el siguiente al guardar (27/09/2026)', () => {
   })
 
   it('con dos tareas de un mismo cliente, guardar una pasa a la OTRA, no salta a la persona', () => {
+    // Vencidas de lo más reciente a lo más antiguo: t1 (19/09 11:00), t2 (19/09 10:00), v9 (18/09).
     const conCliente = pestanasDiarias(ordenarColaDiaria([
-      cliente('t1', 'tarea_vencida', '2026-09-18T10:00:00Z', { inversionista_id: 'inv-1' }),
+      cliente('t1', 'tarea_vencida', '2026-09-19T11:00:00Z', { inversionista_id: 'inv-1' }),
       cliente('t2', 'tarea_vencida', '2026-09-19T10:00:00Z', { inversionista_id: 'inv-1' }),
-      item('v9', 'tarea_vencida', '2026-09-19T11:00:00Z'),
+      item('v9', 'tarea_vencida', '2026-09-18T10:00:00Z'),
     ], []))
     expect(siguienteTrasGuardar(conCliente, 'tarea_vencida', 'tarea:t1')).toEqual({ filtro: 'tarea_vencida', clave: 'tarea:t2' })
     expect(siguienteTrasGuardar(conCliente, 'tarea_vencida', 'tarea:t2')).toEqual({ filtro: 'tarea_vencida', clave: 'lead:v9' })

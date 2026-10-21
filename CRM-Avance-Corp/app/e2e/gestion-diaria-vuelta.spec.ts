@@ -23,8 +23,9 @@ test('vuelta real: guardar, error recuperable, siguiente entre páginas y progre
     const pedido: PedidoColaTrabajo = { filtro: args.p_filtro, pagina: args.p_pagina, limite: args.p_limite, elegido: args.p_elegido ?? null }
     pedidos.push(pedido)
     await new Promise((resolve) => setTimeout(resolve, 80))
+    // Sin conversación va de lo más reciente a lo más antiguo (20/10/2026): COLA 01 es la más reciente.
     const filas = leads.map((lead, i) => ({ ...muestra.items[0], clave: `lead:${lead.id}`, lead_id: lead.id,
-      nombre_completo: lead.nombre_completo, referencia_en: new Date(Date.parse(instante) - (40 * 1440 - i) * 60_000).toISOString(),
+      nombre_completo: lead.nombre_completo, referencia_en: new Date(Date.parse(instante) - (40 * 1440 + i) * 60_000).toISOString(),
       senal: { ...muestra.items[0]!.senal, lead_id: lead.id, nombre_completo: lead.nombre_completo },
       estado_trabajo: gestionadas.has(lead.id) ? 'gestionado' : 'pendiente', proxima_tarea: null,
       ultima_gestion: gestionadas.has(lead.id) ? { actividad_id: lead.id, resultado: 'no_contesto', en: gestionadas.get(lead.id), tarea_id: null, etapa_anterior: 'contactado' } : null,

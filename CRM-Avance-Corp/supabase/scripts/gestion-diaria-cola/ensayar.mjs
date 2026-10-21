@@ -3,13 +3,19 @@ import assert from 'node:assert/strict';
 import { sql, db, ejecutar, objeto, q } from './banco.mjs';
 
 const migracion = readFileSync(new URL('../../migrations/20260930190028_crm_gestion_diaria_cola_trabajo.sql', import.meta.url), 'utf8');
+// 20261020214445 (20/10/2026): la cola cambió SOLO su ORDER BY (lo más reciente primero, salvo
+// «Hoy»); se instala ese cuerpo encima del de 20260930190028 para ensayar lo que está vivo.
+const recientes = readFileSync(new URL('../../migrations/20261020214445_crm_gestion_diaria_pendientes_recientes_primero.sql', import.meta.url), 'utf8');
+const cola = recientes.slice(recientes.indexOf('CREATE OR REPLACE FUNCTION crm.gestion_diaria_cola_trabajo_fn('), recientes.indexOf('-- 5) Gate H3'));
+assert.ok(cola.includes('$function$;') && cola.includes('comment on function crm.gestion_diaria_cola_trabajo_fn'), 'cuerpo de la cola de 20261020214445');
 sql(`begin;
   drop function if exists crm.gestion_diaria_cola_trabajo_fn(text,integer,integer,text);
   drop function if exists private.gestion_diaria_cola_filas(uuid,text,timestamptz);
   drop function if exists private.gestion_diaria_cola_hechos(uuid,timestamptz);
   ${migracion.replace(/^begin;$/m, '').replace(/^commit;$/m, '')}
+  ${cola}
   commit;`);
-console.log(`PASS: migración instalada en ${db}`);
+console.log(`PASS: migración instalada en ${db} (cola con el orden de 20261020214445)`);
 const actores = objeto("select jsonb_object_agg(rol_crm,perfil_id) from crm.equipo where activo and rol_crm in ('vendedor','gerencia')");
 for (const [caso, actor, rol, consulta, error] of [
   ['filtro inválido', actores.vendedor, 'authenticated', "crm.gestion_diaria_cola_trabajo_fn('invalido')", '22023'],
