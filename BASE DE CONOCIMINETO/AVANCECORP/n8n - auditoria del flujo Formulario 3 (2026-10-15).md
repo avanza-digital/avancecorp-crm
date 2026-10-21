@@ -19,7 +19,7 @@ Auditoría de solo lectura del flujo `BjI5m1PKVWhO0NDb` (Formulario 3 → CRM), 
 
 **PUBLICADA Y VERIFICADA el 15/10 a las 19:02 Lima** (PR #300, `2ed57674`). Importador en la versión `b6c88f1b`, aviso en `505bcd5e` y resumen en `452ba77d`. Primera vuelta: latido a las 19:05, 152 filas, sin errores. Primer correo diario: 16/10 a las 19:00. Acta: `CRM-Avance-Corp/docs/N8N-FORMULARIO3-FASE7.md`.
 
-- ⚠️ **Al reenviar código por el MCP, `\uXXXX` se convierte en el carácter.** Para que llegue el texto literal hay que escribir `\u0300`. `verificarFase7` lo detectó antes de publicar.
+- ⚠️ **Al reenviar código por el MCP, `\uXXXX` se convierte en el carácter.** Para que llegue el texto literal hay que escribir `\u0300`. `verificarFase7` lo detectó antes de publicar. **Actualización 21/10 (fase 8):** eso ya no sirve; el transporte convierte el escape suelto y con doble barra deja dos barras. El código del nodo se pega en su editor desde el archivo generado por el repo y se lee de vuelta con `get_workflow_version` (ver [[n8n - Formulario 3 fase 8 fila a medio escribir (2026-10-21)]]).
 - **Cambios futuros:** parten de `cargarDefinicionOperativaF7()`; la fase 6 queda como histórica.
 
 - **Una celda rara solo frena su fila.** La fila queda «rechazada» con la columna afectada.
