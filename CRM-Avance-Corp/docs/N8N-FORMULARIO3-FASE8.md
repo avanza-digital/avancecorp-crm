@@ -1,6 +1,6 @@
 # Formulario 3 — fase 8: la fila a medio escribir no se rechaza en su primera vuelta
 
-21/10/2026. Estado: **PREPARADA Y VERIFICADA EN LOCAL, SIN PUBLICAR.** Publicar en n8n lo autoriza Miguel, como en la fase 7. Parte de `cargarDefinicionOperativaF7()` y se verifica con `verificarFase8` (`scripts/n8n/formulario3.fase8.mjs`).
+21/10/2026. Estado: **PUBLICADA Y VERIFICADA en producción** (14:32 Lima), desde `15e43d98` (PR #353 fusionada en `main`). Miguel autorizó publicar en n8n. Parte de `cargarDefinicionOperativaF7()` y se verifica con `verificarFase8` (`scripts/n8n/formulario3.fase8.mjs`).
 
 ## Qué pasó (ejecución 1883, 21/10, hora Lima)
 
@@ -32,15 +32,18 @@ Solo cambia el código del nodo «Preparar leads»: el preludio de la fase 7 que
   - **Riesgo anotado:** una tanda con un lead de más de 48 h con solo la fecha volvería al rechazo prematuro de la fase 7 (medido: 22,5 h como máximo en 24 tandas). Lo demás que Codex comprobó —`Date.parse` del ISO con `-05:00`, nombres disponibles en el nodo, `$("Control del envío")` como en «Resumen de importación», sin bypass de transición ni gate— sin hallazgos.
 - **NOT RUN:** banco en n8n. La fase 7 lo usó para probar nodos y conexiones nuevos; aquí solo cambia código JS que las pruebas ejecutan igual que n8n. La comprobación real es la primera vuelta tras publicar, programada y manual (Codex lo pide en NEXT ACTIONS).
 
-## Publicación (pendiente; la autoriza Miguel)
+## Publicación (hecha el 21/10, 13:54–14:35 Lima)
 
-1. Sin ninguna vuelta en curso, despublicar el importador `BjI5m1PKVWhO0NDb`.
-2. `get_workflow_details` → `operacionesFase8(actual)`: exige `versionId` `b6c88f1b` (fase 7 publicada), despublicado y el código de fase 7 exacto; devuelve una sola operación `updateNodeParameters` sobre «Preparar leads» → `update_workflow` con `versionName` «Fase 8: fila a medio escribir» → `verificarFase8(borrador)` PASS.
-3. Publicar y `verificarFase8(publicado, TABLA_LATIDO, { publicado: true })` PASS.
-4. Primera vuelta real: latido al día, 0 ejecuciones con error, recibos intactos (la tabla `1foRUzITWOnUJsNf` no debe ganar recibos nuevos si la hoja no cambió).
-5. Asentar aquí la versión publicada y la hora, y pasar esta acta a «PUBLICADA Y VERIFICADA».
+1. **13:54** Sin vuelta en curso (última lectura 13:50:11, 279 filas), despublicado el importador `BjI5m1PKVWhO0NDb`.
+2. `operacionesFase8` aceptó la fase 7 exacta (`b6c88f1b`) sobre la definición viva: una sola operación `updateNodeParameters` sobre «Preparar leads». **Por el MCP el texto no entra byte a byte:** el envío convirtió `\u0300-\u036f` de `normalizarRespuesta` en los caracteres (versión `157f04c1`, 11 650 caracteres contra 11 660: equivalente, no idéntica) y el reenvío con doble barra dejó dos barras (versión `141bbe6e`, 11 662). El truco de la fase 7 («escribir `\u0300`») ya no sirve: el transporte convierte el escape suelto y respeta el doblado. `verificarFase8` rechazó las dos.
+3. **14:17** Para cerrar el hueco, republicada la fase 7 con `publish_workflow` y `versionId b6c88f1b` (23 min sin vueltas; la hoja no cambió, nada que importar).
+4. **14:30** El texto exacto entró por el editor del nodo: `codigosFase8().preparar8` a un archivo, `pbcopy`, Miguel pegó en «Preparar leads» (Cmd+A, Cmd+V) y guardó sin publicar → versión autoguardada `92181803`. Leída con `get_workflow_version` (el clasificador de Claude Code bloquea `get_workflow_details`; los ajustes son los leídos al inicio de la sesión, que el cambio no toca): `jsCode` idéntico al repo (11 660) y `verificarFase8(borrador)` PASS.
+5. **14:32** Publicada `92181803`; `verificarFase8(..., { publicado: true })` PASS.
+6. **Primera vuelta real (14:35):** latido `leido_en` 14:35:11 Lima con `filas_leidas` 279; 0 ejecuciones con error desde la publicación; la tabla de recibos sigue en 285 filas (la hoja no cambió: nada que importar y nada que omitir). La vuelta de las 14:30, ya con la fase 7 republicada, también leyó 279 filas sin error.
 
-**Volver atrás:** `restore_workflow_version` a `b6c88f1b`, publicar y pasar `verificarFase7(..., { publicado: true })`. Los leads y los recibos no se tocan.
+**Volver atrás:** `publish_workflow` con `versionId b6c88f1b` (no toca el borrador) y pasar `verificarFase7(..., { publicado: true })`. Los leads y los recibos no se tocan.
+
+**Cambios futuros del importador:** se parte de `cargarDefinicionOperativaF8()` y se verifican con `verificarFase8`; la fase 7 queda como base histórica. El código de un nodo se pega en su editor desde el archivo generado por el repo y se lee de vuelta por `get_workflow_version`; el MCP queda para despublicar, publicar y leer historial y tablas.
 
 ## Hallazgo aparte, sin tocar en esta fase
 
