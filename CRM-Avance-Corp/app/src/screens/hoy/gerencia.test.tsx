@@ -44,6 +44,7 @@ const CONSULTAS = vi.hoisted(() => ({
   reuniones: vi.fn(),
   distribucion: vi.fn(),
   cierresExternos: vi.fn(),
+  reconocimientos: vi.fn(),
   tipoCambio: vi.fn(),
 }))
 const ESTADO_CONVERSIONES = vi.hoisted(() => ({
@@ -254,15 +255,16 @@ vi.mock('@/data/crm-queries', () => ({
   // El aviso del ciclo no se prueba aquí (tiene su propio test): sin datos,
   // el banner simplemente no existe.
   useCierreMesEstado: () => ({ data: undefined, isError: false }),
-  // La traza de compromisos (F4.4) tiene su test propio; aquí un knob mínimo
-  // para el ORÁCULO del cableado (que el panel está en el Resumen y recibe
-  // el roster de verdad).
-  useReconocimientosAlertas: () => ({
-    data: ASIENTOS_TRAZA,
-    error: null,
-    isPending: false,
-    refetch: vi.fn(),
-  }),
+  // El Resumen ya no debe cargar la traza de compromisos de supervisores.
+  useReconocimientosAlertas: () => {
+    CONSULTAS.reconocimientos()
+    return {
+      data: ASIENTOS_TRAZA,
+      error: null,
+      isPending: false,
+      refetch: vi.fn(),
+    }
+  },
   // La V3 vive en crm-queries desde la mudanza de F3 (capa de datos): mismo
   // doble — la pantalla solo necesita el contrato del hook, no la red.
   useMetricasDistribucionLeadsV3: (...argumentos: [boolean, string, string]) => {
@@ -445,7 +447,7 @@ describe('Hoy · gerencia — compromisos de supervisores (F4.4)', () => {
     secuencia: 1,
   }
 
-  it('el Resumen monta la tarjeta y le llega el ROSTER (el nombre del supervisor se ve)', () => {
+  it.each(['resumen', 'completo'] as const)('la sección %s no muestra ni consulta compromisos aunque existan registros', (seccion) => {
     EQUIPO = [{
       perfil_id: 's-77',
       nombre_completo: 'SUPERVISOR SETENTA',
@@ -454,16 +456,17 @@ describe('Hoy · gerencia — compromisos de supervisores (F4.4)', () => {
       activo: true,
     } as unknown as Miembro]
     ASIENTOS_TRAZA = [asientoTraza]
-    montar({}, 'completo')
+    montar({}, seccion)
 
-    expect(screen.getByRole('heading', { name: 'Compromisos de supervisores' })).toBeInTheDocument()
-    expect(screen.getByRole('listitem')).toHaveTextContent('SUPERVISOR SETENTA reconoció «Leads esperando reparto» (2 leads)')
+    expect(screen.queryByRole('heading', { name: 'Compromisos de supervisores' })).not.toBeInTheDocument()
+    expect(CONSULTAS.reconocimientos).not.toHaveBeenCalled()
   })
 
   it('fuera del Resumen la tarjeta NO se monta', () => {
     ASIENTOS_TRAZA = [asientoTraza]
     montar({}, 'conversiones')
     expect(screen.queryByRole('heading', { name: 'Compromisos de supervisores' })).not.toBeInTheDocument()
+    expect(CONSULTAS.reconocimientos).not.toHaveBeenCalled()
   })
 })
 

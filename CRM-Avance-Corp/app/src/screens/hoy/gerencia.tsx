@@ -64,7 +64,6 @@ import { AltasNuevasAnalistaPanel } from './altas-nuevas-analista'
 import { ReunionesGerenciaPanel } from './reuniones-gerencia'
 import { AvisoCierreMesPanel } from './aviso-cierre-mes'
 import { ResumenGerenciaPanel } from './resumen-gerencia'
-import { CompromisosSupervisoresPanel } from './compromisos-supervisores'
 import { ObservacionRentabilidadPanel } from './observacion-rentabilidad'
 import { SolicitudesTasaGerenciaPanel } from './solicitudes-tasa-gerencia'
 import { ResumenGerenciaMovil } from './resumen-gerencia-movil'
@@ -485,11 +484,6 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     () => identidadesEquipoConversion(lecturaCoordinacion ? equipo.filter((m) => m.rol_crm === 'vendedor') : ambito.vendedores, equipo),
     [ambito.vendedores, equipo, lecturaCoordinacion],
   )
-  // Nombres del roster completo para la traza de compromisos (F4.4).
-  const nombresEquipo = useMemo(
-    () => new Map(equipo.map((m) => [m.perfil_id, m.nombre_completo])),
-    [equipo],
-  )
   const cumplimientoDemo = useMemo(
     () => {
       if (!conversionesDeEjemplo) return null
@@ -677,12 +671,6 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           Hoy: es una decisión, no una alarma que tenga que seguir a cada pestaña. */}
 
       {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={cumplimientoRankingCargando ? undefined : conversionMensualPaneles} origenFiltrado={origenActivo} fuenteConversion={fuenteActiva} lecturaFuente={lecturaFuentePaneles} reuniones={datosReuniones} equipo={datosEquipoConversionRango} equipoMensual={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensualRanking} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || conversionMensualCargando || cumplimientoRankingCargando || estaCargando(sesionReal, reuniones)} rangoCargando={!conversionesDeEjemplo && fuenteCargando} mensualCargando={!conversionesDeEjemplo && (conversionMensualCargando || cumplimientoRankingCargando)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); void qCumplimientoRanking.refetch(); reintentarReuniones(); tipoCambio.recargar() }} />}
-
-      {/* F4.4: la trazabilidad de los reconocimientos — qué alertas atenuaron
-          o pospusieron los supervisores y hasta cuándo rigen. Lectura pura. */}
-      {esResumen && (
-        <CompromisosSupervisoresPanel demo={modoDemo} nombrePorId={nombresEquipo} />
-      )}
 
       {/* Rentabilidad R2: qué tasa quedó frente a la que dice la política, por analista.
           Solo en sesión real: el ledger de observación existe sobre datos de verdad. */}
