@@ -1,0 +1,44 @@
+-- F4.6 (branch de integración) — CONTENCIÓN REAL CON COMMIT del bloque 2.11 (ronda 3; Codex r1, P3). NO SE EJECUTA EN EL LABORATORIO
+-- compartido: una de las dos sesiones CONFIRMA, y allí nada se confirma. Es el guion para la branch (base desechable), con psql y dos
+-- conexiones; las variables (-v) salen del montaje previo.
+--
+-- Qué prueba: que la reactivación juzga lo que el lead conserva DESPUÉS de esperar el candado de contacto, es decir, con lo que la otra
+-- sesión CONFIRMÓ. En el laboratorio se prueba el ORDEN (candado antes del juicio: `espera.sh`, modo «orden», mutante M17) pero no el
+-- veredicto de quien llega segundo, porque eso exige un COMMIT.
+--   Sesión A: un cliente (lead convertido, activo, de VEND3) se pone como alternativo el número X por la ficha real
+--   (`crm.editar_lead_fn`, con la sesión de su asesor): el disparador de disponibilidad (2.8 r4) toma el candado de X; A lo retiene
+--   unos segundos y CONFIRMA.
+--   Sesión B (empieza mientras A retiene): reactiva un lead que conserva X —por el alta (ficha retirada cuyo alternativo es X) o por la
+--   base (contacto cuyo teléfono es X)— y espera en la pieza; cuando A confirma, B juzga con el alternativo ya puesto.
+-- Esperado: con la migración, B responde «ya es cliente de VEND3» (alta) o P0481 con ese veredicto (base) y no reactiva nada; con el
+-- mutante M17 (juzga antes de esperar), B ya juzgó con el cliente SIN ese alternativo y reactiva («reutilizado» / «ok», contactado): un
+-- segundo lead vivo del cliente. M17 sobrevive a la espera del laboratorio y muere aquí. B termina en rollback; A deja el alternativo
+-- puesto (la branch se desecha o se repone).
+--
+-- Montaje previo (como el oráculo; bloque de números 92411 libre): el cliente (alta real + conversión sembrada, o `convertir_real`), la
+-- ficha retirada cuyo ALTERNATIVO es X (alta real con alternativo + retiro por Gerencia) y un contacto de base cuyo TELÉFONO es X
+-- (carga real). Variables: cliente, vend3, vend2, sup1, x, tel_ficha, dni_ficha, contacto.
+--
+-- ══ SESIÓN A (conexión 1) ═══════════════════════════════════════════════════════════════════════════════════════════
+-- begin;
+-- select set_config('request.jwt.claim.sub', :'vend3', true),
+--        set_config('request.jwt.claims', json_build_object('sub', :'vend3', 'role', 'authenticated')::text, true);
+-- select crm.editar_lead_fn(:'cliente'::uuid, jsonb_build_object('telefono_alternativo', :'x'));  -- toma y retiene el candado de X
+-- select pg_sleep(8);
+-- commit;                                                                                          -- la confirmación: X ya es del cliente
+--
+-- ══ SESIÓN B (conexión 2; empieza 1 s después de A) ═══════════════════════════════════════════════════════════════
+-- begin;
+-- \i <la migración del 2.11 sin su begin/commit>          -- o la migración + el mutante: python3 -I mutantes.py sql M17 m17.sql
+-- -- por el ALTA (VEND2): espera en la pieza (paso 7b) y, tras el commit de A, responde ya_es_cliente
+-- select set_config('request.jwt.claim.sub', :'vend2', true),
+--        set_config('request.jwt.claims', json_build_object('sub', :'vend2', 'role', 'authenticated')::text, true);
+-- select crm.crear_lead_si_disponible(p_nombre_completo => 'F46 REINGRESO', p_telefono => :'tel_ficha', p_origen => 'formulario',
+--                                     p_monto_estimado => 5000, p_moneda => 'PEN', p_dni => :'dni_ficha');
+-- -- o por la BASE (SUP1): espera en la pieza y, tras el commit de A, P0481 «Contacto no disponible» con el veredicto
+-- -- select crm.reactivar_lead_base_v2(gen_random_uuid(), :'contacto'::uuid, 'f4.6', 5000, 'PEN');
+-- select l.activo, l.etapa from crm.leads l where l.telefono = :'tel_ficha' or l.id = :'contacto'::uuid;  -- sigue retirada / en la base
+-- rollback;
+--
+-- Repetir para los tres datos conservados: el alternativo (arriba), el teléfono (la ficha hallada por DNI, R3b: A convierte un lead
+-- con el teléfono X) y el DNI (A pone el DNI por `crm.fijar_dni_lead_fn`). Registrar en F4.6 los tiempos de espera de B y su veredicto.

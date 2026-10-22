@@ -216,9 +216,12 @@ begin
   end if;
 
   -- ── 4. MUTANTES: cada defensa, rota a propósito ─────────────────────────
+  -- Esta cita nace con la hora YA PASADA: el caso 5 la cierra como «No asistió»
+  -- y, desde `20261022170100_crm_no_asistio_espera_hora`, el servidor solo lo
+  -- acepta cuando la hora pactada llegó. Los rechazos 4a–4h no miran la hora.
   insert into crm.tareas (lead_id, tipo, titulo, vence_en, vendedor_id,
                           modalidad_reunion, creado_por)
-  values (v_lead, 'reunion', 'Cita de mutantes', now() + interval '3 hours',
+  values (v_lead, 'reunion', 'Cita de mutantes', now() - interval '3 hours',
           v_vendedor, 'sin_clasificar', v_vendedor)
   returning id into v_tarea3;
 
