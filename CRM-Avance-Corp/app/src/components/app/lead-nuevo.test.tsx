@@ -634,6 +634,97 @@ describe('LeadNuevo — disponibilidad P-048', () => {
     await waitFor(() => expect(actions.abrirLead).toHaveBeenCalledWith('lead-pendiente'))
   })
 
+  // Bloque 2.4 del plan de backend (D-11/Q1, D-15): la persona tenía un lead RETIRADO y el servidor reactivó ESA
+  // ficha («reutilizado»). La confirmación trae el lead_id real; la pantalla refresca el ámbito ANTES de abrirla.
+  it('si el servidor retomó una ficha retirada, resincroniza y abre ESA ficha (no el optimista)', async () => {
+    const resync = diferida<boolean>()
+    const { recargar, actions } = montar({
+      demo: false,
+      crearLeadImpl: () => ({
+        ok: true,
+        id: 'lead-optimista',
+        persistido: Promise.resolve({ ok: true, lead_id: 'ficha-retirada-reactivada' }),
+      }),
+    })
+    recargar.mockReturnValue(resync.promesa)
+    completarBaseReal()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+
+    await waitFor(() => expect(recargar).toHaveBeenCalledTimes(1))
+    // El ámbito aún no ve la ficha reactivada: abrirla aquí sería abrir el vacío.
+    expect(actions.abrirLead).not.toHaveBeenCalled()
+
+    await act(async () => { resync.resolver(true) })
+
+    await waitFor(() => expect(actions.abrirLead).toHaveBeenCalledWith('ficha-retirada-reactivada'))
+    expect(actions.abrirLead).not.toHaveBeenCalledWith('lead-optimista')
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('retomado'))
+    expect(toast.success).not.toHaveBeenCalledWith(expect.stringContaining('Lead creado'))
+  })
+
+  // Ronda 2 (A-8): el servidor avisa cuando había OTRA ficha retirada con el DNI tecleado (mandó la del teléfono): el
+  // mismo toast de «Lead retomado» lo dice. Un aviso que la pantalla no conoce no se pinta tal cual.
+  it('si el servidor avisa de otra ficha retirada con ese DNI, el toast de «Lead retomado» lo dice', async () => {
+    const { recargar, actions } = montar({
+      demo: false,
+      crearLeadImpl: () => ({
+        ok: true,
+        id: 'lead-optimista',
+        persistido: Promise.resolve({ ok: true, lead_id: 'ficha-retirada-reactivada', aviso: 'otro_lead_retirado_con_ese_dni' }),
+      }),
+    })
+    recargar.mockResolvedValue(true)
+    completarBaseReal()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+
+    await waitFor(() => expect(actions.abrirLead).toHaveBeenCalledWith('ficha-retirada-reactivada'))
+    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Lead retomado'))
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('otra ficha retirada con ese DNI'))
+  })
+
+  it('un aviso desconocido del servidor no se pinta tal cual en el toast', async () => {
+    const { recargar, actions } = montar({
+      demo: false,
+      crearLeadImpl: () => ({
+        ok: true,
+        id: 'lead-optimista',
+        persistido: Promise.resolve({ ok: true, lead_id: 'ficha-retirada-reactivada', aviso: 'clave_que_no_conozco' }),
+      }),
+    })
+    recargar.mockResolvedValue(true)
+    completarBaseReal()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+
+    await waitFor(() => expect(actions.abrirLead).toHaveBeenCalledWith('ficha-retirada-reactivada'))
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Lead retomado'))
+    expect(toast.success).not.toHaveBeenCalledWith(expect.stringContaining('clave_que_no_conozco'))
+    expect(toast.success).not.toHaveBeenCalledWith(expect.stringContaining('Aviso'))
+  })
+
+  it('si retomó la ficha pero la cartera no se pudo refrescar, lo dice y cierra sin abrir el vacío', async () => {
+    const { recargar, actions } = montar({
+      demo: false,
+      crearLeadImpl: () => ({
+        ok: true,
+        id: 'lead-optimista',
+        persistido: Promise.resolve({ ok: true, lead_id: 'ficha-retirada-reactivada' }),
+      }),
+    })
+    recargar.mockResolvedValue(false)
+    completarBaseReal()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+
+    await waitFor(() => expect(toast.warning).toHaveBeenCalled())
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('retomado'))
+    expect(actions.abrirLead).not.toHaveBeenCalled()
+    expect(actions.cerrarPaneles).toHaveBeenCalled()
+  })
+
   it('en demo no consulta Supabase', async () => {
     const user = userEvent.setup()
     montar()

@@ -6,7 +6,7 @@
 import * as v from 'valibot'
 import { sb } from '@/lib/supabase'
 import { soloPresentes } from './argumentos-rpc'
-import { CrmApiError } from './crm-api'
+import { CrmApiError, errorDelVeredictoP0481 } from './crm-api'
 import {
   RegistroPaginaV2Schema,
   registroCoherente,
@@ -33,11 +33,15 @@ export type DeshacerResultado = v.InferOutput<typeof DeshacerResultadoSchema>
 
 /** Deshace los EFECTOS de un resultado de llamada (≤ 24 h, solo el autor):
  *  cancela la tarea creada y revierte el descarte si sigue vigente. La llamada
- *  queda en el historial. El servidor rechaza con SQLSTATE y texto humano. */
+ *  queda en el historial. El servidor rechaza con SQLSTATE y texto humano.
+ *  Bloque 2.16 (D-62, D-69): si el lead conserva el contacto de un cliente, el
+ *  servidor rechaza el deshacer ENTERO con el `P0481` de reabrir y el veredicto
+ *  del alta en el detalle: se presenta como el alta («Esta persona ya es cliente
+ *  y está a cargo de X.»). El veto y los demás errores siguen como hoy. */
 export async function deshacerResultadoLlamada(actividadId: string): Promise<DeshacerResultado> {
   if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
   const { data, error } = await sb.schema('crm').rpc('deshacer_resultado_llamada', { p_actividad_id: actividadId })
-  if (error) throw new CrmApiError(error.message, error.code)
+  if (error) throw errorDelVeredictoP0481(error) ?? new CrmApiError(error.message, error.code)
   const parsed = v.safeParse(DeshacerResultadoSchema, data)
   if (!parsed.success) throw new CrmApiError('El servidor no confirmó el deshacer.', 'GESTION_DIARIA_CONTRACT')
   return parsed.output

@@ -317,3 +317,67 @@ describe('F5a · capital vacío del lead en Citas', () => {
     expect(csv([cita]).split('\r\n').at(-1)!.endsWith('"5000","PEN"')).toBe(true)
   })
 })
+
+// D-53 (bloque 2.14): cada cita y cada lista de gestión que nombra analistas trae `analista_estado` (en la población,
+// `analista_origen_estado`) = activo | de_baja | suspendido. Opcional: el servidor anterior no lo manda y nada cambia.
+describe('estado del analista en la consulta de Citas (D-53, bloque 2.14)', () => {
+  const conEstados = () => {
+    const datos = respuestaConversion()
+    datos.citas = [
+      { ...datos.citas[0]!, manual_propio: false, registro_manual: false, analista_estado: 'de_baja' },
+      { ...datos.citas[1]!, manual_propio: false, registro_manual: false, analista_estado: 'suspendido' },
+    ]
+    datos.gestion = { version: 2, citas_por_lead: 1.25, entrevistas_porcentaje: 70, depositos_porcentaje: 70,
+      actividad_manuales: 'incluir',
+      asignaciones: [{ lead_id: id(10), analista_id: id(20), analista_nombre: 'Analista de prueba', analista_estado: 'suspendido',
+        supervisor_id: id(30), supervisor_nombre: 'Supervisor de prueba', asignado_en: '2026-09-01T05:00:00Z',
+        manual_propio: false, registro_manual: false, nombre: 'Persona de prueba', telefono: '900000001', origen: 'referido', moneda: 'PEN', monto_estimado: 5000 }],
+      control: { version: 0, mes_inicio: null, configuracion: controlCitasInicial() },
+      poblacion: [{ lead_id: id(10), nombre: 'Persona', telefono: '900000001', origen: 'referido', moneda: 'PEN', monto_estimado: 5000,
+        registro_manual: false, creado_por: id(20), analista_origen_id: id(20), analista_origen_nombre: '(sin nombre)', analista_origen_estado: 'de_baja',
+        supervisor_origen_id: id(30), supervisor_origen_nombre: 'Supervisor', primera_asignacion_en: '2026-09-01T05:00:00Z' }],
+      // `fecha_comercial` (obligatoria en el contrato de `main` desde la fecha comercial de ventas): el día de Lima de `convertido_en`.
+      conversiones: [{ lead_id: id(10), perfil_id: id(40), convertido_en: '2026-09-04T15:00:00Z', fecha_comercial: '2026-09-04', analista_id: id(20), analista_nombre: 'Analista',
+        analista_estado: 'de_baja', supervisor_id: id(30), supervisor_nombre: 'Supervisor', contrato_id: null }],
+      capital: [{ contrato_id: id(70), lead_id: id(10), perfil_id: id(40), analista_id: id(20), analista_nombre: 'Analista', analista_estado: 'de_baja',
+        moneda: 'PEN', monto: 1000, fecha: '2026-09-04T05:00:00Z' }],
+    }
+    return datos
+  }
+  it('conserva el estado en citas, asignaciones, población, conversiones y capital, y lo adapta a la pantalla', async () => {
+    mocks.rpc.mockResolvedValue({ data: conEstados(), error: null })
+    const lectura = await cargarCitasGerencia('2026-09')
+    expect(adaptarCitas(lectura).map(c => c.analistaEstado)).toEqual(['de_baja', 'suspendido'])
+    const g = adaptarGestion(lectura)!
+    expect(g.asignaciones[0]!.estado).toBe('suspendido')
+    expect(g.avance!.poblacion[0]!.analista_origen_estado).toBe('de_baja')
+    expect(g.avance!.poblacion[0]!.analista_origen_nombre).toBe('(sin nombre)')
+    expect(g.avance!.conversiones[0]!.analista_estado).toBe('de_baja')
+    expect(g.avance!.capital[0]!.analista_estado).toBe('de_baja')
+  })
+  it('sin la clave (servidor anterior) la cita y la asignación salen como siempre, sin estado', async () => {
+    const datos = conEstados()
+    datos.citas = datos.citas.map(({ analista_estado: _estado, ...c }) => c)
+    datos.gestion!.asignaciones = datos.gestion!.asignaciones.map(({ analista_estado: _estado, ...a }) => a)
+    mocks.rpc.mockResolvedValue({ data: datos, error: null })
+    const lectura = await cargarCitasGerencia('2026-09')
+    expect(adaptarCitas(lectura).every(c => !('analistaEstado' in c))).toBe(true)
+    expect('estado' in adaptarGestion(lectura)!.asignaciones[0]!).toBe(false)
+  })
+  it.each([
+    ['un texto fuera del dominio', 'baja'],
+    ['un booleano', true],
+    ['null', null],
+  ])('rechaza un estado fuera de contrato en una cita (%s)', async (_nombre, estado) => {
+    const datos = conEstados()
+    datos.citas[0] = { ...datos.citas[0]!, analista_estado: estado as 'activo' }
+    mocks.rpc.mockResolvedValue({ data: datos, error: null })
+    await expect(cargarCitasGerencia('2026-09')).rejects.toThrow('respuesta de citas')
+  })
+  it('rechaza un estado fuera de contrato en una asignación', async () => {
+    const datos = conEstados()
+    datos.gestion!.asignaciones[0] = { ...datos.gestion!.asignaciones[0]!, analista_estado: 'retirado' as 'activo' }
+    mocks.rpc.mockResolvedValue({ data: datos, error: null })
+    await expect(cargarCitasGerencia('2026-09')).rejects.toThrow('respuesta de citas')
+  })
+})

@@ -299,3 +299,114 @@ describe('F2: evidencia, estados y navegación de Citas', () => {
     expect(within(tabla).getByText('21')).toBeInTheDocument()
   })
 })
+
+describe('D-43: el analista dado de baja sigue en el desglose con la marca «de baja»', () => {
+  const props = { cargando: false, error: null, modoDemo: false, puedeAlternarEjemplo: false, onAlternarEjemplo: vi.fn(), onReintentar: vi.fn() }
+  /** La respuesta del servidor con el 2.12: el analista dado de baja, dentro del desglose y marcado. */
+  const conBaja = () => {
+    const datos = metricasReunionesDemo('2026-09-01', '2026-09-07')
+    return { ...datos, responsables: datos.responsables.map((fila) => (fila.nombre === 'Camila Rojas' ? { ...fila, de_baja: true as const } : fila)) }
+  }
+
+  it('con bajas: la fila del analista de baja dice «de baja» (tabla y móvil) y el desglose cuadra con el total', () => {
+    render(<ReunionesGerenciaPanel {...props} datos={conBaja()} />)
+
+    const fila = screen.getByRole('rowheader', { name: /^Camila Rojas\s*de baja$/ }).closest('tr') as HTMLElement
+    expect(within(fila).getByText('de baja')).toHaveAttribute('title', expect.stringMatching(/dado de baja/i))
+    expect(within(fila).getByText('26')).toBeInTheDocument()
+    // Los activos, sin marca y con su nombre accesible de siempre.
+    expect(screen.getByRole('rowheader', { name: 'Andrea Salas' })).toBeInTheDocument()
+    expect(screen.getByRole('rowheader', { name: 'Luis Mendoza' })).toBeInTheDocument()
+    // Móvil: la misma marca, solo en su fila.
+    const lista = screen.getByRole('list', { name: 'Citas por analista' })
+    const tarjeta = within(lista).getByText('Camila Rojas').closest('li') as HTMLElement
+    expect(within(tarjeta).getByText('de baja')).toBeInTheDocument()
+    expect(within(lista).getAllByText('de baja')).toHaveLength(1)
+    // Cuadra: nada «fuera del desglose» y el total, el de siempre.
+    expect(screen.queryByRole('row', { name: /Fuera del desglose actual/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Fuera del desglose actual/)).not.toBeInTheDocument()
+    expect(screen.getByRole('row', { name: 'Total del período 82 58 3 —' })).toBeInTheDocument()
+    // La marca se explica en texto, no solo con un tooltip.
+    expect(screen.getByText(/Los marcados «de baja» ya no están en el equipo/)).toBeInTheDocument()
+  })
+
+  it('sin bajas: ninguna fila dice «de baja» y no se explica la marca', () => {
+    render(<ReunionesGerenciaPanel {...props} datos={metricasReunionesDemo('2026-09-01', '2026-09-07')} />)
+
+    expect(screen.queryByText('de baja')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Los marcados «de baja»/)).not.toBeInTheDocument()
+    expect(screen.getByRole('rowheader', { name: 'Camila Rojas' })).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: 'Total del período 82 58 3 —' })).toBeInTheDocument()
+  })
+
+  it('antes del 2.12 sus citas iban a «Fuera del desglose actual»; con el analista dentro y marcado, el desglose cuadra', () => {
+    const antes = metricasReunionesDemo('2026-09-01', '2026-09-07')
+    antes.responsables = antes.responsables.filter((fila) => fila.nombre !== 'Camila Rojas')
+    const { unmount } = render(<ReunionesGerenciaPanel {...props} datos={antes} />)
+    expect(screen.getByRole('row', { name: 'Fuera del desglose actual 26 15 1 —' })).toBeInTheDocument()
+    unmount()
+
+    render(<ReunionesGerenciaPanel {...props} datos={conBaja()} />)
+    expect(screen.queryByRole('row', { name: /Fuera del desglose actual/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('rowheader', { name: /^Camila Rojas\s*de baja$/ })).toBeInTheDocument()
+  })
+})
+
+describe('D-46 y D-47: el suspendido sale marcado y la fila «Otros» completa el desglose', () => {
+  const props = { cargando: false, error: null, modoDemo: false, puedeAlternarEjemplo: false, onAlternarEjemplo: vi.fn(), onReintentar: vi.fn() }
+  /** La respuesta del servidor con el 2.12: Luis suspendido en el Portal y las citas de Camila (otro rol) en «Otros». */
+  const conSuspendidoYOtros = () => {
+    const datos = metricasReunionesDemo('2026-09-01', '2026-09-07')
+    return {
+      ...datos,
+      responsables: datos.responsables.map((fila) =>
+        fila.nombre === 'Luis Mendoza' ? { ...fila, suspendido: true as const }
+          : fila.nombre === 'Camila Rojas'
+            ? { ...fila, responsable_id: null, nombre: 'Otros', rol: null, supervisor_id: null, supervisor_nombre: '—', otros: true as const }
+            : fila),
+    }
+  }
+
+  it('el suspendido dice «suspendido» (tabla y móvil), con el color de «Suspendido en Portal», y se explica', () => {
+    render(<ReunionesGerenciaPanel {...props} datos={conSuspendidoYOtros()} />)
+
+    const fila = screen.getByRole('rowheader', { name: /^Luis Mendoza\s*suspendido$/ }).closest('tr') as HTMLElement
+    const marca = within(fila).getByText('suspendido')
+    expect(marca).toHaveAttribute('title', expect.stringMatching(/suspendido en el Portal/i))
+    expect(marca.style.getPropertyValue('--c')).toBe('var(--destructive)')
+    expect(within(fila).getByText('27')).toBeInTheDocument()
+    const lista = screen.getByRole('list', { name: 'Citas por analista' })
+    expect(within(lista).getAllByText('suspendido')).toHaveLength(1)
+    expect(screen.getByText(/Los marcados «suspendido» están suspendidos en el Portal/)).toBeInTheDocument()
+    expect(screen.queryByText('de baja')).not.toBeInTheDocument()
+  })
+
+  it('«Otros» es la última fila, sin supervisor y con sus cifras; el desglose suma el total y no queda nada «fuera»', () => {
+    render(<ReunionesGerenciaPanel {...props} datos={conSuspendidoYOtros()} />)
+
+    const otros = screen.getByRole('rowheader', { name: 'Otros' }).closest('tr') as HTMLElement
+    const cuerpo = otros.closest('tbody') as HTMLElement
+    expect(within(cuerpo).getAllByRole('row').at(-1)).toBe(otros)
+    expect(within(otros).getAllByRole('cell')[0]).toHaveTextContent('—')
+    expect(within(otros).getByText('26')).toBeInTheDocument()
+    expect(within(otros).getByText('15')).toBeInTheDocument()
+    expect(within(otros).getByRole('rowheader')).toHaveAttribute('title', expect.stringMatching(/sin responsable/i))
+    // Cuadra: nada «fuera del desglose» y el total, el de siempre.
+    expect(screen.queryByText(/Fuera del desglose actual/)).not.toBeInTheDocument()
+    expect(screen.getByRole('row', { name: 'Total del período 82 58 3 —' })).toBeInTheDocument()
+    expect(screen.getByText(/«Otros» reúne las citas sin responsable y las de quienes no son analistas ni supervisores/)).toBeInTheDocument()
+    // Móvil: «Otros» también es la última tarjeta.
+    const lista = screen.getByRole('list', { name: 'Citas por analista' })
+    expect(within(lista).getAllByRole('listitem').at(-1)).toHaveTextContent(/^Otros/)
+  })
+
+  it('la respuesta de antes: ni «suspendido» ni «Otros» ni sus explicaciones', () => {
+    render(<ReunionesGerenciaPanel {...props} datos={metricasReunionesDemo('2026-09-01', '2026-09-07')} />)
+
+    expect(screen.queryByText('suspendido')).not.toBeInTheDocument()
+    expect(screen.queryByRole('rowheader', { name: 'Otros' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/«Otros» reúne/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Los marcados «suspendido»/)).not.toBeInTheDocument()
+    expect(screen.getByRole('rowheader', { name: 'Luis Mendoza' })).toBeInTheDocument()
+  })
+})

@@ -5,6 +5,7 @@ import { Sheet, SheetBody, SheetHeader, SheetTitle } from '@/components/ui/sheet
 import { capitalLead, fmtFecha, money } from '@/lib/format'
 import type { CitaConLead, Recuperacion } from './datos'
 import { asistioTrasInasistencia, type DepositoEjemplo } from './depositos'
+import { MarcaAnalista } from './marca-analista'
 
 export function FichaRecorrido({ fila, depositos, citas, onCerrar, onCita }: {
   fila: Recuperacion | null
@@ -13,13 +14,13 @@ export function FichaRecorrido({ fila, depositos, citas, onCerrar, onCita }: {
   onCerrar: () => void
   onCita: (cita: CitaConLead) => void
 }) {
-  const { corte: CORTE, nombreAnalista, depositosDisponibles } = useDatosCitas()
+  const { corte: CORTE, nombreAnalista, estadoAnalista, depositosDisponibles } = useDatosCitas()
   const cantidad = citas.filter(cita => cita.leadId === fila?.original.leadId).length
   return <Sheet open={Boolean(fila)} onClose={onCerrar} className="gerencia-inteligencia citas-crm-dialogo citas-ficha-recorrido">
     <SheetHeader className="citas-ficha-cabecera">
       <div className="flex items-start justify-between gap-3">
         <div><SheetTitle className="text-xl">{fila?.original.nombre ?? 'Recorrido del lead'}</SheetTitle>
-          {fila && <p className="mt-2 text-sm text-muted-foreground-strong">{nombreAnalista(fila.original.analista)} · {fila.original.leadId}</p>}
+          {fila && <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground-strong">{nombreAnalista(fila.original.analista)}<MarcaAnalista estado={estadoAnalista(fila.original.analista)} /><span>· {fila.original.leadId}</span></p>}
         </div>
         <Button variant="ghost" size="icon" aria-label="Cerrar recorrido" onClick={onCerrar}><X aria-hidden /></Button>
       </div>

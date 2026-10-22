@@ -9,8 +9,9 @@ import type { DepositoEjemplo } from '@/components/citas/depositos'
 import type { GestionCitas } from '@/components/citas/metas'
 import { entrevistaCompatibleConVenta } from '@/components/citas/fecha-comercial'
 import { horaLima } from '@/components/citas/contexto'
-import { CamposGestionMensualSchema, TestigoComercialCitasSchema } from '@/lib/gestion-citas'
+import { TestigoComercialCitasSchema } from '@/lib/gestion-citas'
 import { FechaSchema } from '@/lib/esquemas-rpc'
+import { CamposGestionMensualConEstado, EstadoAnalistaSchema } from '@/components/citas/gestion-estado'
 
 const Instante = v.pipe(v.string(), v.check(s => Number.isFinite(Date.parse(s))))
 const Id = v.pipe(v.string(), v.uuid())
@@ -28,6 +29,8 @@ const CitaSchema = v.object({
   asistencia_registrada_en: v.nullable(Instante), cierre_posterior: v.boolean(),
   manual_propio: v.optional(v.boolean()),
   registro_manual: v.optional(v.boolean()),
+  // D-53 (bloque 2.14): el estado de hoy del analista responsable; opcional para leer también al servidor anterior.
+  analista_estado: EstadoAnalistaSchema,
   // Fase 0 de la Proyección: opcional para leer también al servidor que aún no lo envía.
   es_cliente: v.optional(v.boolean()),
 })
@@ -37,7 +40,7 @@ const CamposGestion = {
   depositos_porcentaje: v.pipe(v.number(),v.finite(),v.minValue(1),v.maxValue(100)),
   actividad_manuales: v.optional(v.picklist(['excluir','incluir'])),
   asignaciones: v.pipe(v.array(v.object({
-    lead_id: Id, analista_id: Id, analista_nombre: v.string(),
+    lead_id: Id, analista_id: Id, analista_nombre: v.string(), analista_estado: EstadoAnalistaSchema,
     supervisor_id: v.nullable(Id), supervisor_nombre: v.string(),
     asignado_en: Instante, manual_propio: v.boolean(),
     registro_manual: v.optional(v.boolean()),
@@ -47,7 +50,7 @@ const CamposGestion = {
 }
 const GestionCitasSchema = v.variant('version', [
   v.object({ ...CamposGestion, version: v.literal(1) }),
-  v.object({ ...CamposGestion, ...CamposGestionMensualSchema, version: v.literal(2) }),
+  v.object({ ...CamposGestion, ...CamposGestionMensualConEstado, version: v.literal(2) }),
 ])
 const CamposConsulta = {
   periodo: v.object({ desde: v.string(), hasta: v.string() }), generado_en: Instante,
@@ -88,6 +91,7 @@ export function adaptarGestion(datos: ConsultaCitasRpc): GestionCitas | undefine
       telefono:l.telefono,asignadoEn:l.asignado_en,manualPropio:l.manual_propio,
       registroManual:l.registro_manual ?? l.manual_propio,
       origen:rotulo(l.origen),moneda:l.moneda,monto:l.monto_estimado,
+      ...(l.analista_estado ? {estado:l.analista_estado} : {}),
     })),
   }
 }
@@ -127,6 +131,7 @@ export function adaptarCitas(datos: ConsultaCitasRpc): CitaConLead[] {
     ...(c.asistencia_registrada_en ? {asistioEn:c.asistencia_registrada_en} : {}),
     ...(c.manual_propio !== undefined ? {manualPropio:c.manual_propio} : {}),
     creadoEn:c.creado_en,registroManual:c.registro_manual ?? c.manual_propio ?? false,
+    ...(c.analista_estado ? {analistaEstado:c.analista_estado} : {}),
     ...(c.es_cliente !== undefined ? {esCliente:c.es_cliente} : {}),
   }))
 }

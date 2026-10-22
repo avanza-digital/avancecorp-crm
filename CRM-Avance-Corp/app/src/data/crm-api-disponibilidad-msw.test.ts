@@ -247,6 +247,18 @@ describe('insertarLead: RPC atómica', () => {
     })
   })
 
+  // Bloque 2.4 del plan de backend: el alta sobre una persona con lead RETIRADO reactiva esa ficha y responde
+  // «reutilizado» con el lead_id de la ficha (otro que el optimista) y, si hubo dos retirados, un `aviso` (forma tolerante).
+  it('acepta «reutilizado» con el lead_id de la ficha reactivada y el aviso opcional', async () => {
+    const respuesta = {
+      estado: 'reutilizado',
+      lead_id: 'f1c4e2a0-6b1d-4c3e-9a8f-2d5b7c9e1a3f',
+      aviso: 'otro_lead_retirado_con_ese_dni',
+    }
+    server.use(http.post(RUTA_CREACION, () => HttpResponse.json(respuesta)))
+    await expect(insertarLead(ALTA)).resolves.toEqual(respuesta)
+  })
+
   it.each(RESPUESTAS_VALIDAS.filter(([, respuesta]) => respuesta.estado !== 'libre'))(
     'conserva el veredicto bloqueante %s devuelto dentro de la transacción',
     async (_nombre, respuesta) => {

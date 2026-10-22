@@ -1,6 +1,6 @@
-import { normalizar, type CitaEjemplo, type FiltrosCitas } from './modelo'
+import { fusionarPersonas, normalizar, type CitaEjemplo, type EstadoAnalista, type FiltrosCitas, type PersonaCitas } from './modelo'
 import { baseCitasFiltrada, type GestionCitas } from './metas'
-import type { GestionMensualCitas } from '@/lib/gestion-citas'
+import type { GestionMensualCitasConEstado as GestionMensualCitas } from './gestion-estado'
 import { totalEnSoles, tcAplicable } from '@/lib/capital-unificado'
 import { fechaLocalCitas, ventaComercialDelMes } from './fecha-comercial'
 import { enAmbito } from './atribucion'
@@ -53,7 +53,21 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
     : k.perfil_id ? `perfil:${k.perfil_id}` : k.lead_id ? `lead:${k.lead_id}` : `externo:${k.cierre_externo_id}`)
   const periodo = periodoAvance(filtros.mes, corte)
   const personas = new Map(datos.poblacion.filter(p => coincidePersona(p, filtros, todas)).map(p => [p.lead_id, p]))
-  const roster = rosterDeAnalistas({ capital: datos.capital, poblacion: datos.poblacion, asignaciones: gestion.asignaciones, citas: todas, ventas: datos.conversiones })
+  // Nombre y supervisor: la regla compartida con la Proyección (`rosterDeAnalistas`: manda la última fuente).
+  // D-53 (bloque 2.14): encima, el estado de hoy del analista. Cada fuente lo trae y la fusión lo conserva aunque una
+  // fuente posterior no lo traiga (`fusionarPersonas`); el nombre y el supervisor siguen siendo los del roster compartido.
+  const nombres = rosterDeAnalistas({ capital: datos.capital, poblacion: datos.poblacion, asignaciones: gestion.asignaciones, citas: todas, ventas: datos.conversiones })
+  const estados: (readonly [string | null, EstadoAnalista | undefined])[] = [
+    ...datos.capital.map(k => [k.analista_id, k.analista_estado] as const),
+    ...datos.poblacion.map(p => [p.analista_origen_id, p.analista_origen_estado] as const),
+    ...gestion.asignaciones.map(a => [a.id, a.estado] as const),
+    ...todas.map(c => [c.analista, c.analistaEstado] as const),
+    ...datos.conversiones.map(c => [c.analista_id, c.analista_estado] as const),
+  ]
+  const roster = new Map(fusionarPersonas<PersonaCitas>([
+    ...nombres.values(),
+    ...estados.flatMap(([id, estado]) => { const a = id ? nombres.get(id) : undefined; return a && estado ? [{ ...a, estado }] : [] }),
+  ]).map(p => [p.id, p] as const))
   const alcance = { analistas: filtros.analista ? new Set([filtros.analista]) : null, equipo: filtros.equipo, supervisorDe: (id: string) => roster.get(id)?.supervisorId }
   const ambito = (id: string | null) => enAmbito(id, alcance)
   // Citas con resultado, ventas y tasas del mes: la regla compartida con la Proyección.

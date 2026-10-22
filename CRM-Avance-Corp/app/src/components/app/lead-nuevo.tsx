@@ -730,6 +730,26 @@ function FormularioNuevoLead({
           setErrorGeneral(persistencia.error ?? 'No se pudo crear el lead')
           return
         }
+        if (persistencia.lead_id && persistencia.lead_id !== res.id) {
+          // Bloque 2.4: la persona tenía un lead RETIRADO y el servidor reactivó ESA
+          // ficha (no se creó otra). Como en la toma: primero el ámbito la ve,
+          // después se abre; si no se pudo refrescar, se dice y se cierra.
+          const resincronizado = await recargar()
+          if (!montadoRef.current) return
+          // Ronda 2 (A-8): si había OTRA ficha retirada con el DNI tecleado (mandó la del teléfono y la otra quedó como
+          // estaba), se dice en el mismo toast. Un aviso desconocido no se pinta tal cual.
+          const aviso = persistencia.aviso === 'otro_lead_retirado_con_ese_dni'
+            ? '. Aviso: había otra ficha retirada con ese DNI y quedó como estaba; avisa a tu supervisor si es la misma persona'
+            : ''
+          toast.success(`Lead retomado — ${nombre.trim()} ya tenía una ficha anterior: se reactivó con su historial${aviso}`)
+          if (resincronizado) {
+            abrirLead(persistencia.lead_id) // abrirLead ya cierra este modal
+          } else {
+            toast.warning('Tu cartera no se pudo refrescar: recarga la página para abrir el lead.')
+            cerrarPaneles()
+          }
+          return
+        }
         toast.success(`Lead creado${yo?.demo ? ' (demo)' : ''} — ${nombre.trim()}`)
         abrirLead(res.id) // abrirLead ya cierra este modal
         return

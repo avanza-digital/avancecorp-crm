@@ -3,12 +3,33 @@ import * as v from 'valibot'
 import type { DisponibilidadLead } from '@/data/crm-api'
 import {
   DisponibilidadLeadSchema,
+  ResultadoCreacionLeadAtomicaSchema,
   ResultadoTomaLeadSchema,
   contactoTomable,
   presentarDisponibilidadLead,
   presentarResultadoToma,
   tarjetaDisponibilidadLead,
 } from './disponibilidad-lead'
+
+describe('ResultadoCreacionLeadAtomicaSchema — «reutilizado» (bloque 2.4: la ficha retirada se reactiva)', () => {
+  // La forma REAL que emite crm.crear_lead_si_disponible tras la migración 20261007210152: estado, lead_id de la ficha
+  // reactivada (no el optimista) y, solo si hubo dos retirados, `aviso`. Tolerante a propósito (looseObject).
+  it('parsea la respuesta real del servidor, con y sin aviso', () => {
+    expect(v.parse(ResultadoCreacionLeadAtomicaSchema, {
+      estado: 'reutilizado',
+      lead_id: 'f1c4e2a0-6b1d-4c3e-9a8f-2d5b7c9e1a3f',
+    })).toMatchObject({ estado: 'reutilizado', lead_id: 'f1c4e2a0-6b1d-4c3e-9a8f-2d5b7c9e1a3f' })
+    expect(v.parse(ResultadoCreacionLeadAtomicaSchema, {
+      estado: 'reutilizado',
+      lead_id: 'f1c4e2a0-6b1d-4c3e-9a8f-2d5b7c9e1a3f',
+      aviso: 'otro_lead_retirado_con_ese_dni',
+    })).toMatchObject({ estado: 'reutilizado', aviso: 'otro_lead_retirado_con_ese_dni' })
+  })
+
+  it('un lead_id que no es UUID rompe el contrato', () => {
+    expect(v.safeParse(ResultadoCreacionLeadAtomicaSchema, { estado: 'reutilizado', lead_id: 'ficha-1' }).success).toBe(false)
+  })
+})
 
 describe('presentarDisponibilidadLead', () => {
   it('libre habilita el alta y no muestra mensaje', () => {

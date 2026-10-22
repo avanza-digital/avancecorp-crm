@@ -83,7 +83,7 @@ import {
   MetricasDistribucionLeadsV3Schema,
   type MetricasDistribucionLeadsV3,
 } from '@/lib/metricas-distribucion'
-import { MetricasAgendaSchema, type MetricasAgenda } from '@/lib/metricas-agenda'
+import { MetricasAgendaSchema, type MetricaAgendaVendedor, type MetricasAgenda } from '@/lib/metricas-agenda'
 import { MetricasConversionesSchema, type MetricasConversiones } from '@/lib/metricas-conversiones'
 import { MetricasConversionesEquipoSchema, type MetricasConversionesEquipo } from '@/lib/metricas-conversiones-equipo'
 import { ConversionMensualSchema, type ConversionMensual } from '@/lib/conversion-mensual'
@@ -1808,7 +1808,8 @@ export async function deshacerDescarte(leadId: string): Promise<void> {
   const { error } = await cliente().schema('crm').rpc('deshacer_descarte', {
     p_lead: leadId,
   })
-  if (error) throw aErrorApi(error, 'crm.descarte.deshacer_fallido')
+  // Bloque 2.16 (D-62, D-78): si el lead conserva el contacto de un cliente, el `P0481` trae el veredicto del alta.
+  if (error) throw aErrorConVeredicto(error, 'crm.descarte.deshacer_fallido')
 }
 
 // ── C1-ter: la pestaña "Descartados" del coordinador (solo lectura) ──────────
@@ -1928,7 +1929,9 @@ export async function rescatarDescartes(
     p_analistas_destino: asesoresDestinoIds,
     p_evitar_asesor_origen: evitarAsesorOrigen,
   })
-  if (error) throw aErrorApi(error, 'crm.rescate.reparto_fallido')
+  // Bloque 2.16 (D-62, D-70): si un lead del lote conserva el contacto de un cliente, nada se reparte y el `P0481` trae el
+  // veredicto del alta (sin señalar qué lead del lote es).
+  if (error) throw aErrorConVeredicto(error, 'crm.rescate.reparto_fallido')
 }
 
 // ── Base para gestión del analista (B3 `crm.obtener_base_gestion`, en producción 02/10/2026) ──────────
@@ -2820,6 +2823,29 @@ function aErrorApi(
   return fallo
 }
 
+/**
+ * El veredicto de disponibilidad (P-047) que viaja en el DETAIL de un `P0481` «Contacto no disponible»
+ * (`private.trg_leads_disponibilidad_atomica`), ya presentado. Lo comparten el alta y la edición de la ficha (D-36), y las
+ * puertas del bloque 2.16 y la conversión del 2.10 (por `errorDelVeredictoP0481`).
+ * `null` si el error no es `P0481` o si el DETAIL falta, no es JSON o no cumple el contrato: quien llama cae a su
+ * error de siempre.
+ */
+function presentacionDelP0481(error: {
+  code?: string | null
+  details?: string | null
+}): Readonly<{ estado: DisponibilidadLead['estado']; mensaje: string | null }> | null {
+  if (error.code !== 'P0481') return null
+  try {
+    const detalle: unknown = JSON.parse(error.details ?? '')
+    const resultado = v.safeParse(DisponibilidadLeadSchema, detalle)
+    if (!resultado.success) return null
+    return { estado: resultado.output.estado, mensaje: presentarDisponibilidadLead(resultado.output).mensaje }
+  } catch {
+    // Un DETAIL roto no se refleja ni se registra: cae al error genérico.
+    return null
+  }
+}
+
 function aErrorInsertarLead(error: {
   code?: string | null
   message?: string | null
@@ -2836,23 +2862,21 @@ function aErrorInsertarLead(error: {
     return fallo
   }
 
-  if (error.code === 'P0481') {
+  const veredicto = presentacionDelP0481(error)
+  if (veredicto) {
+    // Ronda 3 del 2.8 (Codex F6): construir y registrar el bloqueo van dentro de un `try`, como antes de D-36 (cuando
+    // todo vivía en el mismo `try` que la lectura del veredicto): si el registro lanza, cae al error genérico de abajo.
     try {
-      const detalle: unknown = JSON.parse(error.details ?? '')
-      const resultado = v.safeParse(DisponibilidadLeadSchema, detalle)
-      if (resultado.success) {
-        const presentacion = presentarDisponibilidadLead(resultado.output)
-        const fallo = new CrmApiError(
-          presentacion.mensaje ?? 'Este contacto no está disponible para un nuevo lead',
-          'CONTACTO_NO_DISPONIBLE',
-        )
-        registrarError('crm.leads.creacion_atomica_bloqueada', fallo, {
-          estado: resultado.output.estado,
-        })
-        return fallo
-      }
+      const fallo = new CrmApiError(
+        veredicto.mensaje ?? 'Este contacto no está disponible para un nuevo lead',
+        'CONTACTO_NO_DISPONIBLE',
+      )
+      registrarError('crm.leads.creacion_atomica_bloqueada', fallo, {
+        estado: veredicto.estado,
+      })
+      return fallo
     } catch {
-      // Un DETAIL roto no se refleja ni se registra: cae al error genérico.
+      // Como antes: el error genérico.
     }
   }
 
@@ -2930,7 +2954,50 @@ export async function actualizarLead(id: string, cambios: LeadUpdate): Promise<v
  */
 export async function reabrirLead(leadId: string): Promise<void> {
   const { error } = await cliente().schema('crm').rpc('reabrir_lead_fn', { p_lead_id: leadId })
-  if (error) throw aErrorApi(error, 'crm.leads.reabrir_fallido')
+  // Bloque 2.16 (D-62): si el lead conserva el contacto de un cliente, el `P0481` trae el veredicto del alta.
+  if (error) throw aErrorConVeredicto(error, 'crm.leads.reabrir_fallido')
+}
+
+/**
+ * D-36 (Miguel, 09/10/2026): al EDITAR la ficha, el `P0481` con veredicto se presenta como en el alta («Esta persona ya
+ * es cliente y está a cargo de X.»), solo con los veredictos cuyo texto vale al editar: ninguno habla de «registrar» ni
+ * de «crear». `no_contactar`, `reutilizable`, `error`, otro estado o un DETAIL roto conservan el texto fijo de `aErrorApi`.
+ * Los bloques 2.16 (reabrir, rescatar, deshacer un descarte o una llamada) y 2.10 (preparar la conversión) usan el mismo
+ * conjunto: tampoco «registran» ni «crean».
+ */
+const VEREDICTOS_PRESENTABLES_AL_EDITAR: ReadonlySet<DisponibilidadLead['estado']> = new Set<DisponibilidadLead['estado']>([
+  'ya_es_cliente',
+  'tomado',
+  'en_bolsa',
+  'enfriamiento',
+])
+
+/** El `P0481` presentable fuera del alta (D-36) como `CrmApiError` con el código del alta (CONTACTO_NO_DISPONIBLE), o `null`
+ *  si el error no lo es: quien llama cae a su error de siempre. No registra nada. Bloques 2.10 y 2.16: lo usan también la
+ *  conversión (`prepararPersonaLeadInversion`) y «deshacer una llamada» (`deshacerResultadoLlamada`), que no pasan por
+ *  `aErrorApi`. */
+export function errorDelVeredictoP0481(error: { code?: string | null; details?: string | null }): CrmApiError | null {
+  const veredicto = presentacionDelP0481(error)
+  if (!veredicto?.mensaje || !VEREDICTOS_PRESENTABLES_AL_EDITAR.has(veredicto.estado)) return null
+  return new CrmApiError(veredicto.mensaje, 'CONTACTO_NO_DISPONIBLE')
+}
+
+/** Errores de la edición de la ficha (D-36) y de las puertas que devuelven a la cartera un descartado (bloque 2.16: reabrir,
+ *  rescatar descartes, deshacer un descarte): los de `aErrorApi` con su contexto, salvo el `P0481` presentable, que conserva
+ *  el código y el registro de `aErrorApi` y solo cambia el texto. Antes `aErrorEditarLead`: el mismo cuerpo, con el contexto
+ *  como parámetro. */
+function aErrorConVeredicto(
+  error: {
+    code?: string | null
+    message?: string | null
+    details?: string | null
+  },
+  contexto: string,
+): CrmApiError {
+  const fallo = errorDelVeredictoP0481(error)
+  if (!fallo) return aErrorApi(error, contexto)
+  registrarError(contexto, fallo, { pg: 'P0481' })
+  return fallo
 }
 
 /**
@@ -2958,7 +3025,7 @@ export async function editarLeadFn(leadId: string, cambios: LeadUpdate & {
     : await cliente()
     .schema('crm')
     .rpc('editar_lead_fn', { p_lead_id: leadId, p_cambios: cambios as Json })
-  if (error) throw aErrorApi(error, 'crm.leads.editar_fallido')
+  if (error) throw aErrorConVeredicto(error, 'crm.leads.editar_fallido')
   if (documento) {
     const lectura = v.safeParse(DocumentoLeadSchema, data)
     if (!lectura.success || lectura.output.lead_id !== leadId ||
@@ -6211,6 +6278,57 @@ export async function listarMetricasDistribucionLeadsV3(
 }
 
 /**
+ * D-48 (bloque 2.12): la agenda conserva, si tienen actividad en el período, al analista o supervisor dado de baja
+ * (`"de_baja": true`, con `activo: false`) y al suspendido en el Portal (`"suspendido": true`, con `activo: true`).
+ * `MetricasAgendaSchema` es un objeto ESTRICTO (una clave desconocida tumba el panel entero): las dos marcas se validan aquí
+ * con su propio contrato (ausentes o `true`, nunca las dos y casando con `activo`), se quitan antes de la validación
+ * estricta —que sigue rechazando cualquier otra clave— y se reenganchan a la misma fila por posición. Funciona con la
+ * respuesta de antes (sin marcas) y con la nueva: por eso esta app se publica ANTES que la migración `20261009230000`
+ * (orden decidido por el Director).
+ */
+const MarcasAgendaSchema = v.looseObject({
+  vendedores: v.array(v.looseObject({
+    de_baja: v.optional(v.literal(true)),
+    suspendido: v.optional(v.literal(true)),
+  })),
+})
+type MarcasAgenda = v.InferOutput<typeof MarcasAgendaSchema>['vendedores'][number]
+
+/** Miembro de la agenda, con las marcas del 2.12 (D-48). */
+export type VendedorAgenda = MetricaAgendaVendedor & { de_baja?: true; suspendido?: true }
+export type MetricasAgendaConMarcas = Omit<MetricasAgenda, 'vendedores'> & { vendedores: VendedorAgenda[] }
+
+/** El payload sin las dos marcas, para que el contrato estricto juzgue todo lo demás exactamente como siempre. */
+function agendaSinMarcas(data: unknown): unknown {
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) return data
+  const vendedores: unknown = (data as { vendedores?: unknown }).vendedores
+  if (!Array.isArray(vendedores)) return data
+  return {
+    ...data,
+    vendedores: vendedores.map((fila: unknown) => (fila !== null && typeof fila === 'object' && !Array.isArray(fila)
+      ? Object.fromEntries(Object.entries(fila).filter(([clave]) => clave !== 'de_baja' && clave !== 'suspendido'))
+      : fila)),
+  }
+}
+
+function marcasAgendaEnContrato(filas: MetricaAgendaVendedor[], marcas: MarcasAgenda[]): boolean {
+  if (marcas.length !== filas.length) return false
+  return marcas.every((marca, i) => {
+    const activo = filas[i]?.activo
+    if (marca.de_baja === true && marca.suspendido === true) return false
+    if (marca.de_baja === true) return activo === false
+    if (marca.suspendido === true) return activo === true
+    return true
+  })
+}
+
+function conMarcasAgenda(fila: MetricaAgendaVendedor, marca: MarcasAgenda | undefined): VendedorAgenda {
+  if (marca?.de_baja === true) return { ...fila, de_baja: true }
+  if (marca?.suspendido === true) return { ...fila, suspendido: true }
+  return fila
+}
+
+/**
  * Fotografía atómica V1 de la agenda del equipo (crm.metricas_agenda_fn):
  * toques, cierres de reuniones del periodo y foto actual de pendientes por
  * miembro. El ámbito lo recorta el SERVIDOR (supervisor ve su subárbol
@@ -6221,7 +6339,7 @@ export async function listarMetricasAgenda(
   desde: string,
   hasta: string,
   signal?: AbortSignal,
-): Promise<MetricasAgenda> {
+): Promise<MetricasAgendaConMarcas> {
   if (!periodoMetricasValido(desde, hasta)) {
     const fallo = new CrmApiError('El período de métricas no es válido.', 'PERIODO_METRICAS_INVALIDO')
     registrarError('crm.metricas.agenda_periodo_invalido', fallo)
@@ -6238,14 +6356,20 @@ export async function listarMetricasAgenda(
   lanzarAbortSiCorresponde(signal)
   if (error) throw falloMetricas(error, 'crm.metricas.agenda_fallido')
 
-  const resultado = v.safeParse(MetricasAgendaSchema, data)
-  if (!resultado.success || resultado.output.periodo.desde !== desde || resultado.output.periodo.hasta !== hasta) {
+  const marcas = v.safeParse(MarcasAgendaSchema, data)
+  const resultado = v.safeParse(MetricasAgendaSchema, agendaSinMarcas(data))
+  if (!resultado.success || !marcas.success
+    || !marcasAgendaEnContrato(resultado.output.vendedores, marcas.output.vendedores)
+    || resultado.output.periodo.desde !== desde || resultado.output.periodo.hasta !== hasta) {
     const fallo = new CrmApiError('Las métricas de agenda no tienen el formato esperado.', 'METRICAS_AGENDA_CONTRACT')
     registrarError('crm.metricas.agenda_fuera_de_contrato', fallo)
     throw fallo
   }
 
-  return resultado.output
+  return {
+    ...resultado.output,
+    vendedores: resultado.output.vendedores.map((fila, i) => conMarcasAgenda(fila, marcas.output.vendedores[i])),
+  }
 }
 
 export async function listarMetricasConversiones(
@@ -6389,11 +6513,61 @@ export async function listarMetricasConversionesEquipo(
   return resultado.output
 }
 
+/**
+ * D-43, D-46 y D-47 (bloque 2.12): el servidor marca con `"de_baja": true` la fila del analista o supervisor dado de baja y
+ * con `"suspendido": true` la del suspendido en el Portal —los dos siguen en el desglose con sus citas— y añade al final una
+ * fila «Otros» con `"otros": true` (citas sin responsable o de quien no es analista ni supervisor): así el desglose suma el
+ * total. `MetricasReunionesSchema` no conoce las marcas y su `v.object` las descartaría: se validan aquí con su propio
+ * contrato (ausentes o `true`; a lo sumo una por fila; «Otros» única, última y sin responsable; «de baja» y «suspendido»,
+ * con responsable) y se reenganchan a la misma fila por posición. Una marca fuera de contrato tumba la respuesta, como el
+ * resto del paquete. Sin marcas (la respuesta de antes del 2.12), todo queda como siempre.
+ */
+const MarcasReunionesSchema = v.looseObject({
+  responsables: v.array(v.looseObject({
+    de_baja: v.optional(v.literal(true)),
+    suspendido: v.optional(v.literal(true)),
+    otros: v.optional(v.literal(true)),
+  })),
+})
+type MarcasReuniones = v.InferOutput<typeof MarcasReunionesSchema>['responsables'][number]
+
+/** Fila del desglose por responsable, con las marcas del 2.12 (D-43, D-46 y D-47). */
+export type ResponsableReuniones = MetricasReuniones['responsables'][number] & {
+  de_baja?: true
+  suspendido?: true
+  otros?: true
+}
+export type MetricasReunionesConBajas = Omit<MetricasReuniones, 'responsables'> & {
+  responsables: ResponsableReuniones[]
+}
+
+function marcasReunionesEnContrato(
+  filas: MetricasReuniones['responsables'],
+  marcas: MarcasReuniones[],
+): boolean {
+  if (marcas.length !== filas.length) return false
+  return marcas.every((marca, i) => {
+    const cuantas = Number(marca.de_baja === true) + Number(marca.suspendido === true) + Number(marca.otros === true)
+    if (cuantas > 1) return false
+    const id = filas[i]?.responsable_id ?? null
+    if (marca.otros === true) return i === marcas.length - 1 && id === null
+    if (marca.de_baja === true || marca.suspendido === true) return id !== null
+    return true
+  })
+}
+
+function conMarcasReuniones(fila: MetricasReuniones['responsables'][number], marca: MarcasReuniones | undefined): ResponsableReuniones {
+  if (marca?.de_baja === true) return { ...fila, de_baja: true }
+  if (marca?.suspendido === true) return { ...fila, suspendido: true }
+  if (marca?.otros === true) return { ...fila, otros: true }
+  return fila
+}
+
 export async function listarMetricasReuniones(
   desde: string,
   hasta: string,
   signal?: AbortSignal,
-): Promise<MetricasReuniones> {
+): Promise<MetricasReunionesConBajas> {
   if (!periodoMetricasValido(desde, hasta)) {
     throw new CrmApiError('El período de métricas no es válido.', 'PERIODO_METRICAS_INVALIDO')
   }
@@ -6407,7 +6581,10 @@ export async function listarMetricasReuniones(
   lanzarAbortSiCorresponde(signal)
   if (error) throw falloMetricas(error, 'crm.metricas.reuniones_fallido')
   const resultado = v.safeParse(MetricasReunionesSchema, data)
-  if (!resultado.success || resultado.output.periodo.desde !== desde || resultado.output.periodo.hasta !== hasta) {
+  const marcas = v.safeParse(MarcasReunionesSchema, data)
+  if (!resultado.success || !marcas.success
+    || !marcasReunionesEnContrato(resultado.output.responsables, marcas.output.responsables)
+    || resultado.output.periodo.desde !== desde || resultado.output.periodo.hasta !== hasta) {
     const fallo = new CrmApiError(
       'Las métricas de citas no tienen el formato esperado.',
       'METRICAS_REUNIONES_CONTRACT',
@@ -6415,7 +6592,10 @@ export async function listarMetricasReuniones(
     registrarError('crm.metricas.reuniones_fuera_de_contrato', fallo)
     throw fallo
   }
-  return resultado.output
+  return {
+    ...resultado.output,
+    responsables: resultado.output.responsables.map((fila, i) => conMarcasReuniones(fila, marcas.output.responsables[i])),
+  }
 }
 
 /**

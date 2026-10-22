@@ -1372,6 +1372,92 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(toast.error).not.toHaveBeenCalled()
   })
 
+  // Bloque 2.4 del plan de backend: «reutilizado» ya no es un error fail-closed. La persona tenía un lead RETIRADO y el
+  // servidor reactivó ESA ficha: el optimista sale del espejo, se resincroniza y la confirmación trae el lead_id real.
+  it('crearLead: «reutilizado» es éxito — quita el optimista, resincroniza y confirma el lead_id del servidor', async () => {
+    const { api, mutar } = montar('supervisor')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    insertarLead.mockResolvedValueOnce({
+      estado: 'reutilizado',
+      lead_id: 'f1c4e2a0-6b1d-4c3e-9a8f-2d5b7c9e1a3f',
+    })
+
+    const res = mutar((a) =>
+      a.crearLead({
+        nombre_completo: 'PERSONA CON FICHA RETIRADA',
+        telefono: '987654326',
+        origen: 'formulario',
+        monto_estimado: 5000,
+        moneda: 'PEN',
+        vendedor_id: 'u-v1',
+      }),
+    )
+
+    expect(res.ok).toBe(true)
+    await expect(res.persistido).resolves.toEqual({ ok: true, lead_id: 'f1c4e2a0-6b1d-4c3e-9a8f-2d5b7c9e1a3f' })
+    // El optimista nunca existió en el servidor: no queda pintado como un segundo lead.
+    await waitFor(() => {
+      expect(api().leads.some((lead) => lead.nombre_completo === 'PERSONA CON FICHA RETIRADA')).toBe(false)
+    })
+    await waitFor(() => expect(listarTareas).toHaveBeenCalledTimes(2)) // resync
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  // Ronda 2 (A-8): el aviso del servidor («había otra ficha retirada con ese DNI») viaja con la confirmación, tal cual.
+  it('crearLead: «reutilizado» con aviso — el aviso llega en la confirmación junto al lead_id', async () => {
+    const { api, mutar } = montar('supervisor')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    insertarLead.mockResolvedValueOnce({
+      estado: 'reutilizado',
+      lead_id: 'f1c4e2a0-6b1d-4c3e-9a8f-2d5b7c9e1a3f',
+      aviso: 'otro_lead_retirado_con_ese_dni',
+    })
+
+    const res = mutar((a) =>
+      a.crearLead({
+        nombre_completo: 'PERSONA CON DOS FICHAS RETIRADAS',
+        telefono: '987654328',
+        origen: 'formulario',
+        monto_estimado: 5000,
+        moneda: 'PEN',
+        vendedor_id: 'u-v1',
+      }),
+    )
+
+    expect(res.ok).toBe(true)
+    await expect(res.persistido).resolves.toEqual({
+      ok: true,
+      lead_id: 'f1c4e2a0-6b1d-4c3e-9a8f-2d5b7c9e1a3f',
+      aviso: 'otro_lead_retirado_con_ese_dni',
+    })
+    await waitFor(() => {
+      expect(api().leads.some((lead) => lead.nombre_completo === 'PERSONA CON DOS FICHAS RETIRADAS')).toBe(false)
+    })
+  })
+
+  it('crearLead: un «reutilizado» SIN lead_id es contrato roto y revierte el optimista', async () => {
+    const { api, mutar } = montar('supervisor')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    insertarLead.mockResolvedValueOnce({ estado: 'reutilizado' })
+
+    const res = mutar((a) =>
+      a.crearLead({
+        nombre_completo: 'RETOMADO SIN ID',
+        telefono: '987654327',
+        origen: 'formulario',
+        monto_estimado: 5000,
+        moneda: 'PEN',
+        vendedor_id: 'u-v1',
+      }),
+    )
+
+    expect(res.ok).toBe(true)
+    await expect(res.persistido).resolves.toMatchObject({ ok: false, codigo: 'CREACION_LEAD_CONTRACT' })
+    await waitFor(() => {
+      expect(api().leads.some((lead) => lead.nombre_completo === 'RETOMADO SIN ID')).toBe(false)
+    })
+  })
+
   it('la RPC puede bloquear después del precheck y revierte el lead optimista', async () => {
     const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))

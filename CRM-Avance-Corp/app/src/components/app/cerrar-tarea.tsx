@@ -49,6 +49,7 @@ import { sugerirSiguiente } from '@/lib/motor-siguiente'
 import { tareaAEvento } from '@/lib/agenda-derivada'
 import { camposDeSugerencia, isoDeCampos, type CamposSiguiente } from '@/lib/campos-siguiente'
 import { notaNoShow } from '@/lib/nota-no-show'
+import { noAsistioEsperaHora } from '@/lib/no-asistio-espera'
 import { esAbierto } from '@/lib/inteligencia'
 import { retrocesoPorAnularReunion } from '@/lib/avance-automatico'
 import { plantonDe } from '@/lib/cadencia'
@@ -239,6 +240,39 @@ function FormCierre({ tarea, onCerrar, onGuardado, onRegistrarLlamada, oficina, 
   const llamadaTipificada = onRegistrarLlamada != null
   const { lead, completarTarea, anularTarea, descartar, tareasDe } = useCRMData()
   const ahora = useAhora()
+  // «NO ASISTIÓ» ESPERA A LA HORA DE LA CITA (regla de Miguel, 2026-10-05). El
+  // servidor rechaza un `no_show` anterior a la hora pactada, entre por donde
+  // entre; aquí la opción queda inerte y dice desde cuándo, para no ofrecer lo
+  // que va a rebotar. «Se realizó» no espera: la reunión anticipada vale.
+  // El reloj compartido tickea cada minuto, y la opción no puede seguir inerte
+  // medio minuto después de que el servidor ya la acepta: un temporizador
+  // despierta al diálogo en el instante exacto de la hora.
+  // Tanto el efecto como el temporizador LEEN el reloj, nunca dan la hora por
+  // cumplida: si llegó entre el render y el efecto, el diálogo se entera sin
+  // esperar al siguiente tick; y si al despertar todavía no llegó (el
+  // dispositivo atrasó su reloj, o el temporizador se adelantó), la opción
+  // sigue inerte y se vuelve a programar.
+  const [relojCita, setRelojCita] = useState(() => Date.now())
+  useEffect(() => {
+    const hora = Date.parse(tarea.vence_en)
+    if (tarea.tipo !== 'reunion' || !Number.isFinite(hora)) return undefined
+    let id: ReturnType<typeof setTimeout> | undefined
+    const mirarReloj = () => {
+      const reloj = Date.now()
+      if (hora > reloj) {
+        // Más allá de 2^31-1 ms (~24 días) `setTimeout` dispararía al
+        // instante: se despierta antes y se vuelve a mirar.
+        id = setTimeout(mirarReloj, Math.min(hora - reloj, 2_147_483_647))
+        return
+      }
+      // Una lectura que ya cubría la hora no se pisa (evita un render de más).
+      setRelojCita((previo) => (previo >= hora ? previo : reloj))
+    }
+    mirarReloj()
+    return () => clearTimeout(id)
+  }, [tarea.tipo, tarea.vence_en])
+  const noAsistioEspera = noAsistioEsperaHora(tarea, Math.max(ahora, relojCita))
+  const esperaLaHora = (op: OpcionCierre) => op.estado === 'no_show' && noAsistioEspera
   const l = oficina?.lead ?? (tarea.lead_id ? lead(tarea.lead_id) : undefined)
   // Historial POR LEAD (Fase 1 «sin topes»): el plantón y el retroceso ya no
   // se leen de la lista global del ámbito, que PostgREST recorta a 1 000 filas.
@@ -709,13 +743,18 @@ function FormCierre({ tarea, onCerrar, onGuardado, onRegistrarLlamada, oficina, 
               <button
                 key={op.k}
                 type="button"
-                onClick={() => elegir(op)}
+                onClick={esperaLaHora(op) ? undefined : () => elegir(op)}
                 // Con un cierre en vuelo, cambiar de resultado ya no cancela
                 // nada (el payload viajó): se bloquea en vez de mentir.
                 disabled={procesando}
+                // `aria-disabled` y no `disabled` para «No asistió» antes de
+                // la hora: el botón sigue enfocable, así quien navega con
+                // teclado o lector llega a él y oye el motivo y desde cuándo.
+                aria-disabled={esperaLaHora(op) || undefined}
+                aria-describedby={esperaLaHora(op) ? 'no-asistio-espera' : undefined}
                 aria-pressed={eleccion?.k === op.k}
                 className={cn(
-                  'flex cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-3 text-sm font-semibold transition-colors',
+                  'flex cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-3 text-sm font-semibold transition-colors aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:bg-transparent',
                   eleccion?.k === op.k
                     ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-foreground'
                     : 'border-border/70 text-muted-foreground hover:bg-muted/60',
@@ -725,6 +764,14 @@ function FormCierre({ tarea, onCerrar, onGuardado, onRegistrarLlamada, oficina, 
               </button>
             ))}
           </div>
+          )}
+          {/* El motivo A LA VISTA, no en un tooltip: dice cuándo se habilita y
+              qué hacer si la cita ya ocurrió (eso sí se puede registrar ya). */}
+          {!llamadaTipificada && noAsistioEspera && (
+            <p id="no-asistio-espera" className="mt-1.5 text-[11px] text-muted-foreground">
+              «No asistió» se habilita a la hora de la cita ({tareaAEvento(tarea, ahora).cuando}). Si la cita ya se
+              realizó, marca «Se realizó».
+            </p>
           )}
           {/* LA CUARTA SALIDA. Deliberadamente FUERA de la grilla y en tono
               menor: no es "qué pasó" (no pasó nada), es "esto ya no aplica".

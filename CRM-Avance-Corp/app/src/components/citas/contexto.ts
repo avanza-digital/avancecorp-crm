@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import { equipoCitas } from './modelo'
+import { equipoCitas, fusionarPersonas, type EstadoAnalista, type PersonaCitas } from './modelo'
 import type { CitaConLead } from './datos'
 import type { DepositoEjemplo } from './depositos'
 import type { GestionCitas } from './metas'
@@ -29,22 +29,29 @@ export const ContextoCitas = createContext<DatosCitas | null>(null)
 export function useDatosCitas() {
   const datos = useContext(ContextoCitas)
   if (!datos) throw new Error('Citas requiere su fuente de datos')
-  const origen = (datos.gestion?.avance?.poblacion ?? []).filter(p => p.analista_origen_id).map(p => ({
+  const marca = (estado: EstadoAnalista | undefined) => (estado ? { estado } : {})
+  const origen = (datos.gestion?.avance?.poblacion ?? []).filter(p => p.analista_origen_id).map((p): PersonaCitas => ({
     id: p.analista_origen_id!, nombre: p.analista_origen_nombre,
-    supervisor: p.supervisor_origen_nombre, supervisorId: p.supervisor_origen_id ?? 'sin_supervisor',
+    supervisor: p.supervisor_origen_nombre, supervisorId: p.supervisor_origen_id ?? 'sin_supervisor', ...marca(p.analista_origen_estado),
   }))
-  const cierres = (datos.gestion?.avance?.conversiones ?? []).filter(c => c.analista_id).map(c => ({
-    id: c.analista_id!, nombre: c.analista_nombre, supervisor: c.supervisor_nombre, supervisorId: c.supervisor_id ?? 'sin_supervisor',
+  const cierres = (datos.gestion?.avance?.conversiones ?? []).filter(c => c.analista_id).map((c): PersonaCitas => ({
+    id: c.analista_id!, nombre: c.analista_nombre, supervisor: c.supervisor_nombre, supervisorId: c.supervisor_id ?? 'sin_supervisor', ...marca(c.analista_estado),
   }))
   // Un analista con capital en el mes pero sin leads ni citas también se puede
   // seleccionar; las fuentes con actividad conservan la prioridad del nombre.
-  const capital = (datos.gestion?.avance?.capital ?? []).filter(k => k.analista_id).map(k => ({
+  const capital = (datos.gestion?.avance?.capital ?? []).filter(k => k.analista_id).map((k): PersonaCitas => ({
     id: k.analista_id!, nombre: k.analista_nombre ?? 'Sin analista',
-    supervisor: k.supervisor_nombre ?? 'Sin supervisor', supervisorId: k.supervisor_id ?? 'sin_supervisor',
+    supervisor: k.supervisor_nombre ?? 'Sin supervisor', supervisorId: k.supervisor_id ?? 'sin_supervisor', ...marca(k.analista_estado),
   }))
-  const equipo = [...new Map([...capital, ...origen, ...cierres, ...equipoCitas(datos.citas), ...(datos.gestion?.asignaciones ?? [])].map(p => [p.id, p])).values()]
+  // D-53: el estado de hoy del analista viene con cada lista; una fuente sin la clave no borra el que trajo otra.
+  const equipo = fusionarPersonas<PersonaCitas>([...capital, ...origen, ...cierres, ...equipoCitas(datos.citas), ...(datos.gestion?.asignaciones ?? [])])
     .sort((a,b) => a.nombre.localeCompare(b.nombre, 'es'))
-  return { ...datos, equipo, nombreAnalista: (id: string) => equipo.find(p => p.id === id)?.nombre ?? 'Sin analista' }
+  return {
+    ...datos, equipo,
+    nombreAnalista: (id: string) => equipo.find(p => p.id === id)?.nombre ?? 'Sin analista',
+    /** D-53: «activo» significa sin marca (también para quien no está en el roster o con el servidor anterior). */
+    estadoAnalista: (id: string): EstadoAnalista => equipo.find(p => p.id === id)?.estado ?? 'activo',
+  }
 }
 export function horaLima(fecha: string) { return new Intl.DateTimeFormat('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(fecha)) }
 export function corteLima(fecha: string) { return new Intl.DateTimeFormat('es-PE', { timeZone: 'America/Lima', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(fecha)) + ' Lima' }

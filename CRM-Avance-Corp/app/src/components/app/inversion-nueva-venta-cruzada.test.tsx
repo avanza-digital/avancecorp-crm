@@ -112,6 +112,33 @@ describe('Nueva inversión de un cliente de otra cartera', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Iniciar otra inversión' })).toBeEnabled())
   })
 
+  it('cuando el CRM la canceló solo, el asesor ve el motivo junto al aviso (bloque 2.15)', async () => {
+    const clave = '77777777-7777-4777-8777-777777777777'
+    const datos = { inversionista_id: PERSONA, empresa: 'avance' as const, monto: 2500, moneda: 'PEN' as const }
+    guardarIntentoInversion(nuevoIntentoInversion(ACTOR, PERSONA, clave, datos, undefined,
+      { busqueda_id: BUSQUEDA, motivo: 'El cliente pidió invertir conmigo' }))
+    api.consultar.mockResolvedValue({ ...solicitud(clave, datos), estado: 'cancelada',
+      cancelacion_motivo: 'numero_contrato_usado',
+      cancelacion_detalle: { via: 'alta', contrato_id: '88888888-8888-4888-8888-888888888888', numero_contrato: '2026-01-000123' },
+      cancelacion_texto: 'El CRM canceló esta solicitud: el número de contrato 2026-01-000123 ya lo usa otro contrato.' })
+    montar()
+    expect(await screen.findByText('Esta solicitud está cancelada. No se registró ninguna inversión.')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('El CRM canceló esta solicitud: el número de contrato 2026-01-000123 ya lo usa otro contrato.')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Iniciar otra inversión' })).toBeEnabled())
+  })
+
+  it('una cancelación de la pantalla (sin motivo del CRM) no inventa ningún motivo', async () => {
+    const clave = '77777777-7777-4777-8777-777777777777'
+    const datos = { inversionista_id: PERSONA, empresa: 'qorilazo' as const, monto: 2500, moneda: 'PEN' as const }
+    guardarIntentoInversion(nuevoIntentoInversion(ACTOR, PERSONA, clave, datos, undefined,
+      { busqueda_id: BUSQUEDA, motivo: 'El cliente pidió invertir conmigo' }))
+    api.consultar.mockResolvedValue({ ...solicitud(clave, datos), estado: 'cancelada',
+      cancelacion_motivo: null, cancelacion_detalle: null, cancelacion_texto: null })
+    montar()
+    expect(await screen.findByText('Esta solicitud está cancelada. No se registró ninguna inversión.')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
   it('si los contratos para un upgrade no cargan, lo dice y reintenta: no ofrece un contrato «sin contratos»', async () => {
     api.upgrade.mockRejectedValueOnce(new Error('red caída'))
       .mockResolvedValueOnce([{ contrato_id: '88888888-8888-4888-8888-888888888888', numero_contrato: '2026-01-000123',

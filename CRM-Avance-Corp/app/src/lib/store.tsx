@@ -181,6 +181,13 @@ export interface ResultadoPersistencia {
   ok: boolean
   error?: string
   codigo?: string
+  /** Id que el servidor confirmó cuando NO es el optimista: el alta sobre una persona con lead RETIRADO
+   *  reactiva ESA ficha («reutilizado», bloque 2.4 del plan de backend) y la pantalla debe abrir esa, no la
+   *  que pintó. Ausente en el resto de escrituras. */
+  lead_id?: string
+  /** Aviso que acompaña a un «reutilizado» (p. ej. `otro_lead_retirado_con_ese_dni`: había otra ficha retirada
+   *  con el DNI tecleado y quedó como estaba). Solo viaja si el servidor lo mandó. */
+  aviso?: string
 }
 
 /**
@@ -2544,6 +2551,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         setDatos((d) => ({ ...d, leads: [lead, ...d.leads] }))
         // El id viaja al servidor (si es UUID) para que el optimista y la fila
         // real sean LA MISMA identidad — un drawer abierto sobrevive al resync.
+        let leadIdServidor: string | null = null
+        let avisoServidor: string | null = null
         const persistido = persistirConDetalle(
           async () => {
             const resultado = await insertarLead({
@@ -2567,15 +2576,23 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               nota: lead.nota ?? null,
             })
             if (resultado.estado === 'reutilizado') {
-              // Resultado FUTURO (F2 del plan «lead libre»): el alta reabrió un
-              // lead existente. El servidor de hoy no lo emite; cuando nazca, el
-              // manejo real (refrescar ámbito, abrir la ficha reabierta) llega
-              // con su fase. Hasta entonces: fail-closed con recarga, jamás
-              // fingir que se creó otro lead.
-              throw new CrmApiError(
-                'El contacto tenía un lead anterior y fue retomado. Recarga para verlo.',
-                'CREACION_LEAD_CONTRACT',
-              )
+              // Bloque 2.4 (D-11/Q1, D-15): la persona tenía un lead RETIRADO y el
+              // servidor reactivó ESA ficha en vez de crear otra. El optimista nunca
+              // existió: sale del espejo local; la ficha real llega con el resync y
+              // la pantalla la abre por el lead_id devuelto. Sin lead_id no hay nada
+              // que abrir: contrato roto, fail-closed (jamás fingir que se creó otro).
+              if (!resultado.lead_id) {
+                throw new CrmApiError(
+                  'El servidor retomó un lead anterior sin identificarlo.',
+                  'CREACION_LEAD_CONTRACT',
+                )
+              }
+              leadIdServidor = resultado.lead_id
+              // El aviso (dos fichas retiradas: mandó la del teléfono) viaja con la confirmación para que la
+              // pantalla lo diga en el mismo toast; nunca se interpreta aquí.
+              avisoServidor = typeof resultado.aviso === 'string' && resultado.aviso !== '' ? resultado.aviso : null
+              setDatos((d) => ({ ...d, leads: d.leads.filter((item) => item.id !== id) }))
+              return
             }
             if (resultado.estado !== 'creado') {
               const presentacion = presentarDisponibilidadLead(resultado)
@@ -2598,6 +2615,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               }))
             },
           },
+        ).then((resultado) =>
+          // La ficha reactivada tiene OTRO id que el optimista: viaja en la confirmación para que quien espera abra la real
+          // (con el aviso del servidor, si lo hubo).
+          resultado.ok && leadIdServidor
+            ? { ...resultado, lead_id: leadIdServidor, ...(avisoServidor ? { aviso: avisoServidor } : {}) }
+            : resultado,
         )
         return { ok: true, id, persistido }
       },
