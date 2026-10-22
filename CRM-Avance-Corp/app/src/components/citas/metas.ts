@@ -1,5 +1,6 @@
 import { METAS_CITAS_INICIALES } from '@/lib/metas-citas-config'
-import type { GestionMensualCitas, TestigoCitas } from '@/lib/gestion-citas'
+import type { TestigoCitas } from '@/lib/gestion-citas'
+import type { GestionMensualCitasConEstado } from './gestion-estado'
 import { type CitaConLead } from './datos'
 import { normalizar, type FiltrosCitas, type PersonaCitas } from './modelo'
 
@@ -14,7 +15,8 @@ export interface GestionCitas {
   asignaciones: LeadBaseCitas[];
   actividadManuales?: 'excluir' | 'incluir';
   excluirManualesBase?: boolean;
-  avance?: GestionMensualCitas;
+  /** D-53: las listas que nombran analistas traen también su estado de hoy (opcional). */
+  avance?: GestionMensualCitasConEstado;
   /** F2: cálculo independiente del servidor para el total sin filtros. */
   testigo?: TestigoCitas;
 }

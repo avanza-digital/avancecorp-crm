@@ -420,6 +420,13 @@ begin
   v_op := gen_random_uuid();
   v := crm.registrar_llamada_v3(v_op, L[6], 'agendo_reunion', null, 'Otra cita',
          jsonb_build_object('tipo','reunion','titulo','Cita W2','vence_en', v_ts16 + interval '1 day', 'modalidad_reunion', 'virtual'));
+  -- 22/10/2026, bloque 2.1 (20261022170100_crm_no_asistio_espera_hora): «No asistió» espera a la hora pactada y el candado de
+  -- crm.tareas rechaza (22023) el no_show de una cita futura. W mide que el cierre por cerrar_reunion_v3 sigue funcionando con
+  -- el disparador de la gestión diaria, no la hora: se mueve SOLO la hora de esta cita al pasado (registrar_llamada_v3 exige
+  -- que nazca futura), con la válvula de agenda que usan los writers, y se cierra después como antes.
+  perform set_config('crm.op_tarea', 'on', true);
+  update crm.tareas set vence_en = clock_timestamp() - interval '1 hour' where id = (v->>'siguiente_id')::uuid;
+  perform set_config('crm.op_tarea', 'off', true);
   v2 := crm.cerrar_reunion_v3(gen_random_uuid(), (v->>'siguiente_id')::uuid, 'no_show', null, null, 'No vino', null, null, null);
   if (v2->>'ok')::boolean is not true then raise exception 'W: cerrar_reunion_v3 no_show: %', v2; end if;
 

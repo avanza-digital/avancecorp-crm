@@ -14,6 +14,7 @@ import type { JSX } from 'react'
 import { CalendarClock, ChevronRight } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Avatar } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import { SectionHead } from '@/components/common/section-head'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
 import { SegmentBar } from '@/components/common/stat-strip'
@@ -32,6 +33,27 @@ import {
 } from '@/lib/agenda-equipo-vista'
 import type { MetricaAgendaVendedor, MetricasAgenda } from '@/lib/metricas-agenda'
 import type { Miembro } from '@/lib/tipos'
+import type { MetricasAgendaConMarcas, VendedorAgenda } from '@/data/crm-api'
+
+/**
+ * D-48 y D-54 (bloque 2.12): el analista o supervisor dado de baja, o suspendido en el Portal, sale en la agenda —con su marca—
+ * solo si tiene actividad registrada en el período o tareas pendientes actuales (lo decide el servidor con la misma definición
+ * que `tieneActividad`; las pendientes son una foto de hoy, no del período). Mismo estilo que en
+ * Citas de Gerencia: «de baja» apagado (como «inactivo» de Mi cartera) y «suspendido» con el color de «Suspendido en Portal».
+ */
+function MarcaMiembro({ ven }: { ven: VendedorAgenda }): JSX.Element | null {
+  if (ven.de_baja) {
+    return <Badge color="var(--muted-foreground)" className="shrink-0" title="Dado de baja del equipo: aparece porque tiene actividad registrada en el período o tareas pendientes actuales">de baja</Badge>
+  }
+  if (ven.suspendido) {
+    return <Badge color="var(--destructive)" className="shrink-0" title="Suspendido en el Portal (su ficha del CRM sigue activa): aparece porque tiene actividad registrada en el período o tareas pendientes actuales">suspendido</Badge>
+  }
+  return null
+}
+
+function hayMarcados(vendedores: readonly VendedorAgenda[]): boolean {
+  return vendedores.some((ven) => ven.de_baja === true || ven.suspendido === true)
+}
 
 /** Ratio de toques por día en es-PE (coma decimal): «1,7». */
 const RATIO_DIA = new Intl.NumberFormat('es-PE', { maximumFractionDigits: 1 })
@@ -196,9 +218,10 @@ function SinActividadColapsada({
         {miembros.map((ven) => (
           <li
             key={ven.vendedor_id}
-            className="rounded-full bg-muted/60 px-2.5 py-1 text-[10.5px] font-medium text-muted-foreground"
+            className="flex items-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-1 text-[10.5px] font-medium text-muted-foreground"
           >
             {ven.nombre}
+            <MarcaMiembro ven={ven} />
           </li>
         ))}
       </ul>
@@ -249,7 +272,10 @@ function TablaMiembros({
                 <span className="flex items-center gap-2">
                   <Avatar nombre={ven.nombre} className="size-6 text-[9px]" />
                   <span className="min-w-0 leading-tight">
-                    <span className="block truncate text-sm font-semibold">{ven.nombre}</span>
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="block truncate text-sm font-semibold">{ven.nombre}</span>
+                      <MarcaMiembro ven={ven} />
+                    </span>
                     {subLinea != null && (
                       <span className="block truncate text-[10px] text-muted-foreground">
                         {subLinea}
@@ -349,11 +375,12 @@ function CabeceraEquipo({ grupo }: { grupo: GrupoAgendaEquipo }): JSX.Element {
   )
 }
 
-/** Pie fijo del panel: define qué cuenta como toque. */
-function PieToques(): JSX.Element {
+/** Pie fijo del panel: define qué cuenta como toque y, si los hay, explica a los marcados (D-48). */
+function PieToques({ vendedores }: { vendedores: readonly VendedorAgenda[] }): JSX.Element {
   return (
     <p className="px-5 pb-4 pt-2 text-[10.5px] text-muted-foreground">
       Toques = llamadas, WhatsApp y citas registrados en el periodo — las notas no cuentan.
+      {hayMarcados(vendedores) && ' Los marcados «de baja» ya no están en el equipo y los «suspendido» están suspendidos en el Portal: aparecen porque tienen actividad registrada en el período o tareas pendientes actuales.'}
     </p>
   )
 }
@@ -366,7 +393,8 @@ export function AgendaEquipoPanel({
   onReintentar,
   equipo,
 }: {
-  datos?: MetricasAgenda | null | undefined
+  /** La respuesta de la RPC; con el 2.12 puede traer las marcas «de baja» y «suspendido» (D-48). */
+  datos?: MetricasAgendaConMarcas | MetricasAgenda | null | undefined
   cargando: boolean
   error: string | null
   modoDemo?: boolean | undefined
@@ -374,7 +402,7 @@ export function AgendaEquipoPanel({
   /** Miembros del store (perfil → supervisor). Con >1 supervisor en el payload activa las secciones por equipo. */
   equipo?: Miembro[] | undefined
 }): JSX.Element {
-  const vendedores = datos?.vendedores ?? []
+  const vendedores: readonly VendedorAgenda[] = datos?.vendedores ?? []
   const resumen = resumenAgenda(vendedores)
   const { conActividad, sinActividad } = separarPorActividad(vendedores)
   const grupos = agruparPorEquipo(vendedores, equipo)
@@ -419,7 +447,7 @@ export function AgendaEquipoPanel({
               centrado
             />
           </PanelVacio>
-          <PieToques />
+          <PieToques vendedores={vendedores} />
         </>
       ) : grupos != null ? (
         // Caso gerencia: supervisores primero, detalle por miembro por sección.
@@ -447,7 +475,7 @@ export function AgendaEquipoPanel({
               </section>
             ))}
           </div>
-          <PieToques />
+          <PieToques vendedores={vendedores} />
         </>
       ) : (
         // Caso supervisor (o sin secciones): resumen + tabla única.
@@ -460,7 +488,7 @@ export function AgendaEquipoPanel({
             />
           </div>
           <SinActividadColapsada miembros={sinActividad} />
-          <PieToques />
+          <PieToques vendedores={vendedores} />
         </>
       )}
     </Card>

@@ -353,6 +353,7 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
     })}>Consultar y recuperar</Button>
   </DialogBody></>
   else if (solicitud?.estado === 'cancelada') cuerpo = <>{cabecera('Solicitud cancelada')}<DialogBody className="space-y-3"><p>Esta solicitud está cancelada. No se registró ninguna inversión.</p>
+    {solicitud.cancelacion_texto && <p role="status" className="text-sm text-muted-foreground">{solicitud.cancelacion_texto}</p>}
     <Button variant="outline" disabled={!puedeOperar} onClick={() => {
       limpiarIntentosInversion(actor, persona, origenIntento); setIntento(null); setSolicitud(null); setEmpresa(null)
       setGuardado({intento: null, error: null}); setError(null); setArchivo(null); setEditar(false); setMotivo(''); setRecuperarId(null)

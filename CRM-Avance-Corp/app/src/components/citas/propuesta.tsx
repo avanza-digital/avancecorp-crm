@@ -1,6 +1,6 @@
 import { useConsultaGerencia } from '@/components/gerencia/use-consulta-gerencia'
 import { useDatosCitas, corteLima } from './contexto'
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { CalendarDays, ChartNoAxesCombined, ChevronLeft, ChevronRight, CircleHelp, Download, List, SearchX, Table2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
@@ -17,6 +17,7 @@ import { errorRango, mesesDelRango, rangoInicial, rotuloRango, type RangoProyecc
 import { fechaLocalCitas } from './fecha-comercial'
 import { siguientePaso, contextoCita } from './presentacion'
 import { baseCitasFiltrada } from './metas'
+import { MarcaAnalista } from './marca-analista'
 import { escribirHash, leerHash } from '@/lib/router'
 import { consultaCitasValida, esConsultaProyeccion, mesConsultaCitas, type ConsultaCitasEnlace, type ConsultaProyeccionEnlace } from '@/lib/enlace-citas'
 
@@ -62,13 +63,15 @@ function Guia({ abierta, onCerrar }: { abierta: boolean; onCerrar: () => void })
 }
 
 function Ficha({ cita, onCerrar, onAnalista, onAgenda }: { cita: CitaEjemplo | null; onCerrar: () => void; onAnalista: (cita: CitaEjemplo) => void; onAgenda: (cita: CitaEjemplo) => void }) {
-  const { nombreAnalista, onAbrirLead } = useDatosCitas()
+  const { nombreAnalista, estadoAnalista, onAbrirLead } = useDatosCitas()
+  const campos: [string, ReactNode][] = cita ? [
+    ['Fecha prevista', fmtFecha(cita.fecha)], ['Hora de Lima', cita.hora],
+    ['Analista', <span key="analista" className="inline-flex flex-wrap items-center gap-1.5">{nombreAnalista(cita.analista)}<MarcaAnalista estado={estadoAnalista(cita.analista)} /></span>], ['Supervisor', cita.supervisor],
+    ['Modalidad', cita.modalidad], ['Origen', cita.origen], ['Monto estimado', capitalLead(cita.monto, cita.moneda)], ['Teléfono', cita.telefono],
+  ] : []
   return <Sheet open={Boolean(cita)} onClose={onCerrar} className="citas-crm-dialogo w-[500px]">
     <SheetHeader><div className="flex items-start justify-between gap-3"><div><p className="mb-1 text-xs text-muted-foreground-strong">Detalle de cita · {cita?.id}</p><SheetTitle>{cita?.nombre ?? 'Detalle de cita'}</SheetTitle></div><Button variant="ghost" size="icon" aria-label="Cerrar detalle" onClick={onCerrar}><X aria-hidden /></Button></div></SheetHeader>
-    {cita && <><SheetBody className="space-y-6"><Estado cita={cita} /><dl className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm">{[
-      ['Fecha prevista', fmtFecha(cita.fecha)], ['Hora de Lima', cita.hora], ['Analista', nombreAnalista(cita.analista)], ['Supervisor', cita.supervisor],
-      ['Modalidad', cita.modalidad], ['Origen', cita.origen], ['Monto estimado', capitalLead(cita.monto, cita.moneda)], ['Teléfono', cita.telefono],
-    ].map(([etiqueta, valor]) => <div key={etiqueta}><dt className="text-xs text-muted-foreground-strong">{etiqueta}</dt><dd className="mt-1 font-semibold">{valor}</dd></div>)}</dl>
+    {cita && <><SheetBody className="space-y-6"><Estado cita={cita} /><dl className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm">{campos.map(([etiqueta, valor]) => <div key={etiqueta}><dt className="text-xs text-muted-foreground-strong">{etiqueta}</dt><dd className="mt-1 font-semibold">{valor}</dd></div>)}</dl>
       <section className="rounded-xl border border-border bg-muted/40 p-4"><h3 className="text-sm font-semibold">Siguiente paso: {siguientePaso(cita)}</h3><p className="mt-2 text-sm text-muted-foreground-strong">{contextoCita(cita)}</p></section>
       <section><h3 className="text-sm font-semibold">Resultado registrado</h3><p className="mt-2 text-sm text-muted-foreground-strong">{cita.resultado}</p></section>
       <section><h3 className="text-sm font-semibold">Contexto de la cita</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground-strong">{cita.nota}</p></section>

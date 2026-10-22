@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import type { CitaConLead, Recuperacion } from './datos'
 import { depositosDeInasistencias, montosDepositados } from './depositos'
 import { FichaRecorrido } from './ficha-recorrido'
+import { MarcaAnalista } from './marca-analista'
 
 type Grupo = 'todas' | 'reprogramadas' | 'recuperada' | 'sin_reprogramar' | 'depositaron'
 const textoMontos = (montos: ReturnType<typeof montosDepositados>) =>
@@ -18,7 +19,7 @@ export function Inasistencias({ citas, onDetalle, leadAbierto, onLead }: {
   leadAbierto: string | null
   onLead: (id: string | null) => void
 }) {
-  const { citas: todas, corte, depositos, depositosDisponibles, depositoPorConversion, nombreAnalista, gestion } = useDatosCitas()
+  const { citas: todas, corte, depositos, depositosDisponibles, depositoPorConversion, nombreAnalista, estadoAnalista, gestion } = useDatosCitas()
   const compacta = Boolean(gestion?.avance)
   const [grupo, setGrupo] = useState<Grupo | null>(() => compacta ? null : 'todas')
   const [pagina, setPagina] = useState(0)
@@ -78,7 +79,7 @@ export function Inasistencias({ citas, onDetalle, leadAbierto, onLead }: {
           const asistencia = recuperadas.find(item => item.original.leadId === fila.original.leadId)?.nueva
           return <tr key={fila.original.leadId} className={cn(leadAbierto === fila.original.leadId && 'citas-fila-seleccionada')}>
             <th scope="row"><Button variant="link" className="citas-enlace-persona" aria-haspopup="dialog" onClick={() => onLead(fila.original.leadId)}>{fila.original.nombre}</Button></th>
-            <td>{nombreAnalista(fila.original.analista)}</td>
+            <td><span className="inline-flex flex-wrap items-center gap-1.5">{nombreAnalista(fila.original.analista)}<MarcaAnalista estado={estadoAnalista(fila.original.analista)} /></span></td>
             <td>{fila.nueva ? <span className="whitespace-nowrap">{fmtFecha(fila.nueva.fecha)} · {fila.nueva.hora}</span> : <span className="citas-excepcion">Sin nueva cita</span>}</td>
             <td>{asistencia ? <span className="whitespace-nowrap">{fmtFecha(asistencia.asistioEn!)} · {horaLima(asistencia.asistioEn!)}</span>
               : fila.estado === 'pendiente' ? 'Pendiente' : fila.estado === 'otra_inasistencia' ? 'Volvió a faltar'

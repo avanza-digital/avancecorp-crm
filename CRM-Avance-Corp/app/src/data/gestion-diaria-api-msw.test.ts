@@ -11,9 +11,15 @@ vi.mock('@/lib/supabase', async () => {
   const { createClient } = await import('@supabase/supabase-js')
   return { sb: createClient('http://supabase.test', 'anon-fake') }
 })
+// Bloque 2.16: el registro se espía para fijar que «deshacer una llamada» sigue sin registrar sus rechazos, como hoy.
+vi.mock('@/lib/observabilidad', async (importActual) => ({
+  ...await importActual<typeof import('@/lib/observabilidad')>(),
+  registrarError: vi.fn(),
+}))
 
+import { registrarError } from '@/lib/observabilidad'
 import { CrmApiError } from './crm-api'
-import { listarRegistroActividad } from './gestion-diaria-api'
+import { deshacerResultadoLlamada, listarRegistroActividad } from './gestion-diaria-api'
 
 const RPC = 'http://supabase.test/rest/v1/rpc/registro_actividad_v2_fn'
 const server = setupServer()
@@ -69,5 +75,76 @@ describe('registro_actividad_v2_fn (msw)', () => {
     const error = await listarRegistroActividad(FILTROS, null, 25).catch((e: unknown) => e)
     expect(error).toBeInstanceOf(CrmApiError)
     expect((error as CrmApiError).code).toBe('42501')
+  })
+})
+
+// Bloque 2.16 (D-62, D-69) — «Deshacer» un resultado de llamada revierte el descarte llamando a `crm.reabrir_lead_fn`: si el lead
+// conserva el contacto de un cliente, el servidor rechaza el deshacer ENTERO con el `P0481` de reabrir y el veredicto del alta en
+// el DETAIL. La pantalla lo presenta como el alta («Esta persona ya es cliente y está a cargo de X.», CONTACTO_NO_DISPONIBLE); el
+// veto (`no_contactar`), un detalle ilegible y los demás errores siguen como hoy: el mensaje y el código del servidor, sin registro.
+describe('deshacer_resultado_llamada (msw) — el P0481 con veredicto (bloque 2.16)', () => {
+  const RPC_DESHACER = 'http://supabase.test/rest/v1/rpc/deshacer_resultado_llamada'
+  const p0481 = (details: string | null) =>
+    HttpResponse.json({ code: 'P0481', message: 'Contacto no disponible', details, hint: null }, { status: 400 })
+  async function fallo(p: Promise<unknown>): Promise<CrmApiError> {
+    try {
+      await p
+    } catch (e) {
+      if (e instanceof CrmApiError) return e
+      throw e
+    }
+    throw new Error('no falló')
+  }
+
+  it('manda p_actividad_id y devuelve el deshacer validado (sin cambio)', async () => {
+    let cuerpo: unknown = null
+    server.use(http.post(RPC_DESHACER, async ({ request }) => {
+      cuerpo = await request.json()
+      return HttpResponse.json({ ok: true, actividad_id: 'a1', lead_id: 'l1', tarea_cancelada: true, descarte_revertido: true,
+        cita_no_restaurada: false, ciclo_nuevo: false, etapa: 'nuevo' })
+    }))
+    await expect(deshacerResultadoLlamada('a1')).resolves.toMatchObject({ ok: true, descarte_revertido: true, etapa: 'nuevo' })
+    expect(cuerpo).toEqual({ p_actividad_id: 'a1' })
+  })
+
+  it.each([
+    ['ya_es_cliente con su asesor', { estado: 'ya_es_cliente', asesor: 'Ana' }, 'Esta persona ya es cliente y está a cargo de Ana.'],
+    ['ya_es_cliente por identidad (via)', { estado: 'ya_es_cliente', asesor: 'Ana', via: 'identidad' },
+      'Esta persona ya es cliente y está a cargo de Ana.'],
+    ['ya_es_cliente «sin asesor asignado»', { estado: 'ya_es_cliente', asesor: 'sin asesor asignado' },
+      'Esta persona ya es cliente de Avance Corp.'],
+  ])('%s → el mensaje del alta y CONTACTO_NO_DISPONIBLE', async (_caso, veredicto, mensaje) => {
+    server.use(http.post(RPC_DESHACER, () => p0481(JSON.stringify(veredicto))))
+    const e = await fallo(deshacerResultadoLlamada('a1'))
+    expect(e.message).toBe(mensaje)
+    expect(e.code).toBe('CONTACTO_NO_DISPONIBLE')
+    expect(registrarError).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['no_contactar', JSON.stringify({ estado: 'no_contactar' })],
+    ['estado desconocido', JSON.stringify({ estado: 'ya_es_socio', asesor: 'Ana' })],
+    ['ya_es_cliente sin asesor (fuera de contrato)', JSON.stringify({ estado: 'ya_es_cliente' })],
+    ['detalle vacío', ''],
+    ['sin detalle (null)', null],
+    ['detalle que no es JSON', 'Key (telefono)=(+51911222333) ya es de Ana'],
+  ])('%s → como hoy: el mensaje y el código del servidor', async (_caso, details) => {
+    server.use(http.post(RPC_DESHACER, () => p0481(details)))
+    const e = await fallo(deshacerResultadoLlamada('a1'))
+    expect({ code: e.code, message: e.message }).toEqual({ code: 'P0481', message: 'Contacto no disponible' })
+    expect(registrarError).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['22023 (más de 24 horas)', '22023', 'Solo puedes deshacer un resultado de las últimas 24 horas', 400],
+    ['P0409 (la persona ya tiene su lead), aun con un veredicto en el detalle', 'P0409', 'La persona ya es cliente o ya tiene su lead: no se puede reabrir', 400],
+    ['P0429 («No insistir»)', 'P0429', 'La persona tiene la restricción «No insistir»', 400],
+    ['42501 (no es el autor)', '42501', 'Solo el autor puede deshacer este resultado', 403],
+  ])('un error que no es P0481 sigue igual: %s', async (_caso, code, message, status) => {
+    server.use(http.post(RPC_DESHACER, () => HttpResponse.json(
+      { code, message, details: JSON.stringify({ estado: 'ya_es_cliente', asesor: 'Ana' }), hint: null }, { status })))
+    const e = await fallo(deshacerResultadoLlamada('a1'))
+    expect({ code: e.code, message: e.message }).toEqual({ code, message })
+    expect(registrarError).not.toHaveBeenCalled()
   })
 })

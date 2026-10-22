@@ -45,6 +45,11 @@ export const SolicitudInversionSchema = v.object({
   // Venta cruzada (cliente de otra cartera): el servidor añade la puerta y el analista
   // congelado; en las solicitudes de cartera no llegan.
   puerta: v.optional(v.literal('cliente_existente')), analista_cierre_id: v.optional(Uuid),
+  // Bloque 2.15: cuando el CRM la canceló solo (el número de contrato ya lo usa otro contrato, o 30 días sin
+  // movimiento) el servidor dice por qué; nulos en una cancelación de la pantalla y ausentes en un servidor anterior.
+  cancelacion_motivo: v.optional(v.nullable(v.picklist(['numero_contrato_usado', 'sin_movimiento']))),
+  cancelacion_detalle: v.optional(v.nullable(v.record(v.string(), v.unknown()))),
+  cancelacion_texto: v.optional(v.nullable(v.string())),
 })
 export type SolicitudInversion = v.InferOutput<typeof SolicitudInversionSchema>
 export type ConfirmacionInversion = v.InferOutput<typeof ConfirmacionInversionSchema>

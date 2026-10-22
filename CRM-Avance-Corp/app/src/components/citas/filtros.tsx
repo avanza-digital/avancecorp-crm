@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { fmtFecha } from '@/lib/format'
-import { ESTADOS, errorFiltros, type EstadoCita } from './modelo'
+import { ESTADOS, errorFiltros, sufijoEstado, type EstadoCita } from './modelo'
 
 import { rangoConsulta as rango, type ConsultaCitas as FiltrosCitas } from './datos'
 
@@ -36,7 +36,7 @@ export function Filtros({ filtros: f, onCambiar, onRestablecer }: PropsFiltros) 
   if (f.leadId) etiquetas.push({ id: 'leadId', texto: `Lead: ${CITAS.find(cita => cita.leadId === f.leadId)?.nombre ?? f.leadId}`, quitar: { leadId: '' } })
   if (f.q) etiquetas.push({ id: 'q', texto: `Búsqueda: ${f.q}`, quitar: { q: '' } })
   if (f.equipo) etiquetas.push({ id: 'equipo', texto: `Supervisor: ${SUPERVISORES.find(([id]) => id === f.equipo)?.[1] ?? f.equipo}`, quitar: { equipo: '' } })
-  if (f.analista) etiquetas.push({ id: 'analista', texto: `Analista: ${EQUIPO.find(p => p.id === f.analista)?.nombre}`, quitar: { analista: '' } })
+  if (f.analista) { const persona = EQUIPO.find(p => p.id === f.analista); etiquetas.push({ id: 'analista', texto: `Analista: ${persona?.nombre}${sufijoEstado(persona?.estado)}`, quitar: { analista: '' } }) }
   for (const estado of f.estados) etiquetas.push({ id: estado, texto: ESTADOS[estado].label, quitar: { estados: f.estados.filter(e => e !== estado) } })
   for (const [clave, nombre] of [['modalidad', 'Modalidad'], ['origen', 'Origen'], ['resultado', 'Resultado'], ['moneda', 'Moneda'], ['min', 'Monto desde'], ['max', 'Monto hasta']] as const) {
     if (f[clave]) etiquetas.push({ id: clave, texto: `${nombre}: ${f[clave]}`, quitar: { [clave]: '' } })
@@ -54,7 +54,7 @@ export function Filtros({ filtros: f, onCambiar, onRestablecer }: PropsFiltros) 
       <div className="citas-filtros-fila">
         {!compacta && buscar}
         <label className="space-y-1 text-xs font-semibold">Supervisor<Select aria-label="Supervisor" value={f.equipo} onChange={e => onCambiar({ equipo: e.target.value })}><option value="">Todos</option>{SUPERVISORES.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}</Select></label>
-        <label className="space-y-1 text-xs font-semibold">Analista<Select aria-label="Analista" value={f.analista} onChange={e => onCambiar({ analista: e.target.value })}><option value="">Todos</option>{EQUIPO.map(persona => <option key={persona.id} value={persona.id} disabled={Boolean(f.equipo && persona.supervisorId !== f.equipo)}>{persona.nombre}</option>)}</Select></label>
+        <label className="space-y-1 text-xs font-semibold">Analista<Select aria-label="Analista" value={f.analista} onChange={e => onCambiar({ analista: e.target.value })}><option value="">Todos</option>{EQUIPO.map(persona => <option key={persona.id} value={persona.id} disabled={Boolean(f.equipo && persona.supervisorId !== f.equipo)}>{persona.nombre}{sufijoEstado(persona.estado)}</option>)}</Select></label>
         <label className="space-y-1 text-xs font-semibold">Mes{meses.length ? <Select aria-label="Mes" value={f.mes} onChange={e => onCambiar({ mes: e.target.value })}>{meses.map(mes => <option key={mes} value={mes}>{mes}</option>)}</Select> : <Input type="month" aria-label="Mes" min="2000-01" value={f.mes} onChange={e => onCambiar({ mes: e.target.value })} />}</label>
         <label className="space-y-1 text-xs font-semibold">Semana<Select aria-label="Semana" value={f.semana || ''} onChange={e => onCambiar({ semana: e.target.value })}><option value="">Todo el mes</option><option value="1">Semana 1 · 1–7</option><option value="2">Semana 2 · 8–14</option><option value="3">Semana 3 · 15–21</option><option value="4">Semana 4 · 22–fin</option></Select></label>
         <Button type="button" variant="outline" aria-expanded={avanzados} aria-controls="citas-filtros-adicionales" onClick={() => setAvanzados(!avanzados)}><SlidersHorizontal aria-hidden />Más filtros{cantidadAvanzados > 0 && <span>{cantidadAvanzados}</span>}</Button>

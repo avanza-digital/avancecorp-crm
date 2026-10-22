@@ -1,6 +1,7 @@
 // Tests del diálogo de cierre: resultado 1-tap obligatorio, la sugerencia del
 // motor aparece al elegir, "saltar" a un toque, y el payload que viaja al store.
-import { describe, expect, it, vi } from 'vitest'
+import { Profiler } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { toast } from 'sonner'
@@ -102,6 +103,9 @@ function montar(
   leadParche: Partial<Lead> = {},
   retroceso?: EtapaActiva,
   resultadoAnular?: ReturnType<StoreDataApi['anularTarea']>,
+  // Se llama en cada commit del diálogo: DESPUÉS de pintar y ANTES de que
+  // corran sus efectos. Sirve para mover el reloj justo en ese hueco.
+  alPintar?: () => void,
 ) {
   const l = { ...LEAD, ...leadParche } as Lead
   const completarTarea = vi.fn<StoreDataApi['completarTarea']>(() => resultadoCierre)
@@ -132,7 +136,9 @@ function montar(
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={SESION_DEMO}>
         <StoreDataContext.Provider value={api}>
-          <CerrarTareaDialog tarea={tarea} onCerrar={onCerrar} />
+          <Profiler id="cerrar-tarea" onRender={() => alPintar?.()}>
+            <CerrarTareaDialog tarea={tarea} onCerrar={onCerrar} />
+          </Profiler>
         </StoreDataContext.Provider>
       </AuthContext.Provider>
     </QueryClientProvider>,
@@ -603,5 +609,180 @@ describe('CerrarTareaDialog — anular la reunión avisa del retroceso de etapa'
 
     expect(toast.warning).toHaveBeenCalledTimes(1)
     expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('vuelve a «Contactado»'))
+  })
+})
+
+describe('CerrarTareaDialog — «No asistió» espera a la hora de la cita', () => {
+  // Miguel, 2026-10-05: «una reunión realizada antes de la hora pactada puede
+  // marcarse realizada inmediatamente […]. Solo "No asistió" debe esperar a que
+  // haya pasado la hora pactada». El servidor lo exige (22023 desde el candado
+  // de crm.tareas); el diálogo no debe ofrecer lo que va a rebotar.
+  const AHORA = Date.parse('2026-10-06T15:00:00.000Z') // 10:00 en Lima
+  const HORA = 3_600_000
+  const citaA = (ms: number): Tarea => ({
+    ...TAREA,
+    id: 't-cita',
+    tipo: 'reunion',
+    titulo: 'Reunión con Ana',
+    vence_en: new Date(ms).toISOString(),
+  })
+  const noAsistio = () => screen.getByRole('button', { name: 'No asistió' })
+  const AVISO = /se habilita a la hora de la cita/i
+
+  // Solo el reloj: los temporizadores siguen siendo reales, así que user-event
+  // funciona como en el resto del archivo.
+  beforeEach(() => {
+    vi.useFakeTimers({ now: AHORA, toFake: ['Date'] })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('antes de la hora, «No asistió» está inerte y dice desde cuándo', async () => {
+    const user = userEvent.setup()
+    const { completarTarea } = montar(citaA(AHORA + 7 * HORA)) // 17:00 en Lima
+
+    // `aria-disabled` y no `disabled`: el botón sigue enfocable para que quien
+    // navega con teclado o lector llegue a él y oiga por qué no se puede.
+    expect(noAsistio()).toHaveAttribute('aria-disabled', 'true')
+    expect(noAsistio()).toHaveAccessibleDescription(AVISO)
+    // La explicación está a la vista y dice CUÁNDO.
+    expect(screen.getByText(AVISO)).toHaveTextContent('Hoy · 17:00')
+
+    // Inerte de verdad: pulsarla no la elige ni habilita el cierre.
+    await user.click(noAsistio())
+    expect(noAsistio()).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: /cerrar tarea/i })).toBeDisabled()
+    expect(completarTarea).not.toHaveBeenCalled()
+  })
+
+  it('«Se realizó» no cambia: la reunión anticipada se registra en el acto', async () => {
+    const user = userEvent.setup()
+    montar(citaA(AHORA + 7 * HORA))
+    const seRealizo = screen.getByRole('button', { name: 'Se realizó' })
+
+    expect(seRealizo).not.toHaveAttribute('aria-disabled')
+    await user.click(seRealizo)
+
+    expect(seRealizo).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('Resultado comercial')).toBeInTheDocument()
+  })
+
+  it('pasada la hora, «No asistió» está activa como siempre y sin aviso', async () => {
+    const user = userEvent.setup()
+    const { completarTarea } = montar(citaA(AHORA - HORA))
+
+    expect(noAsistio()).not.toHaveAttribute('aria-disabled')
+    expect(noAsistio()).not.toHaveAttribute('aria-describedby')
+    expect(screen.queryByText(AVISO)).not.toBeInTheDocument()
+
+    await user.click(noAsistio())
+    await user.click(screen.getByRole('button', { name: 'Saltar esta vez' }))
+    await user.click(screen.getByRole('button', { name: /cerrar tarea/i }))
+    expect(completarTarea.mock.calls[0]?.[0]).toMatchObject({ tarea_id: 't-cita', estado: 'no_show' })
+  })
+
+  it('en el instante exacto de la hora ya está activa (mismo borde que el servidor)', () => {
+    montar(citaA(AHORA))
+
+    expect(noAsistio()).not.toHaveAttribute('aria-disabled')
+    expect(screen.queryByText(AVISO)).not.toBeInTheDocument()
+  })
+
+  // La cita de las 10:00:30 con el diálogo abierto desde las 10:00:00: el reloj
+  // compartido tickea cada minuto, pero la opción no puede quedarse inerte
+  // medio minuto después de que el servidor ya la acepta.
+  it('con el diálogo abierto, se activa sola al llegar la hora: ni un milisegundo antes', async () => {
+    vi.useRealTimers()
+    vi.useFakeTimers({ now: AHORA })
+    montar(citaA(AHORA + 30_000))
+    expect(noAsistio()).toHaveAttribute('aria-disabled', 'true')
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(29_999) })
+    expect(noAsistio()).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByText(AVISO)).toBeInTheDocument()
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(noAsistio()).not.toHaveAttribute('aria-disabled')
+    expect(screen.queryByText(AVISO)).not.toBeInTheDocument()
+  })
+
+  // La hora que llega ENTRE el render y el efecto (revisión de Codex, 06/10):
+  // el render lee las 10:00:29.999 —«falta»— y el efecto corre a las
+  // 10:00:30.005. Sin reconciliar, no se arma temporizador (ya no falta nada)
+  // ni se actualiza nada, y la opción se queda inerte hasta el siguiente tick
+  // del reloj compartido: hasta un minuto con el servidor ya aceptando.
+  it('si la hora llega entre el render y el efecto, se activa igual, sin esperar al siguiente tick', () => {
+    const cita = AHORA + 30_000
+    vi.setSystemTime(cita - 1)
+    let inerteAlPintar: string | null | undefined
+    montar(citaA(cita), [], { ok: true }, [], {}, undefined, undefined, () => {
+      const boton = screen.queryByRole('button', { name: 'No asistió' })
+      if (!boton || inerteAlPintar !== undefined) return
+      // Pintado con el reloj en «falta 1 ms»; los efectos corren 6 ms después.
+      inerteAlPintar = boton.getAttribute('aria-disabled')
+      vi.setSystemTime(cita + 5)
+    })
+
+    // El render SÍ vio que faltaba (si no, esta prueba no mediría el hueco)…
+    expect(inerteAlPintar).toBe('true')
+    // …y aun así la opción queda activa en cuanto corre el efecto.
+    expect(noAsistio()).not.toHaveAttribute('aria-disabled')
+    expect(screen.queryByText(AVISO)).not.toBeInTheDocument()
+  })
+
+  // El temporizador despierta, pero la hora NO ha llegado: el dispositivo
+  // corrigió su reloj hacia atrás (o el temporizador se adelantó). Dar por
+  // cumplida la hora objetivo sin mirar el reloj habilitaría la opción antes de
+  // tiempo: tiene que volver a leerlo, seguir inerte y reprogramarse.
+  it('si el reloj se atrasó, al despertar vuelve a mirar la hora: sigue inerte y se reprograma', async () => {
+    vi.useRealTimers()
+    vi.useFakeTimers({ now: AHORA })
+    montar(citaA(AHORA + 30_000))
+    // El dispositivo retrocede 10 s; el temporizador ya armado (30 s) no se entera.
+    vi.setSystemTime(AHORA - 10_000)
+
+    // Despierta cuando el reloj marca «AHORA + 20 s»: faltan 10 s para la cita.
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
+    expect(noAsistio()).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByText(AVISO)).toBeInTheDocument()
+
+    // Se reprogramó para lo que falta de verdad: ni un milisegundo antes.
+    await act(async () => { await vi.advanceTimersByTimeAsync(9_999) })
+    expect(noAsistio()).toHaveAttribute('aria-disabled', 'true')
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(noAsistio()).not.toHaveAttribute('aria-disabled')
+    expect(screen.queryByText(AVISO)).not.toBeInTheDocument()
+  })
+
+  it('una tarea que no es reunión no lleva el aviso aunque su hora no haya llegado', () => {
+    montar({ ...TAREA, vence_en: new Date(AHORA + 7 * HORA).toISOString() })
+
+    expect(screen.queryByText(AVISO)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Enviado' })).not.toHaveAttribute('aria-disabled')
+  })
+
+  // Reloj del dispositivo adelantado o pantalla vieja: el diálogo cree que la
+  // hora pasó y el servidor dice que no. El aviso del rechazo lo da el store
+  // (toast con el mensaje del servidor); aquí se exige que el diálogo NO cante
+  // éxito y se quede abierto para reintentar cuando llegue la hora.
+  it('si el servidor rechaza el «No asistió» igualmente, no canta éxito y sigue abierto', async () => {
+    vi.mocked(toast.success).mockClear()
+    vi.mocked(toast.warning).mockClear()
+    const user = userEvent.setup()
+    const { completarTarea, onCerrar } = montar(citaA(AHORA - 1_000), [], {
+      ok: true,
+      persistido: Promise.resolve(false),
+    })
+
+    await user.click(noAsistio())
+    await user.click(screen.getByRole('button', { name: 'Saltar esta vez' }))
+    await user.click(screen.getByRole('button', { name: /cerrar tarea/i }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /cerrar tarea/i })).toBeEnabled())
+    expect(completarTarea).toHaveBeenCalledTimes(1)
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(toast.warning).not.toHaveBeenCalled()
+    expect(onCerrar).not.toHaveBeenCalled()
   })
 })

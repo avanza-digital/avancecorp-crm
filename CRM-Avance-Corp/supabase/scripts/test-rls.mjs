@@ -655,6 +655,23 @@ async function bloqueNumerosContrato(etiqueta) {
   throw new Error(`${etiqueta}: 20 bloques de números de contrato al azar estaban ocupados; revisar el banco`);
 }
 
+// ── Auditor C5 P2-3 (22/10/2026): un alta con un teléfono FIJO da un verde falso en un banco reutilizado ────────────────────
+// Desde el 2.4 (20261022170200) el alta REACTIVA el lead retirado que casa por teléfono y responde «reutilizado» con el id VIEJO:
+// el lead retirado que dejó una corrida anterior con el mismo teléfono fijo se reactivaba y las aserciones sobre el id nuevo pasaban
+// vacías. Cada alta del gate que deba NACER pide aquí un teléfono de la corrida (móvil de 9 dígitos) que nadie usa —ni como
+// principal ni como alternativo— y exige `estado === 'creado'`.
+async function telefonoLibreDeCorrida(etiqueta) {
+  for (let intento = 1; intento <= 20; intento += 1) {
+    const telefono = `9${randomInt(10000000, 100000000)}`;
+    const principal = await requireAdmin(`${etiqueta}: comprobar que el teléfono de la corrida está libre`,
+      admin.schema('crm').from('leads').select('id', { count: 'exact', head: true }).eq('telefono', `+51${telefono}`));
+    const alternativo = await requireAdmin(`${etiqueta}: comprobar que el teléfono de la corrida no es alternativo de nadie`,
+      admin.schema('crm').from('leads').select('id', { count: 'exact', head: true }).eq('telefono_alternativo', `+51${telefono}`));
+    if (principal.count === 0 && alternativo.count === 0) return telefono;
+  }
+  throw new Error(`${etiqueta}: 20 teléfonos al azar estaban ocupados; revisar el banco`);
+}
+
 async function cleanupTransientRows() {
   // 0C convierte la historia de asignacion en un ledger absoluto: ni el gate
   // perfora esa garantia con hard-delete. Los ids son aleatorios por corrida y
@@ -1637,12 +1654,15 @@ async function testReassignmentTrigger(sessions, seed) {
   // SOLO por crm.crear_lead_si_disponible. La sonda usa la vía legal — mismo
   // lead transitorio, mismo analista destino — y el trigger de reasignación
   // debe emitir su actividad igual que antes.
+  // Auditor C5 P2-3: teléfono de la corrida (antes '999000006', fijo) y el alta tiene que NACER (estado creado con el id pedido):
+  // un «reutilizado» del 2.4 dejaba pasar vacía la aserción de 0 actividades sobre el id nuevo.
+  const telefonoNaceAsignado = await telefonoLibreDeCorrida('sup1 crea un lead que nace asignado');
   const assignedInsert = await positive(
     'sup1 crea un lead que nace asignado',
     sup1.client.schema('crm').rpc('crear_lead_si_disponible', {
       p_id: TRANSIENT_IDS.triggerAssignedInsertLead,
       p_nombre_completo: 'TRIGGER INSERT ASIGNADO TRANSIENT',
-      p_telefono: '999000006',
+      p_telefono: telefonoNaceAsignado,
       p_origen: common.origen,
       p_monto_estimado: common.monto_estimado,
       p_moneda: common.moneda,
@@ -1650,6 +1670,9 @@ async function testReassignmentTrigger(sessions, seed) {
     }),
   );
   if (assignedInsert) {
+    check(assignedInsert.data?.estado === 'creado' && assignedInsert.data?.lead_id === TRANSIENT_IDS.triggerAssignedInsertLead,
+      'el alta nace como lead NUEVO (estado creado con el id pedido), no reutiliza un retirado',
+      JSON.stringify(assignedInsert.data ?? null));
     const activities = await readReassignmentActivities(
       TRANSIENT_IDS.triggerAssignedInsertLead,
       'leer actividades del lead nacido asignado',
@@ -9570,13 +9593,16 @@ async function testGestionDiariaResultado(sessions, seed) {
   const nacidos = [];
   const crear = async (vendedorKey, sufijo) => {
     const leadId = uuid();
-    const { error } = await sessions.gerencia.client.schema('crm').rpc('crear_lead_si_disponible', {
-      p_id: leadId, p_nombre_completo: `RLS F2 ${sufijo}`, p_telefono: `9996${String(Math.floor(Math.random() * 90000) + 10000)}`,
+    // Auditor C5 P2-3: teléfono de la corrida comprobado libre y el alta tiene que NACER (no «reutilizado» de un retirado viejo).
+    const telefono = await telefonoLibreDeCorrida(`Gestión Diaria F2: lead ${sufijo}`);
+    const { data, error } = await sessions.gerencia.client.schema('crm').rpc('crear_lead_si_disponible', {
+      p_id: leadId, p_nombre_completo: `RLS F2 ${sufijo}`, p_telefono: telefono,
       p_origen: 'oficina', p_monto_estimado: 25000, p_moneda: 'PEN', p_vendedor_id: id(vendedorKey), p_etapa: 'nuevo',
       p_correo: null, p_dni: null, p_genero: null, p_fecha_nacimiento: null, p_distrito: null, p_categoria_interes: null,
       p_nota: 'transitorio test-rls F2', p_telefono_alternativo: null,
     });
-    check(!error, `gerencia crea el lead transitorio ${sufijo} (${error?.code ?? 'ok'})`);
+    check(!error && data?.estado === 'creado' && data?.lead_id === leadId,
+      `gerencia crea el lead transitorio ${sufijo} y NACE (estado creado con el id pedido) (${error?.code ?? data?.estado ?? 'ok'})`);
     nacidos.push(leadId);
     return leadId;
   };
@@ -15471,8 +15497,19 @@ async function testIdentidadF2b(sessions, seed) {
     check(cuenta('OFF sin enlace', `select count(*) from crm.leads where id='${IDS_F2B.offEnlace}' and dni='${DOCS_F2B.sinLeadOff}' and inversionista_id is null`) === 1
       && cuenta('OFF sin puente', `select count(*) from crm.inversionista_leads where lead_id='${IDS_F2B.offEnlace}'`) === 0,
     'b1 #8 OFF (#2): sin enlace y sin puente');
-    await positive('b1 #8 OFF: dni de una persona con lead pasa como hoy (sin P0481 por identidad)', updDni('vend1', IDS_F2B.offOcupado, DOCS_F2B.conLead));
-    check(cuenta('OFF ocupado sin enlace', `select count(*) from crm.leads where id='${IDS_F2B.offOcupado}' and dni='${DOCS_F2B.conLead}' and inversionista_id is null`) === 1, 'b1 #8 OFF (#3): el dni entró y no hubo enlace');
+    // Grupo C (C5 ronda 2, 22/10/2026): conLead es un CLIENTE (convertido por coop). Con la regla del cliente instalada, su DNI ya no
+    // entra en otro lead ni con la bandera apagada: el 2.7 reconoce al cliente por DNI «cuando el verificador no lo hizo (bandera
+    // apagada, documento sin identidad verificada o cliente sin persona)» (20261022170300 l.33; CIERRE 2.7, D-27, y D-28: la edición
+    // la cierra el 2.8, 20261022170400). Responde P0481 «ya es cliente» y el lead no cambia. Sin el grupo C, como hoy.
+    if (cuenta('regla del cliente (2.8)', "select count(*) from pg_proc where oid = to_regprocedure('private.juicio_cliente_convertido(text,text,text,uuid)')") === 1) {
+      await gcEsperarP0481('b1 #8 OFF: dni de una persona con lead CONVERTIDO (cliente) en otro lead', updDni('vend1', IDS_F2B.offOcupado, DOCS_F2B.conLead),
+        { estado: 'ya_es_cliente' });
+      check(cuenta('OFF ocupado intacto', `select count(*) from crm.leads where id='${IDS_F2B.offOcupado}' and dni is distinct from '${DOCS_F2B.conLead}' and inversionista_id is null`) === 1,
+        'b1 #8 OFF (#3): con la regla del cliente (2.7/2.8) el dni del cliente no entró y no hubo enlace');
+    } else {
+      await positive('b1 #8 OFF: dni de una persona con lead pasa como hoy (sin P0481 por identidad)', updDni('vend1', IDS_F2B.offOcupado, DOCS_F2B.conLead));
+      check(cuenta('OFF ocupado sin enlace', `select count(*) from crm.leads where id='${IDS_F2B.offOcupado}' and dni='${DOCS_F2B.conLead}' and inversionista_id is null`) === 1, 'b1 #8 OFF (#3): el dni entró y no hubo enlace');
+    }
     // (#7) primero el UPDATE y luego el INSERT: el índice único de dni entre vivos no
     // admite los dos a la vez, así que el suelto suelta el documento antes del alta.
     await positive('b1 #8 OFF: dni de una persona vetada en un UPDATE pasa como hoy (sin P0429)', updDni('vend1', IDS_F2B.vetoUpdate, DOCS_F2B.vetada));
@@ -21017,6 +21054,1182 @@ async function testGrupoAFase4(sessions, seed) {
   }
 }
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+// FASE 4 · GRUPO C — bloques 2.1, 2.4, 2.7, 2.8, 2.9, 2.11, 2.13, 2.10, 2.12 y 2.15 (migraciones 20261022170100…20261022171000,
+// integradas el 22/10/2026 en C2 del plan AVANCE-BACKEND-1310-C2). Casos que pidieron los auditores de permisos de cada bloque
+// (fase-2/bloque-2.X/revision/auditor-rls.md y respuesta-auditor*.md; C5, auditor-rls r1, P2-2) y P2-3 (teléfonos de la corrida).
+// Cada bloque se SALTA en voz alta si su migración no está en la base (detección por catálogo); con CRM_RLS_EXIGE_GRUPO_C=1 el
+// salto cuenta como FALLO; sin ella, el resumen final dice «grupo C NO PROBADO» (como el grupo A).
+// AISLAMIENTO: todos los teléfonos, DNI y CE salen de un bloque PROPIO de la corrida (comprobado libre por la vía fuera de banda:
+// en un banco reutilizado nunca casa con un lead que dejó otra corrida, auditor C5 P2-3); los clientes convertidos SIN persona se
+// siembran por la vía fuera de banda (convertidos heredados: así nacen en producción, sin persona ni puente) con la marca de la
+// corrida en `nota`; los leads vivos, por service_role (como el resto del gate); el `finally` da de baja (soft-delete) TODO lo de la
+// corrida (marca, bloque de teléfonos e ids) para que la pasada siguiente encuentre el banco limpio. Va AL FINAL del gate.
+// Escrito en C5 (22/10/2026) y NO ejecutado contra ninguna base al escribirlo (el Director lo corre en el banco: NOT RUN).
+// ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+// Lo que el grupo C dejó SIN probar en esta corrida por saltarse sin CRM_RLS_EXIGE_GRUPO_C=1: lo repite el resumen final.
+const grupoCNoProbado = [];
+
+function saltarGrupoC(mensaje) {
+  if (process.env.CRM_RLS_EXIGE_GRUPO_C === '1') {
+    fail(mensaje);
+  } else {
+    grupoCNoProbado.push(mensaje.replace(/^⚠ /, ''));
+    console.log(`  ${mensaje}`);
+  }
+}
+
+const GC_NUCLEO_ALTA = 'private.alta_reactivar_retirado(uuid,uuid,text,text,uuid,uuid,jsonb,jsonb)';
+const GC_PIEZA_CONSERVADO_24 = 'private.alta_reactivar_bloqueo_conservado(uuid)';
+const GC_ALTA = 'crm.crear_lead_si_disponible(text,text,text,numeric,text,uuid,text,text,text,date,text,text,text,uuid,text,text)';
+const GC_HORA_CITA = /^Aún no llega la hora de la cita: «No asistió» se registra cuando pase la hora pactada$/;
+const GC_ACCESO_REVOCADO = /^Acceso CRM revocado$/;
+const GC_SIN_EXECUTE = /permission denied/i;
+
+function gcLiteral(valor) {
+  return valor === null || valor === undefined ? 'null' : `'${String(valor).replaceAll("'", "''")}'`;
+}
+
+const gcCuenta = (etiqueta, sql) => contarFueraDeBanda(`grupo C: ${etiqueta}`, sql);
+const gcTexto = (etiqueta, sql) => textoFueraDeBanda(`grupo C: ${etiqueta}`, sql);
+
+// El detalle (`details`) de un P0481 es el veredicto en JSON; null si no lo es.
+function gcDetalle(error) {
+  try {
+    const detalle = JSON.parse(error?.details ?? '');
+    return detalle && typeof detalle === 'object' && !Array.isArray(detalle) ? detalle : null;
+  } catch {
+    return null;
+  }
+}
+
+// Un rechazo SIN veredicto: ningún «ya es cliente», asesor ni tenedor en el error (quien no puede, no ve de quién es).
+function gcSinVeredicto(error) {
+  return !/ya_es_cliente|asesor|tomado|en_bolsa|tenencia_desde/i.test(`${error?.message ?? ''} ${error?.details ?? ''} ${error?.hint ?? ''}`);
+}
+
+// P0481 «Contacto no disponible» con el veredicto en el detalle. `exacto`: el detalle tiene EXACTAMENTE esas claves y valores.
+async function gcEsperarP0481(etiqueta, promesa, { estado, asesor, exacto } = {}) {
+  let r;
+  try {
+    r = await promesa;
+  } catch (error) {
+    fail(`${etiqueta}: excepción inesperada — ${error?.message ?? String(error)}`);
+    return null;
+  }
+  const d = gcDetalle(r.error);
+  const claves = (o) => JSON.stringify(Object.keys(o ?? {}).sort());
+  const exactoOk = !exacto || (claves(d) === claves(exacto) && Object.entries(exacto).every(([k, v]) => d?.[k] === v));
+  check(r.error?.code === 'P0481' && r.error?.message === 'Contacto no disponible' && d?.estado === estado
+      && (asesor === undefined || d?.asesor === asesor) && exactoOk,
+    `${etiqueta} → P0481 «Contacto no disponible» con el veredicto ${estado}${asesor ? ` de ${asesor}` : ''}${exacto ? ' (detalle exacto)' : ''}`,
+    r.error ? errorText(r.error) : `ACEPTADO: ${JSON.stringify(r.data ?? null).slice(0, 200)}`);
+  return r;
+}
+
+// El alta (crm.crear_lead_si_disponible) responde su veredicto como éxito lógico (200), no como error.
+async function gcEsperarVeredictoAlta(etiqueta, promesa, { estado, asesor, sinVia = false, leadId } = {}) {
+  const r = await positive(etiqueta, promesa);
+  if (!r) return null;
+  const d = r.data ?? {};
+  check(d.estado === estado && (asesor === undefined || d.asesor === asesor) && (!sinVia || !('via' in d))
+      && (leadId === undefined || d.lead_id === leadId),
+    `${etiqueta}: responde ${estado}${asesor ? ` a nombre de ${asesor}` : ''}${sinVia ? ' sin via' : ''}${leadId ? ' con el id esperado' : ''}`,
+    JSON.stringify(d).slice(0, 240));
+  return r;
+}
+
+// Un cuerpo de `private` NO se alcanza por la API: el esquema no está expuesto (PGRST106), como en el grupo A (2.6, auditor P3-4).
+async function gcPrivadaInalcanzable(etiqueta, funcion, argumentos, clientes) {
+  for (const [quien, cliente] of clientes) {
+    const { data, error } = await cliente.schema('private').rpc(funcion, argumentos);
+    check(error?.code === 'PGRST106' && data == null,
+      `${etiqueta} ${quien} NO alcanza private.${funcion} por la API: esquema no expuesto, PGRST106 (recibido ${error?.code ?? 'sin error'})`);
+  }
+}
+
+// Ficha de una pieza del núcleo que SOLO ejecuta su dueño: dueño postgres, search_path vacío, INVOKER o DEFINER según se pida,
+// volatilidad si se pide, ACL exactamente {postgres=X/postgres} y ningún EXECUTE para anon, authenticated ni service_role.
+function gcSqlPiezaSoloPostgres(firma, { definer, volatilidad } = {}) {
+  return `select count(*) from pg_proc p
+    where p.oid = to_regprocedure('${firma}') and p.proowner = 'postgres'::regrole
+      and p.proconfig @> array['search_path=""']
+      ${definer === undefined ? '' : `and ${definer ? '' : 'not '}p.prosecdef`}
+      ${volatilidad ? `and p.provolatile = '${volatilidad}'` : ''}
+      and coalesce(p.proacl::text, '') = '{postgres=X/postgres}'
+      and not exists (select 1 from unnest(array['anon','authenticated','service_role']) r(rol)
+                       where has_function_privilege(r.rol, p.oid, 'EXECUTE'))`;
+}
+
+function gcHuellaLead(id) {
+  return gcTexto('huella de un lead', `select md5(row(l.activo, l.etapa, l.vendedor_id, l.asignado_supervisor_id, l.telefono,
+      l.telefono_alternativo, l.dni, l.monto_estimado, l.no_contactar, l.inversionista_id, l.actualizado_en)::text)
+    from crm.leads l where l.id = '${id}'`);
+}
+
+function gcNombrePerfil(id) {
+  return gcTexto('nombre de un perfil', `select nombre_completo from public.perfiles where id = '${id}'`);
+}
+
+// El bloque de contactos de la corrida (auditor C5 P2-3): teléfonos «95» + 3 dígitos al azar + 4 por contacto (móvil peruano de 9
+// dígitos), DNI «6» + 3 + 4 y CE «7» + 3 + 5; antes de usarlo se comprueba por la vía fuera de banda que NADIE (lead, alternativo,
+// perfil del Portal, identidad o cierre externo) lleva ese prefijo. La misma clave devuelve siempre el mismo número.
+function gcPrepararCorrida() {
+  const corrida = randomUUID();
+  const asignador = (prefijo, ancho, etiqueta) => {
+    const asignados = new Map();
+    return (clave) => {
+      const k = String(clave);
+      if (!asignados.has(k)) {
+        if (asignados.size >= 10 ** ancho) throw new Error(`grupo C: el bloque de ${etiqueta} ${prefijo}… se agotó`);
+        asignados.set(k, `${prefijo}${String(asignados.size).padStart(ancho, '0')}`);
+      }
+      return asignados.get(k);
+    };
+  };
+  let tel = null;
+  let prefijoTel = null;
+  for (let intento = 1; intento <= 20 && !tel; intento += 1) {
+    const p = `95${randomInt(100, 1000)}`;
+    if (gcCuenta('bloque de teléfonos libre', `select count(*) from crm.leads where telefono like '+51${p}%' or telefono like '${p}%'
+        or telefono_alternativo like '+51${p}%' or telefono_alternativo_crudo like '%${p}%'`) === 0) {
+      prefijoTel = p;
+      tel = asignador(p, 4, 'teléfonos');
+    }
+  }
+  let dni = null;
+  for (let intento = 1; intento <= 20 && !dni; intento += 1) {
+    const p = `6${randomInt(100, 1000)}`;
+    if (gcCuenta('bloque de DNI libre', `select (select count(*) from crm.leads where dni like '${p}%')
+        + (select count(*) from public.perfiles where dni like '${p}%')
+        + (select count(*) from crm.inversionista_identificadores where documento_normalizado like '${p}%')
+        + (select count(*) from crm.cierres_externos where documento like '${p}%')`) === 0) {
+      dni = asignador(p, 4, 'DNI');
+    }
+  }
+  let ce = null;
+  for (let intento = 1; intento <= 20 && !ce; intento += 1) {
+    const p = `7${randomInt(100, 1000)}`;
+    if (gcCuenta('bloque de CE libre', `select count(*) from crm.inversionista_identificadores where documento_normalizado like '${p}%'`) === 0) {
+      ce = asignador(p, 5, 'CE');
+    }
+  }
+  if (!tel || !dni || !ce) throw new Error('grupo C: 20 bloques de contactos al azar estaban ocupados; revisar el banco');
+  return {
+    corrida,
+    marca: `gate-rls-grupo-c:${corrida}`,
+    prefijoTel,
+    tel,
+    e164: (clave) => `+51${tel(clave)}`,
+    dni,
+    ce,
+    idsApi: [],
+  };
+}
+
+// Clientes convertidos SIN persona ni puente (los «heredados»): por la vía fuera de banda, con los disparadores apagados SOLO en
+// esa transacción (como la siembra del 2.6), con la marca de la corrida. Teléfonos en E.164, como los guarda el alta.
+function gcSembrarConvertidos(ctx, filas) {
+  const valores = filas.map((f) => `(${gcLiteral(f.id)}, ${gcLiteral(f.nombre)}, ${gcLiteral(f.telefono)}, ${gcLiteral(f.alternativo)},
+      ${gcLiteral(f.dni)}, 'oficina', 'convertido', now() - interval '200 days', ${gcLiteral(f.vendedorId)}, ${gcLiteral(f.supervisorId)},
+      ${f.activo ? 'true' : 'false'}, 5000, 'PEN', false, ${gcLiteral(ctx.marca)})`).join(',\n');
+  ejecutarFueraDeBanda(`grupo C: sembrar ${filas.length} cliente(s) convertido(s) sin persona`, `
+    set local session_replication_role = replica;
+    insert into crm.leads (id, nombre_completo, telefono, telefono_alternativo, dni, origen, etapa, convertido_en, vendedor_id,
+      asignado_supervisor_id, activo, monto_estimado, moneda, no_contactar, nota)
+    values ${valores};
+    set local session_replication_role = default;`);
+}
+
+// Un lead VIVO por service_role (como el resto del gate), con un teléfono del bloque de la corrida y la marca en `nota`.
+async function gcLeadVivo(ctx, { clave, telefonoClave = clave, vendedorId = null, supervisorId = null, alternativo = null, dni = null,
+  etapa = 'nuevo', creadoPor, noContactar = false } = {}) {
+  const id = randomUUID();
+  await requireAdmin(`grupo C: sembrar el lead vivo ${clave}`, admin.schema('crm').from('leads').insert({
+    activo: true, asignado_supervisor_id: supervisorId, etapa, moneda: 'PEN', no_contactar: noContactar, origen: 'oficina',
+    monto_estimado: 5000, id, nombre_completo: `RLS C ${clave} TRANSIENT`, telefono: ctx.tel(telefonoClave),
+    telefono_alternativo: alternativo, dni, creado_por: creadoPor, vendedor_id: vendedorId, nota: ctx.marca,
+  }));
+  ctx.idsApi.push(id);
+  return id;
+}
+
+// Retiro (soft-delete) por la API de service_role, con sus disparadores (el ledger cierra el episodio): como lo deja producción.
+async function gcRetirar(id, etiqueta) {
+  await requireAdmin(`grupo C: retirar ${etiqueta}`, admin.schema('crm').from('leads').update({ activo: false }).eq('id', id));
+}
+
+function gcSqlRetiroDeCorrida(ctx) {
+  if (!ID_DE_CORRIDA.test(ctx.corrida)) throw new Error(`grupo C: ${JSON.stringify(ctx.corrida)} no es un id de corrida`);
+  if (!/^95\d{3}$/.test(ctx.prefijoTel ?? '')) throw new Error('grupo C: prefijo de teléfonos inválido');
+  const ids = ctx.idsApi.filter((id) => ID_DE_CORRIDA.test(id));
+  const porId = ids.length > 0 ? ` or id in (${ids.map((id) => `'${id}'`).join(',')})` : '';
+  return `set local session_replication_role = replica;
+      update crm.leads set activo = false
+       where activo and (nota = '${ctx.marca}' or telefono like '+51${ctx.prefijoTel}%' or telefono like '${ctx.prefijoTel}%'${porId});
+      set local session_replication_role = default;`;
+}
+
+// ── 2.1 · «No asistió» espera a la hora de la cita (20261022170100; auditor-rls 2.1, P2-3: `testNoAsistioEsperaHora`) ───────────
+async function gcNoAsistioEsperaHora(sessions, seed, ctx) {
+  console.log('\n— 2.1 · «No asistió» espera a la hora de la cita (20261022170100) —');
+  const ID = (k) => seed.profileIdByKey[k];
+  const crm = (k) => sessions[k].client.schema('crm');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-grupo-c-21'));
+  // Catálogo (auditor: «has_function_privilege de anon, authenticated y service_role = false; prosecdef; proconfig»).
+  check(gcCuenta('2.1 ficha del candado', `select count(*) from pg_proc p
+      where p.oid = 'private.trg_tareas_before_update()'::regprocedure and p.prosecdef and p.proowner = 'postgres'::regrole
+        and p.proconfig = array['search_path=""']
+        and not exists (select 1 from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, p.oid, 'EXECUTE'))
+        and not exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a where a.grantee <> p.proowner)`) === 1,
+  '2.1 catálogo: el candado es DEFINER de postgres, search_path vacío y solo su dueño lo ejecuta (ni anon, ni authenticated, ni service_role)');
+  check(gcCuenta('2.1 disparador', `select count(*) from pg_trigger t where t.tgrelid = 'crm.tareas'::regclass
+      and t.tgname = 'trg_tareas_00_before_update' and t.tgfoid = 'private.trg_tareas_before_update()'::regprocedure
+      and t.tgenabled = 'O' and t.tgtype = 19 and t.tgqual is null and cardinality(t.tgattr::int2[]) = 0`) === 1
+    && gcCuenta('2.1 vence_en', `select count(*) from pg_attribute a where a.attrelid = 'crm.tareas'::regclass and a.attname = 'vence_en'
+      and a.attnotnull and not a.attisdropped`) === 1,
+  '2.1 catálogo: el candado cuelga BEFORE UPDATE por fila, habilitado, sin WHEN ni columnas, y crm.tareas.vence_en es NOT NULL');
+
+  const L = await gcLeadVivo(ctx, { clave: '2.1-lead', vendedorId: ID('vend1'), etapa: 'contactado', creadoPor: ID('gerencia') });
+  const tareas = [];
+  const agendar = async (titulo, msDesdeAhora) => {
+    const id = randomUUID();
+    const r = await positive(`2.1 vend1 agenda la reunión «${titulo}»`, crm('vend1').from('tareas').insert({
+      creado_por: ID('vend1'), id, lead_id: L, tipo: 'reunion', titulo: `RLS 2.1 ${titulo} TRANSIENT`,
+      vence_en: new Date(Date.now() + msDesdeAhora).toISOString(),
+    }).select('id').single());
+    if (r) tareas.push(id);
+    return r ? id : null;
+  };
+  try {
+    const futura = await agendar('futura', 2 * 86400000);
+    const anticipada = await agendar('anticipada', 3 * 3600000);
+    const pasadaVend1 = await agendar('pasada vend1', -3600000);
+    const pasadaSup1 = await agendar('pasada sup1', -2 * 3600000);
+    if (!futura) {
+      fail('2.1: sin la cita futura no se puede medir la regla');
+      return;
+    }
+    // La foto que delata un rechazo que no rechaza: estado y motivo de la cita, actividades, tareas y recibos del lead.
+    const foto = () => gcTexto('2.1 foto de la cita futura', `select concat_ws('|',
+        (select estado || ':' || coalesce(motivo_no_realizada, '-') from crm.tareas where id = '${futura}'),
+        (select count(*) from crm.actividades where lead_id = '${L}'),
+        (select count(*) from crm.tareas where lead_id = '${L}'),
+        (select count(*) from crm.sla_operacion_recibos where lead_id = '${L}'))`);
+    const antes = foto();
+    const NOTA = 'RLS 2.1 no asistió';
+    const v3 = (k, tarea) => crm(k).rpc('cerrar_reunion_v3', { p_operacion_id: randomUUID(), p_tarea_id: tarea, p_estado: 'no_show', p_detalle: NOTA });
+    // Denegado por la REGLA: el dueño, por las cinco entradas de lead (la de la pantalla, la v2 y las tres viejas).
+    await expectExpectedFailure('2.1 vend1 «No asistió» antes de la hora por cerrar_reunion_v3 → 22023', v3('vend1', futura), ['22023'], GC_HORA_CITA);
+    await expectExpectedFailure('2.1 vend1 «No asistió» antes de la hora por cerrar_reunion_v2 → 22023',
+      crm('vend1').rpc('cerrar_reunion_v2', { p_operacion_id: randomUUID(), p_tarea_id: futura, p_estado: 'no_show', p_detalle: NOTA }), ['22023'], GC_HORA_CITA);
+    await expectExpectedFailure('2.1 vend1 «No asistió» antes de la hora por cerrar_reunion (v1) → 22023',
+      crm('vend1').rpc('cerrar_reunion', { p_tarea_id: futura, p_estado: 'no_show', p_detalle: NOTA }), ['22023'], GC_HORA_CITA);
+    await expectExpectedFailure('2.1 vend1 «No asistió» antes de la hora por cerrar_tarea_v2 → 22023',
+      crm('vend1').rpc('cerrar_tarea_v2', { p_operacion_id: randomUUID(), p_tarea_id: futura, p_estado: 'no_show', p_resultado_tipo: 'nota', p_resultado_detalle: NOTA }),
+      ['22023'], GC_HORA_CITA);
+    await expectExpectedFailure('2.1 vend1 «No asistió» antes de la hora por cerrar_tarea (v1) → 22023',
+      crm('vend1').rpc('cerrar_tarea', { p_tarea_id: futura, p_estado: 'no_show', p_resultado_tipo: 'nota', p_resultado_detalle: NOTA }),
+      ['22023'], GC_HORA_CITA);
+    // Denegado por la REGLA, otros roles con autoridad sobre la cita: su supervisor y Gerencia.
+    for (const quien of ['sup1', 'gerencia']) {
+      await expectExpectedFailure(`2.1 ${quien} «No asistió» antes de la hora por cerrar_reunion_v3 → 22023`, v3(quien, futura), ['22023'], GC_HORA_CITA);
+    }
+    // Denegado por AUTORIDAD antes que por la regla: su denegación de hoy (42501), nunca el mensaje de la hora.
+    for (const quien of ['vend3', 'sup2', 'coordinador', 'directorio', 'clientBank', 'vendInactive']) {
+      const { error } = await v3(quien, futura);
+      check(isAuthorizationError(error) && !/hora de la cita/i.test(`${error?.message ?? ''}`),
+        `2.1 ${quien} → su denegación de hoy (42501), no la regla de la hora`, errorText(error));
+    }
+    await expectExplicitAuthorizationDenied('2.1 anon no ejecuta cerrar_reunion_v3',
+      anon.schema('crm').rpc('cerrar_reunion_v3', { p_operacion_id: randomUUID(), p_tarea_id: futura, p_estado: 'no_show', p_detalle: NOTA }));
+    check(foto() === antes && antes.startsWith('pendiente:-|'),
+      '2.1 tras los 14 rechazos la cita futura sigue pendiente, sin motivo, y no nació ninguna actividad, tarea ni recibo',
+      `${antes} → ${foto()}`);
+    // Permitido: «Se realizó» antes de la hora (con su capital) y «No asistió» pasada la hora, por el dueño y por su supervisor.
+    if (anticipada) {
+      const r = await positive('2.1 vend1 «Se realizó» ANTES de la hora por cerrar_reunion_v3 (con capital)',
+        crm('vend1').rpc('cerrar_reunion_v3', { p_operacion_id: randomUUID(), p_tarea_id: anticipada, p_estado: 'completada',
+          p_resultado_reunion: 'interesado', p_detalle: 'RLS 2.1 llegó antes', p_capital_estimado: 5000, p_moneda: 'PEN' }));
+      check(r?.data?.ok === true && gcCuenta('2.1 anticipada', `select count(*) from crm.tareas where id = '${anticipada}' and estado = 'completada'`) === 1,
+        '2.1 «Se realizó» antes de la hora se acepta en el acto', JSON.stringify(r?.data ?? null).slice(0, 200));
+    }
+    for (const [quien, cita] of [['vend1', pasadaVend1], ['sup1', pasadaSup1]]) {
+      if (!cita) continue;
+      const r = await positive(`2.1 ${quien} «No asistió» PASADA la hora por cerrar_reunion_v3`, v3(quien, cita));
+      check(r?.data?.ok === true && gcCuenta(`2.1 pasada ${quien}`, `select count(*) from crm.tareas where id = '${cita}' and estado = 'no_show'`) === 1,
+        `2.1 ${quien}: pasada la hora, «No asistió» entra`, JSON.stringify(r?.data ?? null).slice(0, 200));
+    }
+  } finally {
+    if (tareas.length > 0) {
+      await requireAdmin('2.1: cancelar las citas transitorias pendientes', admin.schema('crm').from('tareas')
+        .update({ estado: 'cancelada' }).in('id', tareas).eq('estado', 'pendiente'));
+    }
+    await gcRetirar(L, 'el lead de la regla de la hora');
+  }
+}
+
+// ── 2.4 · el alta reactiva la ficha retirada (20261022170200; auditor 2.4 r1 «Test gaps» 10 puntos y r2) ──────────────────────
+async function gcAltaReactivaRetirado(sessions, seed, ctx) {
+  console.log('\n— 2.4 · el alta reactiva la ficha retirada (20261022170200) —');
+  const ID = (k) => seed.profileIdByKey[k];
+  const crm = (k) => sessions[k].client.schema('crm');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-grupo-c-24'));
+  // Catálogo: el núcleo y su pieza, DEFINER y solo de postgres; el alta los llama y conserva su ACL.
+  check(gcCuenta('2.4 piezas', `select count(*) from pg_proc p where p.oid in ('${GC_NUCLEO_ALTA}'::regprocedure, '${GC_PIEZA_CONSERVADO_24}'::regprocedure)
+      and p.prosecdef and p.proowner = 'postgres'::regrole and p.proconfig @> array['search_path=""']
+      and not exists (select 1 from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, p.oid, 'EXECUTE'))
+      and not exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a where a.grantee <> p.proowner)`) === 2,
+  '2.4 catálogo: el núcleo y la pieza del dato conservado son DEFINER de postgres, search_path vacío, EXECUTE solo para su dueño');
+  check(gcCuenta('2.4 alta', `select count(*) from pg_proc p where p.oid = to_regprocedure('${GC_ALTA}') and p.prosecdef
+      and position('alta_reactivar_retirado' in p.prosrc) > 0 and has_function_privilege('authenticated', p.oid, 'EXECUTE')
+      and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')`) === 1,
+  '2.4 catálogo: el alta llama al núcleo y conserva su ACL (authenticated sí; anon y service_role no)');
+  await gcPrivadaInalcanzable('2.4', 'alta_reactivar_retirado', { p_id: randomUUID() }, [['vend1', sessions.vend1.client], ['anon', anon]]);
+  await gcPrivadaInalcanzable('2.4', 'alta_reactivar_bloqueo_conservado', { p_lead_id: randomUUID() }, [['gerencia', sessions.gerencia.client]]);
+
+  const alta = (k, clave, extra = {}) => (k === 'anon' ? anon.schema('crm') : crm(k)).rpc('crear_lead_si_disponible', {
+    p_nombre_completo: `RLS C ${clave} ALTA`, p_telefono: ctx.tel(clave), p_origen: 'oficina', p_monto_estimado: 1500, p_moneda: 'PEN',
+    p_nota: ctx.marca, ...extra });
+  const retiradoDe = async (clave, extra = {}) => {
+    const id = await gcLeadVivo(ctx, { clave, vendedorId: ID('vend1'), etapa: 'contactado', creadoPor: ID('gerencia'), ...extra });
+    await gcRetirar(id, `el retirado ${clave}`);
+    return id;
+  };
+  const R1 = await retiradoDe('2.4-R1');
+  // Denegados (antes que cualquier veredicto; R1 sigue retirado): roles sin alta, anon, destino ajeno y fuera del subárbol.
+  for (const quien of ['coordinador', 'directorio', 'vendInactive', 'clientBank']) {
+    await expectExpectedFailure(`2.4 ${quien} registra el contacto de un retirado → 42501`, alta(quien, '2.4-R1'), ['42501'], GC_ACCESO_REVOCADO);
+  }
+  await expectExplicitAuthorizationDenied('2.4 anon no ejecuta el alta', alta('anon', '2.4-R1'));
+  await expectExpectedFailure('2.4 vend1 con p_vendedor_id ajeno (vend2) → 42501', alta('vend1', '2.4-R1', { p_vendedor_id: ID('vend2') }),
+    ['42501'], /^Solo puedes crear leads asignados a ti mismo$/);
+  await expectExpectedFailure('2.4 sup1 con destino fuera de su subárbol (vend3) → 42501', alta('sup1', '2.4-R1', { p_vendedor_id: ID('vend3') }),
+    ['42501'], /^El analista destino esta fuera de tu ambito$/);
+  check(gcCuenta('2.4 R1 tras los rechazos', `select count(*) from crm.leads where id = '${R1}' and not activo`) === 1
+    && gcCuenta('2.4 R1 sin rastro', `select count(*) from crm.actividades where lead_id = '${R1}' and metadata->>'evento' = 'reactivacion_alta'`) === 0,
+  '2.4 tras los siete rechazos R1 sigue retirado y sin rastro de reactivación');
+
+  // Permitido: vend2 registra a la persona del retirado R1 (de vend1) ⇒ «reutilizado» con el id de R1, a su nombre.
+  const pid = randomUUID();
+  const primera = await gcEsperarVeredictoAlta('2.4 vend2 registra a la persona de un retirado de vend1', alta('vend2', '2.4-R1', { p_id: pid }),
+    { estado: 'reutilizado', leadId: R1 });
+  check(gcCuenta('2.4 R1 reactivado', `select count(*) from crm.leads where id = '${R1}' and activo and vendedor_id = '${ID('vend2')}' and asignado_supervisor_id is null`) === 1
+    && gcCuenta('2.4 un solo vivo', `select count(*) from crm.leads where telefono = '${ctx.e164('2.4-R1')}' and activo`) === 1,
+  '2.4 R1 vuelve activo a nombre de vend2 y no nace un segundo lead con ese teléfono');
+  const meta = gcTexto('2.4 rastro', `select a.metadata::text from crm.actividades a where a.id = '${pid}' and a.lead_id = '${R1}'
+      and a.creado_por = '${ID('vend2')}' and a.metadata->>'evento' = 'reactivacion_alta'`);
+  let m = null;
+  try { m = meta ? JSON.parse(meta) : null; } catch { m = null; }
+  check(m?.activo_anterior === false && m?.propietario_anterior === ID('vend1') && m?.alta_id === pid
+      && JSON.stringify(Object.keys(m?.tecleado ?? {}).sort()) === '["moneda","monto_estimado","origen","tipo_documento"]'
+      && !meta.includes(ctx.tel('2.4-R1')) && !meta.includes('RLS C 2.4-R1 ALTA'),
+  '2.4 rastro reactivacion_alta: id = p_id, firmado por vend2, dueño anterior, y de lo tecleado SOLO capital, moneda, origen y tipo de documento (A-7)',
+  (meta ?? '(sin rastro)').slice(0, 300));
+  check(gcCuenta('2.4 ledger abierto', `select count(*) from crm.lead_asignaciones where lead_id = '${R1}' and finalizado_en is null and analista_id = '${ID('vend2')}'`) === 1
+    && gcCuenta('2.4 ledger cerrado', `select count(*) from crm.lead_asignaciones where lead_id = '${R1}' and finalizado_en is not null`) >= 1,
+  '2.4 ledger: el episodio anterior quedó cerrado y hay UN episodio abierto de vend2');
+  // RLS del dueño nuevo, del antiguo y de la cadena.
+  const leeR1 = await positive('2.4 vend2 (dueño nuevo) lee R1', crm('vend2').from('leads').select('id').eq('id', R1));
+  check(leeR1?.data?.length === 1, '2.4 vend2 ve R1 por la RLS');
+  await expectHidden('2.4 vend1 (dueño antiguo) ya no ve R1', crm('vend1').from('leads').select('id').eq('id', R1));
+  const rastroSup = await positive('2.4 sup1 lee el rastro de la reactivación', crm('sup1').from('actividades').select('id').eq('id', pid));
+  check(rastroSup?.data?.length === 1, '2.4 el rastro es visible por la cadena (sup1)');
+  await expectHidden('2.4 sup2 (otro equipo) no ve el rastro', crm('sup2').from('actividades').select('id').eq('id', pid));
+  // Idempotencia: el mismo p_id con lo mismo ⇒ la misma respuesta y un solo rastro; con otro contacto u otro actor ⇒ 22023.
+  const repetida = await positive('2.4 reintento idéntico (mismo p_id, mismo actor, mismo contenido)', alta('vend2', '2.4-R1', { p_id: pid }));
+  check(JSON.stringify(repetida?.data) === JSON.stringify(primera?.data)
+      && gcCuenta('2.4 un rastro', `select count(*) from crm.actividades where lead_id = '${R1}' and metadata->>'evento' = 'reactivacion_alta'`) === 1,
+  '2.4 el reintento devuelve la MISMA respuesta y no deja un segundo rastro', JSON.stringify(repetida?.data ?? null));
+  await expectExpectedFailure('2.4 el mismo p_id con OTRO teléfono → 22023', alta('vend2', '2.4-otro', { p_id: pid }), ['22023'],
+    /^El identificador de esta alta ya fue usado con datos distintos$/);
+  await expectExpectedFailure('2.4 el mismo p_id por OTRO actor (sup1) → 22023', alta('sup1', '2.4-R1', { p_id: pid }), ['22023'],
+    /^El identificador de esta alta ya fue usado con datos distintos$/);
+  // Destinos: Gerencia a vend3 y el supervisor a su bandeja.
+  const R2 = await retiradoDe('2.4-R2');
+  await gcEsperarVeredictoAlta('2.4 gerencia registra a la persona de un retirado y elige a vend3', alta('gerencia', '2.4-R2', { p_vendedor_id: ID('vend3') }),
+    { estado: 'reutilizado', leadId: R2 });
+  check(gcCuenta('2.4 R2', `select count(*) from crm.leads where id = '${R2}' and activo and vendedor_id = '${ID('vend3')}'`) === 1,
+    '2.4 R2 vuelve activo a nombre de vend3 (destino de Gerencia)');
+  const R3 = await retiradoDe('2.4-R3');
+  await gcEsperarVeredictoAlta('2.4 sup1 registra a la persona de un retirado sin destino (su bandeja)', alta('sup1', '2.4-R3'),
+    { estado: 'reutilizado', leadId: R3 });
+  check(gcCuenta('2.4 R3', `select count(*) from crm.leads where id = '${R3}' and activo and vendedor_id is null and asignado_supervisor_id = '${ID('sup1')}'`) === 1,
+    '2.4 R3 vuelve activo a la bandeja de sup1');
+  // Negativo: un retirado con «No contactar» no se reactiva ni se duplica.
+  const R4 = await retiradoDe('2.4-R4', { noContactar: true });
+  const vetado = await positive('2.4 vend2 registra el contacto de un retirado con «No contactar»', alta('vend2', '2.4-R4'));
+  check(vetado && !['reutilizado', 'creado'].includes(vetado.data?.estado)
+      && gcCuenta('2.4 R4', `select count(*) from crm.leads where id = '${R4}' and not activo`) === 1
+      && gcCuenta('2.4 R4 sin duplicado', `select count(*) from crm.leads where telefono = '${ctx.e164('2.4-R4')}'`) === 1,
+  '2.4 el retirado con «No contactar» ni se reactiva ni se duplica', JSON.stringify(vetado?.data ?? null));
+  // Base cargada con capital NULL (A-2): el contacto dormido retirado toma el capital tecleado al reactivarse.
+  const base = await positive('2.4 sup1 crea una base para el contacto dormido', crm('sup1').rpc('crear_base', {
+    p_operacion_id: randomUUID(), p_nombre: `RLS C 2.4 ${ctx.corrida.slice(0, 8)}`, p_origen: 'archivo', p_archivo_nombre: 'c24.csv' }));
+  const lote = base?.data?.base_id ? await positive('2.4 sup1 carga el contacto sin capital', crm('sup1').rpc('cargar_base_lote', {
+    p_operacion_id: randomUUID(), p_base_id: base.data.base_id, p_filas: [{ fila: 1, nombre: 'RLS C 2.4 DORMIDO', telefono: ctx.tel('2.4-B') }] })) : null;
+  const dormido = lote ? gcTexto('2.4 dormido', `select id from crm.leads where telefono = '${ctx.e164('2.4-B')}' and monto_estimado is null`) : null;
+  if (dormido) {
+    await gcRetirar(dormido, 'el contacto dormido');
+    await gcEsperarVeredictoAlta('2.4 vend1 registra a la persona del dormido retirado con 2500 PEN', alta('vend1', '2.4-B', { p_monto_estimado: 2500 }),
+      { estado: 'reutilizado', leadId: dormido });
+    check(gcCuenta('2.4 capital', `select count(*) from crm.leads where id = '${dormido}' and activo and monto_estimado = 2500 and etapa = 'nuevo'
+        and vendedor_id = '${ID('vend1')}' and motivo_descarte is null`) === 1,
+    '2.4 el retirado de base cargada sin capital vuelve con el capital tecleado, en «nuevo» y a nombre de vend1');
+  } else {
+    fail('2.4: no se pudo montar el contacto dormido de base cargada (crear_base/cargar_base_lote)');
+  }
+}
+
+// ── 2.7 · el cliente convertido se reconoce por teléfono y por DNI (20261022170300; auditor 2.7 «Matriz que falta») ─────────────
+async function gcClientePorTelefono(sessions, seed, ctx) {
+  console.log('\n— 2.7 · el cliente ya convertido se reconoce por teléfono y por DNI en el alta (20261022170300) —');
+  const ID = (k) => seed.profileIdByKey[k];
+  const crm = (k) => sessions[k].client.schema('crm');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-grupo-c-27'));
+  // D7: catálogo del núcleo (ACL exacta, DEFINER, configuración y dueño) con la regla dentro.
+  check(gcCuenta('2.7 núcleo', `select count(*) from pg_proc p where p.oid = '${GC_NUCLEO_ALTA}'::regprocedure
+      and coalesce(p.proacl::text, '') = '{postgres=X/postgres}' and p.prosecdef and p.proowner = 'postgres'::regrole
+      and p.proconfig @> array['search_path=""', 'lock_timeout=5s'] and cardinality(p.proconfig) = 2 and position('v_convertido' in p.prosrc) > 0
+      and not exists (select 1 from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, p.oid, 'EXECUTE'))`) === 1,
+  '2.7 catálogo: el núcleo con la regla del cliente, ACL {postgres=X/postgres}, DEFINER, search_path vacío y lock_timeout 5s, sin EXECUTE para la API');
+  const C1 = randomUUID();
+  const C2 = randomUUID();
+  const C3 = randomUUID();
+  gcSembrarConvertidos(ctx, [
+    { id: C1, nombre: 'RLS C 2.7 CLIENTE ACTIVO', telefono: ctx.e164('2.7-C1'), dni: ctx.dni('2.7-C1'), vendedorId: ID('vend1'), activo: true },
+    { id: C2, nombre: 'RLS C 2.7 CLIENTE RETIRADO', telefono: ctx.e164('2.7-C2'), vendedorId: ID('vend1'), activo: false },
+    { id: C3, nombre: 'RLS C 2.7 CLIENTE OTRO EQUIPO', telefono: ctx.e164('2.7-C3'), dni: ctx.dni('2.7-C3'), vendedorId: ID('vend3'), activo: true },
+  ]);
+  const de1 = gcNombrePerfil(ID('vend1'));
+  const de3 = gcNombrePerfil(ID('vend3'));
+  const huellas = () => [C1, C2, C3].map(gcHuellaLead).join(',');
+  const antes = huellas();
+  const alta = (k, clave, extra = {}) => (k === 'anon' ? anon.schema('crm') : crm(k)).rpc('crear_lead_si_disponible', {
+    p_nombre_completo: `RLS C 2.7 ALTA ${clave}`, p_telefono: ctx.tel(clave), p_origen: 'oficina', p_monto_estimado: 1500, p_moneda: 'PEN',
+    p_nota: ctx.marca, ...extra });
+  const YA1 = { estado: 'ya_es_cliente', asesor: de1, sinVia: true };
+  // PERMITIDO: «ya es cliente» exacto, sin filas nuevas, ficha intacta (P1–P9).
+  await gcEsperarVeredictoAlta('2.7 P1 vend2 teclea solo el teléfono de un cliente de vend1', alta('vend2', '2.7-C1'), YA1);
+  await gcEsperarVeredictoAlta('2.7 P2 vend3 (otro equipo) teclea el teléfono del cliente', alta('vend3', '2.7-C1'), YA1);
+  await gcEsperarVeredictoAlta('2.7 P2 sup2 (otro equipo) teclea el teléfono del cliente', alta('sup2', '2.7-C1'), YA1);
+  await gcEsperarVeredictoAlta('2.7 P3 sup1 sin destino teclea el teléfono del cliente', alta('sup1', '2.7-C1'), YA1);
+  await gcEsperarVeredictoAlta('2.7 P3 gerencia con destino vend3 teclea el teléfono del cliente', alta('gerencia', '2.7-C1', { p_vendedor_id: ID('vend3') }), YA1);
+  await gcEsperarVeredictoAlta('2.7 P4 vend1 (su dueño) teclea el teléfono de su cliente', alta('vend1', '2.7-C1'), YA1);
+  await gcEsperarVeredictoAlta('2.7 P5 vend2 teclea el teléfono de un cliente RETIRADO', alta('vend2', '2.7-C2'), YA1);
+  await gcEsperarVeredictoAlta('2.7 P6 vend2 teclea el teléfono del cliente con OTRO DNI (D-25: manda el teléfono)',
+    alta('vend2', '2.7-C1', { p_dni: ctx.dni('2.7-libre') }), YA1);
+  await gcEsperarVeredictoAlta('2.7 P8 vend2 teclea el DNI de un cliente sin persona con un teléfono nuevo (D-27)',
+    alta('vend2', '2.7-P8', { p_dni: ctx.dni('2.7-C3') }), { estado: 'ya_es_cliente', asesor: de3, sinVia: true });
+  await gcEsperarVeredictoAlta('2.7 P9 vend2 teclea el teléfono de un cliente y el DNI de OTRO (manda el teléfono)',
+    alta('vend2', '2.7-C1', { p_dni: ctx.dni('2.7-C3') }), YA1);
+  // P10: la puerta del documento con CE y el teléfono del cliente (exige la identidad unificada: banderas encendidas solo aquí).
+  await conInversionesVigentes(async () => {
+    await gcEsperarVeredictoAlta('2.7 P10 vend2 por crear_lead_documento_fn con CE y el teléfono del cliente',
+      crm('vend2').rpc('crear_lead_documento_fn', { p_tipo: 'CE', p_documento: ctx.ce('2.7-P10'), p_datos: {
+        id: randomUUID(), nombre_completo: 'RLS C 2.7 ALTA DOCUMENTO', telefono: ctx.tel('2.7-C1'), origen: 'oficina', monto_estimado: 1500,
+        moneda: 'PEN', nota: ctx.marca } }), YA1);
+  });
+  // DENEGADO (42501 antes de mirar nada: sin asesor; D1–D5).
+  for (const quien of ['coordinador', 'directorio', 'vendInactive', 'clientBank']) {
+    const { data, error } = await alta(quien, '2.7-C1');
+    check(error?.code === '42501' && GC_ACCESO_REVOCADO.test(error?.message ?? '') && data == null && gcSinVeredicto(error),
+      `2.7 ${quien} → 42501 «Acceso CRM revocado» sin veredicto ni asesor`, errorText(error));
+  }
+  await expectExplicitAuthorizationDenied('2.7 anon no ejecuta el alta', alta('anon', '2.7-C1'));
+  // SIN FILAS NUEVAS: ninguna de las altas creó un lead; los clientes siguen intactos.
+  check(gcCuenta('2.7 sin altas', `select count(*) from crm.leads where nombre_completo like 'RLS C 2.7 ALTA %'`) === 0
+    && gcCuenta('2.7 sin vivos', `select count(*) from crm.leads where telefono in ('${ctx.e164('2.7-C1')}', '${ctx.e164('2.7-C2')}', '${ctx.e164('2.7-P8')}')
+        and etapa <> 'convertido'`) === 0,
+  '2.7 ninguna de las once altas «ya es cliente» creó ni reactivó un lead');
+  check(huellas() === antes, '2.7 los tres clientes siguen byte a byte (estado, dueño, contactos y actualizado_en)');
+  // SIN CAMBIO: N5 un teléfono nuevo nace; N4 un lead ACTIVO con el teléfono del cliente manda (tomado) antes que la regla.
+  const pidN5 = randomUUID();
+  await gcEsperarVeredictoAlta('2.7 N5 vend2 registra un teléfono nuevo', alta('vend2', '2.7-N5', { p_id: pidN5 }), { estado: 'creado', leadId: pidN5 });
+  ctx.idsApi.push(pidN5);
+  await gcLeadVivo(ctx, { clave: '2.7-N4', telefonoClave: '2.7-C1', vendedorId: ID('vend2'), creadoPor: ID('gerencia') });
+  const tomado = await positive('2.7 N4 vend1 registra el teléfono del cliente que ya lleva un lead VIVO', alta('vend1', '2.7-C1'));
+  check(tomado?.data?.estado === 'tomado', '2.7 N4 un lead vivo con ese teléfono manda: «tomado» (el veredicto de hoy va antes que la regla)',
+    JSON.stringify(tomado?.data ?? null));
+}
+
+// ── 2.8 · el cliente no se duplica al editar (20261022170400; auditor 2.8 r1 MATRIZ y r2 lista final (f)) ─────────────────────
+async function gcClienteNoSeDuplicaAlEditar(sessions, seed, ctx) {
+  console.log('\n— 2.8 · el cliente no se duplica al editar, por el INSERT ni por el alternativo (20261022170400) —');
+  const ID = (k) => seed.profileIdByKey[k];
+  const crm = (k) => sessions[k].client.schema('crm');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-grupo-c-28'));
+  const PIEZA = 'private.juicio_cliente_convertido(text,text,text,uuid)';
+  // Catálogo.
+  check(gcCuenta('2.8 pieza', gcSqlPiezaSoloPostgres(PIEZA, { definer: false, volatilidad: 's' })) === 1,
+    '2.8 catálogo: la pieza es INVOKER y STABLE, de postgres, search_path vacío y ACL {postgres=X/postgres}');
+  check(gcCuenta('2.8 disparador de tabla', `select count(*) from pg_trigger t where t.tgrelid = 'crm.leads'::regclass
+      and t.tgname = 'trg_leads_00_disponibilidad_update' and t.tgenabled = 'O'
+      and (select array_agg(a.attname::text) from pg_attribute a where a.attrelid = t.tgrelid and a.attnum = any(t.tgattr::int2[]))
+          @> array['telefono', 'dni', 'telefono_alternativo', 'telefono_alternativo_crudo']`) === 1,
+  '2.8 catálogo: el disparador de disponibilidad mira teléfono, DNI, alternativo y alternativo sin validar');
+  check(gcCuenta('2.8 sin INSERT', `select (has_table_privilege('authenticated', 'crm.leads', 'INSERT')
+        or exists (select 1 from pg_attribute a, aclexplode(a.attacl) e where a.attrelid = 'crm.leads'::regclass
+                   and e.privilege_type = 'INSERT' and e.grantee in ('authenticated'::regrole, 'anon'::regrole)))::int`) === 0,
+  '2.8 catálogo: authenticated y anon sin INSERT sobre crm.leads (ni de tabla ni por columna)');
+  await gcPrivadaInalcanzable('2.8', 'juicio_cliente_convertido', { p_telefono: ctx.tel('2.8-T1') }, [['vend1', sessions.vend1.client], ['anon', anon]]);
+
+  const CP = randomUUID();
+  const CS = randomUUID();
+  gcSembrarConvertidos(ctx, [
+    { id: CP, nombre: 'RLS C 2.8 CLIENTE ACTIVO', telefono: ctx.e164('2.8-T1'), alternativo: ctx.e164('2.8-A1'), dni: ctx.dni('2.8-D1'),
+      vendedorId: ID('vend1'), activo: true },
+    { id: CS, nombre: 'RLS C 2.8 CLIENTE RETIRADO', telefono: ctx.e164('2.8-T2'), dni: ctx.dni('2.8-D2'), vendedorId: ID('vend1'), activo: false },
+  ]);
+  const de1 = gcNombrePerfil(ID('vend1'));
+  const YA = { estado: 'ya_es_cliente', asesor: de1, exacto: { estado: 'ya_es_cliente', asesor: de1 } };
+  const L = await gcLeadVivo(ctx, { clave: '2.8-L', vendedorId: ID('vend1'), creadoPor: ID('gerencia') });
+  const huellaL = gcHuellaLead(L);
+  const editar = (k, cambios) => crm(k).rpc('editar_lead_fn', { p_lead_id: L, p_cambios: cambios });
+  const patch = (k, cambios, id = L) => (k === 'anon' ? anon.schema('crm') : crm(k)).from('leads').update(cambios).eq('id', id).select('id');
+  // DENEGADO CON VEREDICTO (P0481 ya_es_cliente con el detalle EXACTO y nada escrito).
+  await gcEsperarP0481('2.8 K1 vend1 edita el teléfono de su lead al del cliente (editar_lead_fn)', editar('vend1', { telefono: ctx.e164('2.8-T1') }), YA);
+  await gcEsperarP0481('2.8 K2 vend1 edita el teléfono al de un cliente RETIRADO', editar('vend1', { telefono: ctx.e164('2.8-T2') }), YA);
+  await gcEsperarP0481('2.8 K3 vend1 pone de alternativo el teléfono del cliente', editar('vend1', { telefono_alternativo: ctx.e164('2.8-T1') }), YA);
+  await gcEsperarP0481('2.8 K4 vend1 pone de alternativo el alternativo del cliente', editar('vend1', { telefono_alternativo: ctx.e164('2.8-A1') }), YA);
+  await gcEsperarP0481('2.8 K6 vend1 pone un teléfono libre y de alternativo el del cliente',
+    editar('vend1', { telefono: ctx.e164('2.8-libre'), telefono_alternativo: ctx.e164('2.8-T1') }), YA);
+  await gcEsperarP0481('2.8 K8 vend1 PATCH directo del teléfono al del cliente', patch('vend1', { telefono: ctx.e164('2.8-T1') }), YA);
+  await gcEsperarP0481('2.8 K9 vend1 PATCH directo del alternativo al alternativo del cliente', patch('vend1', { telefono_alternativo: ctx.e164('2.8-A1') }), YA);
+  await gcEsperarP0481('2.8 K10 vend1 PATCH directo del DNI al de un cliente retirado', patch('vend1', { dni: ctx.dni('2.8-D2') }), YA);
+  await gcEsperarP0481('2.8 K11 sup1 edita el teléfono del lead de su analista al del cliente', editar('sup1', { telefono: ctx.e164('2.8-T1') }), YA);
+  await gcEsperarP0481('2.8 K11 gerencia edita el teléfono al del cliente', editar('gerencia', { telefono: ctx.e164('2.8-T1') }), YA);
+  check(gcHuellaLead(L) === huellaL, '2.8 tras los diez rechazos el lead sigue byte a byte (nada escrito)');
+  // K13: el alta con el alternativo de un cliente ⇒ «ya es cliente» sin crear lead.
+  const altaAlt = (alternativo) => crm('vend2').rpc('crear_lead_si_disponible', { p_nombre_completo: 'RLS C 2.8 ALTA K13', p_telefono: ctx.tel('2.8-K13'),
+    p_origen: 'oficina', p_monto_estimado: 1500, p_moneda: 'PEN', p_nota: ctx.marca, p_telefono_alternativo: alternativo });
+  await gcEsperarVeredictoAlta('2.8 K13 vend2 da de alta con el teléfono del cliente como alternativo', altaAlt(ctx.e164('2.8-T1')),
+    { estado: 'ya_es_cliente', asesor: de1, sinVia: true });
+  await gcEsperarVeredictoAlta('2.8 K13 vend2 da de alta con el alternativo del cliente como alternativo', altaAlt(ctx.e164('2.8-A1')),
+    { estado: 'ya_es_cliente', asesor: de1, sinVia: true });
+  check(gcCuenta('2.8 K13 sin lead', `select count(*) from crm.leads where telefono = '${ctx.e164('2.8-K13')}'`) === 0,
+    '2.8 K13 ninguna de las dos altas creó el lead');
+  // DENEGADO SIN VEREDICTO.
+  for (const quien of ['coordinador', 'directorio', 'vendInactive', 'clientBank', 'anon']) {
+    const r = await patch(quien, { telefono: ctx.e164('2.8-T1') });
+    const bloqueado = (r.error && (isAuthorizationError(r.error) || ['P0002', 'P0001'].includes(String(r.error.code)))) || (Array.isArray(r.data) && r.data.length === 0);
+    check(bloqueado && gcSinVeredicto(r.error), `2.8 D1/D2 ${quien} no edita el lead y no ve ningún veredicto`, r.error ? errorText(r.error) : `filas=${r.data?.length}`);
+  }
+  await expectExplicitAuthorizationDenied('2.8 D4 vend2 POST directo a crm.leads → 42501', crm('vend2').from('leads').insert({
+    activo: true, etapa: 'nuevo', moneda: 'PEN', origen: 'oficina', monto_estimado: 1000, id: randomUUID(), nombre_completo: 'RLS C 2.8 POST',
+    telefono: ctx.tel('2.8-post'), creado_por: ID('vend2'), vendedor_id: ID('vend2') }).select('id'));
+  for (const quien of ['vend1', 'sup1', 'gerencia']) {
+    await expectExplicitAuthorizationDenied(`2.8 D5/D8 ${quien} pone el alternativo SIN VALIDAR al teléfono del cliente → 42501`,
+      patch(quien, { telefono_alternativo_crudo: ctx.e164('2.8-T1') }));
+  }
+  check(gcHuellaLead(L) === huellaL, '2.8 tras los rechazos sin veredicto el lead sigue igual');
+  // SIN CAMBIO: N1 lo que no toca contactos y un alternativo libre; N2 el cliente edita su nota; N3 un formato inválido ⇒ 23514.
+  const nota = await positive('2.8 N1 vend1 edita la nota de su lead', patch('vend1', { nota: `${ctx.marca} N1` }));
+  check(nota?.data?.length === 1, '2.8 N1 una edición sin contactos sigue entrando');
+  const libre = await positive('2.8 N1 vend1 pone un alternativo libre por editar_lead_fn', editar('vend1', { telefono_alternativo: ctx.e164('2.8-libre-alt') }));
+  check(Boolean(libre) && gcCuenta('2.8 alternativo libre', `select count(*) from crm.leads where id = '${L}' and telefono_alternativo = '${ctx.e164('2.8-libre-alt')}'`) === 1,
+    '2.8 N1 un alternativo libre se guarda');
+  await positive('2.8 N1 vend1 quita el alternativo', editar('vend1', { telefono_alternativo: null }));
+  // Ronda 2 (C5, 22/10): el cliente que se EDITA es uno de verdad (conversión real, con persona y cierre externo inicial); el sembrado
+  // sin persona (CP) no se puede editar en producción: P0001 «Un lead convertido debe estar enlazado a un perfil de cliente».
+  const clienteReal = await gcClienteReal(sessions, seed, ctx, '2.8-real');
+  if (clienteReal) {
+    const notaCliente = await positive('2.8 N2 vend1 edita la nota de su cliente (convertido real)', patch('vend1', { nota: `${ctx.marca} N2` }, clienteReal));
+    check(notaCliente?.data?.length === 1, '2.8 N2 el cliente se sigue editando si no toca contactos');
+  }
+  await expectExpectedFailure('2.8 N3 un alternativo con formato inválido → 23514 (o 22023 si lo canoniza antes un disparador)',
+    patch('vend1', { telefono_alternativo: '12345' }), ['23514', '22023'], /alternativo|check constraint/i);
+}
+
+// ── 2.9 · la carga de bases mira el alternativo de los clientes (20261022170500; auditor 2.9 TEST GAPS 1–11) ─────────────────
+async function gcBasesAlternativoCliente(sessions, seed, ctx) {
+  console.log('\n— 2.9 · la carga de bases también mira el teléfono alternativo de los clientes (20261022170500) —');
+  const ID = (k) => seed.profileIdByKey[k];
+  const crm = (k) => sessions[k].client.schema('crm');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-grupo-c-29'));
+  check(gcCuenta('2.9 envoltorio', `${gcSqlPiezaSoloPostgres('private.bases_carga_contacto_existente(text,text)', { definer: false, volatilidad: 's' })}
+      and position('l.telefono_alternativo = p_telefono' in p.prosrc) > 0`) === 1,
+  '2.9 catálogo: el envoltorio mira el alternativo de los convertidos; INVOKER, STABLE, de postgres, ACL {postgres=X/postgres}');
+  const E1 = randomUUID();
+  const E2 = randomUUID();
+  const E3 = randomUUID();
+  const E4 = randomUUID();
+  gcSembrarConvertidos(ctx, [
+    { id: E1, nombre: 'RLS C 2.9 CLIENTE EQUIPO', telefono: ctx.e164('2.9-E1'), alternativo: ctx.e164('2.9-E1a'), vendedorId: ID('vend1'), activo: true },
+    { id: E2, nombre: 'RLS C 2.9 RETIRADO EQUIPO', telefono: ctx.e164('2.9-E2'), alternativo: ctx.e164('2.9-E2a'), vendedorId: ID('vend1'), activo: false },
+    { id: E3, nombre: 'RLS C 2.9 CLIENTE OTRO', telefono: ctx.e164('2.9-E3'), alternativo: ctx.e164('2.9-E3a'), vendedorId: ID('vend3'), activo: true },
+    { id: E4, nombre: 'RLS C 2.9 RETIRADO OTRO', telefono: ctx.e164('2.9-E4'), alternativo: ctx.e164('2.9-E4a'), vendedorId: ID('vend3'), activo: false },
+  ]);
+  await gcLeadVivo(ctx, { clave: '2.9-L', vendedorId: ID('vend1'), alternativo: ctx.e164('2.9-La'), creadoPor: ID('gerencia') });
+  const ROL = /Solo Supervisión y Gerencia cargan y arman bases/;
+  await expectExpectedFailure('2.9 coordinador → crear_base 42501', crm('coordinador').rpc('crear_base', { p_operacion_id: randomUUID(), p_nombre: 'X',
+    p_origen: 'archivo', p_archivo_nombre: 'x.csv' }), ['42501'], ROL);
+  await expectExpectedFailure('2.9 vendInactive → cargar_base_lote 42501', crm('vendInactive').rpc('cargar_base_lote', { p_operacion_id: randomUUID(),
+    p_base_id: randomUUID(), p_filas: [] }), ['42501'], /Solo Supervisión y Gerencia|Acceso CRM revocado|No autorizado/);
+  await expectExpectedFailure('2.9 anon → cargar_base_lote 42501 (sin EXECUTE)', anon.schema('crm').rpc('cargar_base_lote', { p_operacion_id: randomUUID(),
+    p_base_id: randomUUID(), p_filas: [] }), ['42501'], GC_SIN_EXECUTE);
+  const base = await positive('2.9 sup1 crea su base', crm('sup1').rpc('crear_base', { p_operacion_id: randomUUID(),
+    p_nombre: `RLS C 2.9 ${ctx.corrida.slice(0, 8)}`, p_origen: 'archivo', p_archivo_nombre: 'c29.csv' }));
+  const baseId = base?.data?.base_id;
+  if (!baseId) {
+    fail('2.9: sin base de sup1 no se puede medir la carga');
+    return;
+  }
+  const huellas = () => [E1, E2, E3, E4].map(gcHuellaLead).join(',');
+  const antes = huellas();
+  const resumen = (resp) => (resp?.data?.filas ?? []).map((x) => `${x.fila}:${x.veredicto}${x.motivo ? `/${x.motivo}` : ''}${x.lead_id ? `+${x.lead_id}` : ''}`).join(',');
+  const cargar = (k, filas) => crm(k).rpc('cargar_base_lote', { p_operacion_id: randomUUID(), p_base_id: baseId, p_filas: filas });
+  const lote = await positive('2.9 sup1 carga cinco filas (alternativos de clientes propios y ajenos, y de un lead vivo que no es cliente)', cargar('sup1', [
+    { fila: 1, nombre: 'RLS C 2.9 F1', telefono: ctx.tel('2.9-E1a') },
+    { fila: 2, nombre: 'RLS C 2.9 F2', telefono: ctx.tel('2.9-E2a') },
+    { fila: 3, nombre: 'RLS C 2.9 F3', telefono: ctx.tel('2.9-E3a') },
+    { fila: 4, nombre: 'RLS C 2.9 F4', telefono: ctx.tel('2.9-E4a') },
+    { fila: 5, nombre: 'RLS C 2.9 F5', telefono: ctx.tel('2.9-La') },
+  ]));
+  check(resumen(lote) === `1:ya_existia/convertido+${E1},2:ya_existia/retirado,3:ya_existia,4:ya_existia,5:cargada`,
+    '2.9 1) cliente activo del equipo ⇒ ya_existia/convertido con su id; 3) retirado del equipo ⇒ retirado sin id; 4–5) de otro equipo ⇒ ya_existia sin motivo ni id; 6) D-37: el alternativo de un lead que NO es cliente ⇒ cargada',
+    resumen(lote));
+  const texto = JSON.stringify(lote?.data ?? {});
+  check(!texto.includes('RLS C 2.9') && ['2.9-E1a', '2.9-E2a', '2.9-E3a', '2.9-E4a', '2.9-La'].every((k) => !texto.includes(ctx.tel(k))),
+    '2.9 la respuesta no lleva nombres ni teléfonos');
+  for (const [forma, telefono] of [['«9xx xxx xxx»', `${ctx.tel('2.9-E1a').slice(0, 3)} ${ctx.tel('2.9-E1a').slice(3, 6)} ${ctx.tel('2.9-E1a').slice(6)}`],
+    ['«+51 9xx-xxx-xxx»', `+51 ${ctx.tel('2.9-E1a').slice(0, 3)}-${ctx.tel('2.9-E1a').slice(3, 6)}-${ctx.tel('2.9-E1a').slice(6)}`]]) {
+    const r = await positive(`2.9 7) sup1 carga el alternativo del cliente en la forma ${forma}`, cargar('sup1', [{ fila: 1, nombre: 'RLS C 2.9 FORMA', telefono }]));
+    check(resumen(r) === `1:ya_existia/convertido+${E1}`, `2.9 7) la forma ${forma} sale igual que la canónica`, resumen(r));
+  }
+  const ger = await positive('2.9 4) gerencia carga en la base de sup1 el alternativo de un cliente de otro equipo', cargar('gerencia', [
+    { fila: 1, nombre: 'RLS C 2.9 GER', telefono: ctx.tel('2.9-E3a') }]));
+  check(resumen(ger) === `1:ya_existia/convertido+${E3}`, '2.9 4) Gerencia ve el motivo y el id del cliente de otro equipo', resumen(ger));
+  check(huellas() === antes && gcCuenta('2.9 sin dormidos', `select count(*) from crm.leads where telefono in ('${ctx.e164('2.9-E1a')}',
+      '${ctx.e164('2.9-E2a')}', '${ctx.e164('2.9-E3a')}', '${ctx.e164('2.9-E4a')}')`) === 0
+    && gcCuenta('2.9 dormido D-37', `select count(*) from crm.leads where telefono = '${ctx.e164('2.9-La')}' and origen = 'base_cargada'`) === 1,
+  '2.9 los clientes siguen intactos, ningún alternativo de cliente nació como contacto y el del lead que no es cliente sí (D-37)');
+}
+
+// ── 2.11 · reactivar reconoce al cliente (20261022170600; auditor 2.11 TEST GAPS: K, D, N y C) ──────────────────────────────────
+async function gcReactivarReconoceCliente(sessions, seed, ctx) {
+  console.log('\n— 2.11 · reactivar una ficha retirada o un lead de la base reconoce al cliente (20261022170600) —');
+  const ID = (k) => seed.profileIdByKey[k];
+  const crm = (k) => sessions[k].client.schema('crm');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-grupo-c-211'));
+  const PIEZA = 'private.juicio_cliente_conservado(uuid)';
+  // C1 ficha y ACL; C3 solo los dos núcleos la usan (sin el 2.16, D-62).
+  check(gcCuenta('2.11 pieza', gcSqlPiezaSoloPostgres(PIEZA, { definer: false, volatilidad: 'v' })) === 1,
+    '2.11 C1 la pieza es INVOKER y VOLÁTIL (toma candados), de postgres, search_path vacío y ACL {postgres=X/postgres}');
+  const usuarios = gcTexto('2.11 usuarios', `select string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C")
+      from pg_proc p where strpos(lower(coalesce(p.prosrc, '')), 'juicio_cliente_conservado') > 0 and p.oid <> to_regprocedure('${PIEZA}')`);
+  check(usuarios === `${GC_NUCLEO_ALTA},private.base_gestion_reactivar_capital_core(uuid,uuid,uuid,text,numeric,text)`,
+    '2.11 C3 solo los dos núcleos (alta y base para gestión) usan la pieza (sin el 2.16)', usuarios ?? '(ninguno)');
+  await gcPrivadaInalcanzable('2.11 D4', 'juicio_cliente_conservado', { p_lead_id: randomUUID() }, [['vend1', sessions.vend1.client], ['anon', anon]]);
+  const C = randomUUID();
+  gcSembrarConvertidos(ctx, [{ id: C, nombre: 'RLS C 2.11 CLIENTE', telefono: ctx.e164('2.11-T'), alternativo: ctx.e164('2.11-A'),
+    dni: ctx.dni('2.11-D'), vendedorId: ID('vend3'), activo: true }]);
+  const de3 = gcNombrePerfil(ID('vend3'));
+  const YA = { estado: 'ya_es_cliente', asesor: de3 };
+  // ALTA (K1, K4, K8): una ficha retirada que CONSERVA el contacto de un cliente no se reactiva.
+  const FA = await gcLeadVivo(ctx, { clave: '2.11-FA', vendedorId: ID('vend1'), alternativo: ctx.e164('2.11-T'), creadoPor: ID('gerencia') });
+  await gcRetirar(FA, 'la ficha con el teléfono del cliente de alternativo');
+  const FD = await gcLeadVivo(ctx, { clave: '2.11-FD', vendedorId: ID('vend1'), dni: ctx.dni('2.11-D'), creadoPor: ID('gerencia') });
+  await gcRetirar(FD, 'la ficha con el DNI del cliente');
+  const alta = (k, clave, extra = {}) => crm(k).rpc('crear_lead_si_disponible', { p_nombre_completo: `RLS C 2.11 ALTA ${clave}`, p_telefono: ctx.tel(clave),
+    p_origen: 'oficina', p_monto_estimado: 1500, p_moneda: 'PEN', p_nota: ctx.marca, ...extra });
+  await gcEsperarVeredictoAlta('2.11 K1 vend2 registra a la persona de una ficha retirada que conserva de alternativo el teléfono de un cliente',
+    alta('vend2', '2.11-FA'), { ...YA, sinVia: true });
+  await gcEsperarVeredictoAlta('2.11 K4 vend2 registra a la persona de una ficha retirada que conserva el DNI de un cliente', alta('vend2', '2.11-FD'),
+    { ...YA, sinVia: true });
+  await gcEsperarVeredictoAlta('2.11 K8 sup1 registra la misma ficha retirada', alta('sup1', '2.11-FA'), { ...YA, sinVia: true });
+  await gcEsperarVeredictoAlta('2.11 K8 gerencia registra la misma ficha retirada', alta('gerencia', '2.11-FA', { p_vendedor_id: ID('vend2') }), { ...YA, sinVia: true });
+  check(gcCuenta('2.11 fichas retiradas', `select count(*) from crm.leads where id in ('${FA}', '${FD}') and not activo`) === 2
+    && gcCuenta('2.11 sin rastro', `select count(*) from crm.actividades where lead_id in ('${FA}', '${FD}') and metadata->>'evento' = 'reactivacion_alta'`) === 0,
+  '2.11 las dos fichas siguen retiradas y sin rastro de reactivación');
+  // BASE PARA GESTIÓN (K10–K13): un descartado de vend1 con el teléfono del cliente de alternativo.
+  const LD = await gcLeadVivo(ctx, { clave: '2.11-LD', vendedorId: ID('vend1'), alternativo: ctx.e164('2.11-T'), creadoPor: ID('gerencia') });
+  await requireAdmin('2.11: vend1 descarta su lead', crm('vend1').from('leads').update({ etapa: 'descartado', motivo_descarte: 'no_responde' }).eq('id', LD));
+  const huellaLD = gcHuellaLead(LD);
+  const intentosLD = () => gcCuenta('2.11 intentos', `select count(*) from crm.actividades where lead_id = '${LD}' and metadata->>'evento' in ('intento_base', 'reactivacion_base')`);
+  const intentosAntes = intentosLD();
+  const exacto = { estado: 'ya_es_cliente', asesor: de3 };
+  for (const quien of ['vend1', 'sup1', 'gerencia']) {
+    await gcEsperarP0481(`2.11 K10 ${quien} reactiva el descartado por reactivar_lead_base_v2`, crm(quien).rpc('reactivar_lead_base_v2', {
+      p_operacion_id: randomUUID(), p_lead_id: LD, p_monto_estimado: 1000, p_moneda: 'PEN' }), { ...YA, exacto });
+  }
+  await gcEsperarP0481('2.11 K11 vend1 reactiva por la puerta publicada (v1)', crm('vend1').rpc('reactivar_lead_base', { p_operacion_id: randomUUID(), p_lead_id: LD }), YA);
+  await gcEsperarP0481('2.11 K12 vend1 «agendó cita» por registrar_intento_base_v2', crm('vend1').rpc('registrar_intento_base_v2', {
+    p_operacion_id: randomUUID(), p_lead_id: LD, p_resultado: 'agendo_reunion', p_monto_estimado: 1000, p_moneda: 'PEN' }), YA);
+  await gcEsperarP0481('2.11 K12 vend1 «agendó cita» por registrar_intento_base (v1)', crm('vend1').rpc('registrar_intento_base', {
+    p_operacion_id: randomUUID(), p_lead_id: LD, p_resultado: 'agendo_reunion' }), YA);
+  check(gcHuellaLead(LD) === huellaLD && intentosLD() === intentosAntes,
+    '2.11 tras los seis rechazos el descartado sigue igual y NINGÚN intento ni reactivación quedó registrado');
+  // DENEGADO SIN VEREDICTO.
+  for (const quien of ['sup2', 'vend3']) {
+    const { error } = await crm(quien).rpc('reactivar_lead_base_v2', { p_operacion_id: randomUUID(), p_lead_id: LD, p_monto_estimado: 1000, p_moneda: 'PEN' });
+    check(error?.code === 'P0002' && gcSinVeredicto(error), `2.11 D1 ${quien} (fuera del ámbito) → P0002 sin veredicto`, errorText(error));
+  }
+  for (const quien of ['coordinador', 'vendInactive', 'clientBank']) {
+    const { error } = await crm(quien).rpc('reactivar_lead_base_v2', { p_operacion_id: randomUUID(), p_lead_id: LD, p_monto_estimado: 1000, p_moneda: 'PEN' });
+    check((isAuthorizationError(error) || error?.code === 'P0002') && gcSinVeredicto(error), `2.11 D2 ${quien} → 42501/P0002 sin veredicto`, errorText(error));
+  }
+  await expectExpectedFailure('2.11 D3 anon → reactivar_lead_base_v2 42501 (sin EXECUTE)', anon.schema('crm').rpc('reactivar_lead_base_v2', {
+    p_operacion_id: randomUUID(), p_lead_id: LD }), ['42501'], GC_SIN_EXECUTE);
+  await expectExpectedFailure('2.11 D5 service_role → reactivar_lead_base_v2 42501 (sin EXECUTE)', admin.schema('crm').rpc('reactivar_lead_base_v2', {
+    p_operacion_id: randomUUID(), p_lead_id: LD }), ['42501'], GC_SIN_EXECUTE);
+  // SIN CAMBIO (N7): un intento que no reactiva sigue entrando.
+  const intento = await positive('2.11 N7 vend1 registra «no contestó» sobre el descartado', crm('vend1').rpc('registrar_intento_base', {
+    p_operacion_id: randomUUID(), p_lead_id: LD, p_resultado: 'no_contesto' }));
+  check(intento?.data?.reactivado !== true && intentosLD() === intentosAntes + 1, '2.11 N7 el intento que no reactiva sigue igual que hoy (uno más, sin reactivar)',
+    JSON.stringify(intento?.data ?? null));
+}
+
+// ── 2.13 · el alternativo de un cliente no toma un lead vivo (20261022170700; auditor 2.13 «Pruebas que faltan» 1–8) ───────────
+async function gcAlternativoClienteNoTomaLead(sessions, seed, ctx) {
+  console.log('\n— 2.13 · el alternativo de un cliente no puede ser el número de un lead vivo (20261022170700) —');
+  const ID = (k) => seed.profileIdByKey[k];
+  const crm = (k) => sessions[k].client.schema('crm');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-grupo-c-213'));
+  const PIEZA = 'private.juicio_lead_vivo_por_numero(text,uuid)';
+  check(gcCuenta('2.13 pieza', gcSqlPiezaSoloPostgres(PIEZA, { definer: false, volatilidad: 's' })) === 1,
+    '2.13 8) la pieza es INVOKER y STABLE, de postgres, search_path vacío y ACL {postgres=X/postgres} (has_function_privilege falso para la API)');
+  await gcPrivadaInalcanzable('2.13 8)', 'juicio_lead_vivo_por_numero', { p_numero: ctx.tel('2.13-V'), p_excluir_lead_id: null },
+    [['vend1', sessions.vend1.client], ['anon', anon]]);
+  // Ronda 2 (C5, 22/10): el cliente cuyo alternativo se edita es uno de verdad (conversión real de cooperativa: persona y cierre
+  // externo inicial); uno sembrado sin persona ni cierre no se deja editar (P0001 de private.leads_before_update) y la regla no se
+  // alcanzaría. Sin cliente real (fallo de la conversión, o recorrido 'exigir' sin habilitar) el bloque no sigue.
+  const C = await gcClienteReal(sessions, seed, ctx, '2.13-C');
+  if (!C) {
+    console.log('  2.13: sin cliente real no se mide la regla (ver el fallo o el NOT RUN de arriba)');
+    return;
+  }
+  const LV = await gcLeadVivo(ctx, { clave: '2.13-V', vendedorId: ID('vend3'), creadoPor: ID('gerencia') });
+  await gcLeadVivo(ctx, { clave: '2.13-B', creadoPor: ID('gerencia') });
+  const L = await gcLeadVivo(ctx, { clave: '2.13-L', vendedorId: ID('vend1'), creadoPor: ID('gerencia') });
+  const patch = (k, cambios, id = C) => (k === 'anon' ? anon.schema('crm') : crm(k)).from('leads').update(cambios).eq('id', id).select('id');
+  const huellaC = gcHuellaLead(C);
+  // 1) y 2): el alternativo del cliente con el número de un lead vivo de otro equipo (tomado) o de la bolsa (en_bolsa).
+  const tomado = await gcEsperarP0481('2.13 1) vend1 PATCH el alternativo de su cliente al teléfono de un lead vivo de vend3',
+    patch('vend1', { telefono_alternativo: ctx.e164('2.13-V') }), { estado: 'tomado' });
+  check('vendedor' in (gcDetalle(tomado?.error) ?? {}), '2.13 1) el veredicto «tomado» es el de la disponibilidad (con su vendedor)', tomado?.error?.details ?? '');
+  await gcEsperarP0481('2.13 1) vend1 por editar_lead_fn sobre su cliente', crm('vend1').rpc('editar_lead_fn', { p_lead_id: C,
+    p_cambios: { telefono_alternativo: ctx.e164('2.13-V') } }), { estado: 'tomado' });
+  await gcEsperarP0481('2.13 2) vend1 PATCH el alternativo de su cliente al teléfono de un lead de la bolsa',
+    patch('vend1', { telefono_alternativo: ctx.e164('2.13-B') }), { estado: 'en_bolsa' });
+  await gcEsperarP0481('2.13 4) sup1 sobre el cliente de su subárbol', patch('sup1', { telefono_alternativo: ctx.e164('2.13-V') }), { estado: 'tomado' });
+  await gcEsperarP0481('2.13 5) gerencia sobre el cliente', patch('gerencia', { telefono_alternativo: ctx.e164('2.13-V') }), { estado: 'tomado' });
+  check(gcHuellaLead(C) === huellaC, '2.13 tras los rechazos el cliente sigue byte a byte');
+  // 4)–6) sin veredicto: otro subárbol, Coordinación, Directorio, baja, cliente del Portal y anónimo.
+  for (const quien of ['sup2', 'vend3', 'coordinador', 'directorio', 'vendInactive', 'clientBank', 'anon']) {
+    const r = await patch(quien, { telefono_alternativo: ctx.e164('2.13-V') });
+    const bloqueado = (r.error && (isAuthorizationError(r.error) || ['P0002', 'P0001'].includes(String(r.error.code)))) || (Array.isArray(r.data) && r.data.length === 0);
+    check(bloqueado && gcSinVeredicto(r.error), `2.13 ${quien} no edita el cliente ajeno y no ve de quién es el número`, r.error ? errorText(r.error) : `filas=${r.data?.length}`);
+  }
+  check(gcHuellaLead(C) === huellaC, '2.13 tras los rechazos sin veredicto el cliente sigue igual');
+  // 3): alternativo libre y quitarlo; un lead que NO es cliente con el número de un lead vivo, sin cambio (D-49 solo habla del cliente).
+  const libre = await positive('2.13 3) vend1 pone a su cliente un alternativo libre', patch('vend1', { telefono_alternativo: ctx.e164('2.13-libre') }));
+  check(libre?.data?.length === 1, '2.13 3) un alternativo libre entra');
+  const quitar = await positive('2.13 3) vend1 quita el alternativo de su cliente', patch('vend1', { telefono_alternativo: null }));
+  check(quitar?.data?.length === 1, '2.13 3) quitar el alternativo entra');
+  const noCliente = await positive('2.13 3) vend1 pone a un lead que NO es cliente el número de un lead vivo de vend3', patch('vend1', { telefono_alternativo: ctx.e164('2.13-V') }, L));
+  check(noCliente?.data?.length === 1, '2.13 3) la regla es solo del cliente: el lead que no es cliente sigue como hoy');
+  check(gcCuenta('2.13 LV intacto', `select count(*) from crm.leads where id = '${LV}' and activo and vendedor_id = '${ID('vend3')}'`) === 1,
+    '2.13 el lead vivo de vend3 sigue suyo');
+}
+
+// Recorrido del lead antes de convertir (crm.recorrido_control.modo = 'exigir' en producción desde el 19/10; 20261019001700): la
+// conversión pide «asistió a su cita y la entrevista se realizó, con su resultado» en el ciclo vigente. Por HTTP, como la pantalla:
+// el analista agenda una cita YA PASADA y la cierra «Se realizó» con resultado y capital (cerrar_reunion_v3). Devuelve si el
+// recorrido habilita la conversión (private.recorrido_evaluar, por la vía fuera de banda).
+async function gcRegistrarRecorrido(cliente, perfilId, leadId, etiqueta) {
+  const cita = randomUUID();
+  const agendada = await positive(`${etiqueta}: agenda una cita ya pasada para el recorrido`, cliente.schema('crm').from('tareas').insert({
+    creado_por: perfilId, id: cita, lead_id: leadId, tipo: 'reunion', titulo: 'RLS C recorrido TRANSIENT',
+    vence_en: new Date(Date.now() - 2 * 3600000).toISOString() }).select('id').single());
+  if (!agendada) return false;
+  const cierre = await positive(`${etiqueta}: cierra la cita «Se realizó» con su entrevista`, cliente.schema('crm').rpc('cerrar_reunion_v3', {
+    p_operacion_id: randomUUID(), p_tarea_id: cita, p_estado: 'completada', p_resultado_reunion: 'propuesta', p_detalle: 'RLS C recorrido',
+    p_capital_estimado: 5000, p_moneda: 'PEN' }));
+  if (!cierre) return false;
+  return gcTexto('recorrido', `select coalesce((r.resultado->>'habilita_conversion')::boolean, false)::text
+      from private.recorrido_evaluar(array['${leadId}'::uuid]) r`) === 'true';
+}
+
+// Ronda 2 (C5, Director 22/10): un cliente que se EDITA tiene que existir como en producción. `private.leads_before_update` exige a un
+// convertido su perfil del Portal o su cierre externo inicial (P0001 «Un lead convertido debe estar enlazado a un perfil de cliente»,
+// 20261005200945): por eso se crea por la conversión REAL de cooperativa (`convertirCoopVigente`, el mismo camino que b1/F2.b), que
+// deja persona, enlace y cierre externo inicial, con las dos banderas encendidas solo durante la conversión (conInversionesVigentes).
+// Antes, el recorrido por HTTP (gcRegistrarRecorrido): con 'exigir' sin habilitar, NOT RUN visible; con 'observacion' sigue igual.
+async function gcClienteReal(sessions, seed, ctx, clave) {
+  const vend1Id = seed.profileIdByKey.vend1;
+  const lead = await gcLeadVivo(ctx, { clave, vendedorId: vend1Id, etapa: 'contactado', creadoPor: seed.profileIdByKey.gerencia });
+  const modo = gcTexto('modo del recorrido', 'select modo from crm.recorrido_control limit 1') ?? '(sin control)';
+  const habilitado = await gcRegistrarRecorrido(sessions.vend1.client, vend1Id, lead, `${clave} vend1`);
+  if (!habilitado && modo === 'exigir') {
+    saltarGrupoC(`⚠ ${clave}: NOT RUN bajo recorrido 'exigir': el recorrido del cliente no quedó habilitado por HTTP (agendar + «Se realizó» con entrevista)`);
+    return null;
+  }
+  const r = await conInversionesVigentes(() => convertirCoopVigente(sessions.vend1.client, {
+    p_lead_id: lead, p_cooperativa: 'qorilazo', p_monto: 1000, p_moneda: 'PEN', p_documento_tipo: 'DNI', p_documento: ctx.dni(clave),
+    p_nombre: `RLS C ${clave} CLIENTE`, p_numero_transaccion: `TRX-C-${ctx.corrida.slice(0, 8)}-${clave}`,
+  }));
+  const ok = !r?.error && gcCuenta(`${clave} cliente real`, `select count(*) from crm.leads l where l.id = '${lead}' and l.etapa = 'convertido'
+      and l.activo and l.vendedor_id = '${vend1Id}' and l.inversionista_id is not null
+      and exists (select 1 from crm.cierres_externos ce where ce.lead_id = l.id and ce.es_cierre_inicial)`) === 1;
+  check(ok, `${clave}: vend1 convierte su lead por cooperativa (conversión real): convertido, activo, con persona y cierre externo inicial`,
+    r?.error ? errorText(r.error) : JSON.stringify(r?.data ?? null).slice(0, 160));
+  return ok ? lead : null;
+}
+
+// ── 2.10 · convertir a un cliente antiguo usa su misma ficha (20261022170800; auditor 2.10 r1 (g) y r2) ─────────────────────────
+async function gcConversionClienteAntiguo(sessions, seed, ctx) {
+  console.log('\n— 2.10 · convertir a un cliente antiguo sin ficha usa su misma ficha (20261022170800) —');
+  const ID = (k) => seed.profileIdByKey[k];
+  const crm = (k) => sessions[k].client.schema('crm');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-grupo-c-210'));
+  // C1: las tres piezas solo de postgres; la puerta, authenticated y su dueño.
+  for (const [firma, vol] of [['private.conversion_absorber_cliente_antiguo(uuid,uuid,text,uuid,uuid)', 'v'],
+    ['private.conversion_enlazar_cliente_antiguo(uuid,jsonb,uuid)', 'v'], ['private.lead_historia_de_persona(uuid,uuid)', 's']]) {
+    check(gcCuenta(`2.10 ${firma}`, gcSqlPiezaSoloPostgres(firma, { definer: false, volatilidad: vol })) === 1,
+      `2.10 C1 ${firma.split('(')[0]}: INVOKER, de postgres, search_path vacío y ACL {postgres=X/postgres}`);
+  }
+  check(gcCuenta('2.10 puerta', `select count(*) from pg_proc p where p.oid = to_regprocedure('crm.preparar_persona_lead_inversion_fn(uuid,text,text,text)')
+      and p.prosecdef and p.proowner = 'postgres'::regrole and position('conversion_absorber_cliente_antiguo' in p.prosrc) > 0
+      and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE')
+      and not has_function_privilege('service_role', p.oid, 'EXECUTE')`) === 1,
+  '2.10 C1 la puerta llama a la absorción y solo authenticated la ejecuta');
+  for (const [funcion, args] of [['conversion_absorber_cliente_antiguo', { p_lead: randomUUID() }], ['conversion_enlazar_cliente_antiguo', { p_persona: randomUUID() }],
+    ['lead_historia_de_persona', { p_lead: randomUUID() }]]) {
+    await gcPrivadaInalcanzable('2.10 D2', funcion, args, [['vend2', sessions.vend2.client], ['anon', anon]]);
+  }
+  const modo = gcTexto('2.10 modo del recorrido', 'select modo from crm.recorrido_control limit 1') ?? '(sin control)';
+  console.log(`  modo del recorrido en esta base: ${modo}`);
+  const CA = randomUUID();
+  const CB = randomUUID();
+  const CR = randomUUID();
+  gcSembrarConvertidos(ctx, [
+    { id: CA, nombre: 'RLS C 2.10 ANTIGUO ACTIVO', telefono: ctx.e164('2.10-CA'), dni: ctx.dni('2.10-DA'), vendedorId: ID('vend1'), activo: true },
+    { id: CB, nombre: 'RLS C 2.10 ANTIGUO BANDEJA', telefono: ctx.e164('2.10-CB'), dni: ctx.dni('2.10-DB'), supervisorId: ID('sup2'), activo: true },
+    { id: CR, nombre: 'RLS C 2.10 ANTIGUO RETIRADO', telefono: ctx.e164('2.10-CR'), dni: ctx.dni('2.10-DR'), vendedorId: ID('vend1'), activo: false },
+  ]);
+  const L1 = await gcLeadVivo(ctx, { clave: '2.10-L1', vendedorId: ID('vend2'), etapa: 'contactado', creadoPor: ID('gerencia') });
+  const L3 = await gcLeadVivo(ctx, { clave: '2.10-L3', vendedorId: ID('vend2'), etapa: 'contactado', creadoPor: ID('gerencia') });
+  const L4 = await gcLeadVivo(ctx, { clave: '2.10-L4', vendedorId: ID('vend2'), etapa: 'contactado', creadoPor: ID('gerencia') });
+  const preparar = (k, lead, documento) => (k === 'anon' ? anon.schema('crm') : k === 'service_role' ? admin.schema('crm') : crm(k))
+    .rpc('preparar_persona_lead_inversion_fn', { p_lead: lead, p_tipo_documento: 'DNI', p_documento: documento, p_nombre: 'RLS C 2.10 PERSONA' });
+  // DENEGADO SIN VEREDICTO (antes del recorrido y de cualquier veredicto).
+  for (const quien of ['coordinador', 'directorio']) {
+    const { error } = await preparar(quien, L3, ctx.dni('2.10-DA'));
+    check(error?.code === '42501' && gcSinVeredicto(error), `2.10 D1 ${quien} → 42501 en la puerta, sin veredicto`, errorText(error));
+  }
+  for (const quien of ['anon', 'service_role']) {
+    await expectExpectedFailure(`2.10 D1 ${quien} → 42501 (sin EXECUTE)`, preparar(quien, L3, ctx.dni('2.10-DA')), ['42501'], GC_SIN_EXECUTE);
+  }
+  await expectExpectedFailure('2.10 D3 vend3 (otro subárbol) prepara el lead de vend2 → 42501 antes de cualquier veredicto', preparar('vend3', L1, ctx.dni('2.10-DR')),
+    ['42501'], /^Lead no encontrado o fuera de tu ámbito$/);
+  // El recorrido (con 'exigir' la puerta lo pide antes de la absorción). Si no queda habilitado y el modo es 'exigir', NOT RUN.
+  const habilitados = {};
+  for (const [nombre, lead] of [['L1', L1], ['L3', L3], ['L4', L4]]) {
+    habilitados[nombre] = await gcRegistrarRecorrido(sessions.vend2.client, ID('vend2'), lead, `2.10 vend2 recorrido de ${nombre}`);
+  }
+  const puede = (nombre, caso) => {
+    if (habilitados[nombre] || modo !== 'exigir') return true;
+    saltarGrupoC(`⚠ 2.10 ${caso} NOT RUN bajo recorrido 'exigir': el recorrido de ${nombre} no quedó habilitado por HTTP (agendar + «Se realizó» con entrevista)`);
+    return false;
+  };
+  // DENEGADO CON VEREDICTO (P0481 con el detalle EXACTO y nada escrito): K5 antiguo activo de otro asesor, K6 en bandeja, K7 Gerencia.
+  const de1 = gcNombrePerfil(ID('vend1'));
+  const deSup2 = gcNombrePerfil(ID('sup2'));
+  const fotoK = () => [CA, CB, L3, L4].map(gcHuellaLead).join(',')
+    + `|${gcCuenta('2.10 operaciones', `select count(*) from crm.inversionista_operaciones where lead_id in ('${CA}', '${CB}')`)}`
+    + `|${gcCuenta('2.10 personas', `select count(*) from crm.inversionista_identificadores where documento_normalizado in ('${ctx.dni('2.10-DA')}', '${ctx.dni('2.10-DB')}')`)}`;
+  const antesK = fotoK();
+  if (puede('L3', 'K5/K7')) {
+    await gcEsperarP0481('2.10 K5 vend2 convierte con el DNI de un cliente antiguo ACTIVO de vend1', preparar('vend2', L3, ctx.dni('2.10-DA')),
+      { estado: 'ya_es_cliente', asesor: de1, exacto: { estado: 'ya_es_cliente', asesor: de1 } });
+    await gcEsperarP0481('2.10 K7 gerencia convierte el mismo lead con ese DNI (Gerencia no absorbe a un activo ajeno)', preparar('gerencia', L3, ctx.dni('2.10-DA')),
+      { estado: 'ya_es_cliente', asesor: de1, exacto: { estado: 'ya_es_cliente', asesor: de1 } });
+  }
+  if (puede('L4', 'K6')) {
+    await gcEsperarP0481('2.10 K6 vend2 convierte con el DNI de un cliente antiguo en la bandeja de sup2', preparar('vend2', L4, ctx.dni('2.10-DB')),
+      { estado: 'ya_es_cliente', asesor: deSup2, exacto: { estado: 'ya_es_cliente', asesor: deSup2 } });
+  }
+  check(fotoK() === antesK, '2.10 K5–K7 nada escrito: antiguos y leads intactos, sin operaciones ni personas con esos DNI', `${antesK} → ${fotoK()}`);
+  // PERMITIDO: K1 el antiguo RETIRADO se absorbe en la ficha de esta conversión; K4 el reintento es idempotente.
+  if (puede('L1', 'K1/K4')) {
+    const k1 = await positive('2.10 K1 vend2 convierte con el DNI de un cliente antiguo RETIRADO de vend1', preparar('vend2', L1, ctx.dni('2.10-DR')));
+    const persona = k1?.data?.inversionista_id ?? null;
+    check(Boolean(persona), '2.10 K1 la preparación devuelve la persona (inversionista_id)', JSON.stringify(k1?.data ?? null).slice(0, 200));
+    const fotoK1 = () => persona ? gcTexto('2.10 K1', `select concat_ws('|',
+        (select count(*) from crm.inversionista_leads il where il.lead_id = '${CR}' and il.rol = 'historico' and il.creado_por = '${ID('vend2')}'
+           and private.inversionista_canonica(il.inversionista_id) = '${persona}'),
+        (select count(*) from crm.inversionista_leads il where il.lead_id = '${CR}'),
+        (select count(*) from crm.inversionista_operaciones o where o.lead_id = '${CR}' and o.tipo = 'enlace' and o.por = '${ID('vend2')}'
+           and position('${ctx.dni('2.10-DR')}' in coalesce(o.motivo, '')) = 0 and o.detalle->>'lead_conversion' = '${L1}'),
+        (select count(*) from crm.leads l where l.id = '${CR}' and l.etapa = 'convertido' and not l.activo and l.vendedor_id = '${ID('vend1')}'),
+        (select count(*) from crm.inversionista_identificadores where documento_normalizado = '${ctx.dni('2.10-DR')}'))`) : null;
+    const k1Foto = fotoK1();
+    check(k1Foto === '1|1|1|1|1', '2.10 K1 el antiguo queda con UN puente histórico de vend2, UNA operación de enlace sin el DNI en el motivo, sigue convertido, retirado y de vend1, y hay una sola identidad con ese DNI',
+      k1Foto ?? '(sin persona)');
+    if (persona) {
+      const k4 = await positive('2.10 K4 vend2 repite la misma preparación', preparar('vend2', L1, ctx.dni('2.10-DR')));
+      check(k4?.data?.inversionista_id === persona && fotoK1() === k1Foto, '2.10 K4 el reintento devuelve la misma persona y no duplica puente ni operación',
+        JSON.stringify(k4?.data ?? null).slice(0, 200));
+    }
+  }
+}
+
+// ── 2.12 · el desglose de reuniones y la agenda conservan al de baja con su marca (20261022170900; auditor 2.12 TEST GAPS 1–14) ─
+async function gcReunionesDesgloseConBajas(sessions, seed, ctx) {
+  console.log('\n— 2.12 · reuniones y agenda conservan al analista de baja con su marca (20261022170900) —');
+  const ID = (k) => seed.profileIdByKey[k];
+  const crm = (k) => sessions[k].client.schema('crm');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-grupo-c-212'));
+  for (const firma of ['private.filtrar_desglose_sujetos_con_bajas_crm(jsonb,text,text,text[],text[])', 'private.desglose_responsables_reuniones_crm(jsonb)']) {
+    check(gcCuenta(`2.12 ${firma}`, gcSqlPiezaSoloPostgres(firma, { definer: false, volatilidad: 's' })) === 1,
+      `2.12 4) ${firma.split('(')[0]}: INVOKER, STABLE, de postgres, search_path vacío, ACL {postgres=X/postgres}`);
+  }
+  await gcPrivadaInalcanzable('2.12 4)', 'desglose_responsables_reuniones_crm', { p_payload: {} }, [['gerencia', sessions.gerencia.client], ['anon', anon]]);
+  await gcPrivadaInalcanzable('2.12 4)', 'filtrar_desglose_sujetos_con_bajas_crm', { p_payload: {} }, [['directorio', sessions.directorio.client]]);
+  const inactivo = ID('vendInactive');
+  if (gcCuenta('2.12 vendInactive de baja', `select count(*) from crm.equipo where perfil_id = '${inactivo}' and not activo and rol_crm in ('vendedor', 'supervisor')`) !== 1) {
+    fail('2.12: el fixture vendInactive no es un analista con ficha inactiva: no se puede medir la marca «de baja»');
+    return;
+  }
+  // Fixture: una cita PENDIENTE de ayer a nombre de vendInactive, sobre su lead, por la vía fuera de banda (copiando la forma de la
+  // reunión del fixture; un analista de baja no recibe tareas por la API). Se borra en el finally.
+  const cita = randomUUID();
+  const leadInactivo = seed.leadByName.get(LEAD_BY_KEY.inactiveOwned.name)?.id;
+  const reunionFixture = TAREA_BY_KEY.reunionCarlos?.id;
+  assertSeed(leadInactivo && reunionFixture, 'faltan el lead de vendInactive o la reunión del fixture');
+  ejecutarFueraDeBanda('2.12: sembrar la cita de vendInactive', `
+    set local session_replication_role = replica;
+    insert into crm.tareas select (jsonb_populate_record(t, jsonb_build_object(
+      'id', '${cita}', 'lead_id', '${leadInactivo}', 'vendedor_id', '${inactivo}', 'asignado_supervisor_id', null, 'perfil_id', null,
+      'inversionista_id', null, 'estado', 'pendiente', 'activo', true, 'titulo', 'RLS C 2.12 CITA DE BAJA ${ctx.corrida.slice(0, 8)}',
+      'vence_en', now() - interval '1 day', 'creado_en', now() - interval '2 days', 'creado_por', '${ID('gerencia')}',
+      'reagendada_de', null, 'reprogramaciones', 0, 'resultado_actividad_id', null, 'resultado_reunion', null, 'motivo_no_realizada', null,
+      'detalle_cierre_reunion', null, 'cancelada_por', null, 'cancelada_por_id', null, 'postventa_revision', null))).*
+    from crm.tareas t where t.id = '${reunionFixture}';
+    set local session_replication_role = default;`);
+  try {
+    const hoy = diaLima(0);
+    const P = { p_desde: diaLima(-7), p_hasta: hoy };
+    const CIFRAS = ['pactadas', 'realizadas', 'debieron_ocurrir', 'divisor_realizacion', 'canceladas_sistema_vencidas', 'canceladas_ajenas_vencidas',
+      'reprogramadas_vencidas', 'programadas_futuras', 'no_show', 'canceladas', 'reprogramadas', 'pendientes_cierre'];
+    const marcas = (x) => ['de_baja', 'suspendido', 'otros'].filter((k) => x?.[k] === true);
+    const estadoPerfiles = (ids) => {
+      const lista = ids.filter((id) => ID_DE_CORRIDA.test(id ?? ''));
+      if (lista.length === 0) return {};
+      const json = gcTexto('2.12 estado de fichas', `select coalesce(json_object_agg(e.perfil_id, json_build_object('ficha', e.activo, 'perfil', p.activo,
+          'rol', private.rol_crm(e.perfil_id))), '{}')::text from crm.equipo e join public.perfiles p on p.id = e.perfil_id
+        where e.perfil_id in (${lista.map((id) => `'${id}'`).join(',')})`);
+      return JSON.parse(json ?? '{}');
+    };
+    // 1) Gerencia: la baja con «de_baja», a lo sumo un «Otros» al final, cada marca cuadra con la ficha y el desglose suma el total.
+    const ger = await positive('2.12 1) gerencia obtiene las métricas de reuniones', crm('gerencia').rpc('metricas_reuniones_fn', P));
+    const filas = ger?.data?.responsables ?? [];
+    const resumen = ger?.data?.resumen ?? {};
+    const deBaja = filas.filter((x) => x.responsable_id === inactivo);
+    check(deBaja.length === 1 && deBaja[0].de_baja === true && marcas(deBaja[0]).length === 1 && deBaja[0].pactadas >= 1,
+      '2.12 1) el analista de baja sigue en el desglose de Gerencia, con sus citas y "de_baja": true', JSON.stringify(deBaja));
+    const otros = filas.filter((x) => x.otros === true);
+    check(otros.length <= 1 && (otros.length === 0 || (filas[filas.length - 1].otros === true && filas[filas.length - 1].responsable_id === null)),
+      '2.12 1) a lo sumo UNA fila «Otros», la última, sin responsable', JSON.stringify(otros));
+    const est = estadoPerfiles(filas.map((x) => x.responsable_id));
+    const incoherentes = filas.filter((x) => x.otros !== true).filter((x) => {
+      const e = est[x.responsable_id];
+      const m = marcas(x);
+      if (m.length > 1 || !e) return true;
+      if (m[0] === 'de_baja') return e.ficha !== false;
+      if (m[0] === 'suspendido') return !(e.ficha === true && e.perfil !== true);
+      return !['vendedor', 'supervisor'].includes(e.rol);
+    });
+    check(filas.length > 0 && incoherentes.length === 0,
+      '2.12 1) cada fila lleva como mucho una marca y cuadra con la ficha (de baja: ficha inactiva; suspendido: perfil inactivo; sin marca: rol efectivo)',
+      JSON.stringify(incoherentes).slice(0, 300));
+    const descuadres = CIFRAS.filter((k) => typeof resumen[k] === 'number')
+      .filter((k) => filas.reduce((s, x) => s + Number(x[k] ?? 0), 0) !== resumen[k]);
+    check(['pactadas', 'realizadas'].every((k) => typeof resumen[k] === 'number') && descuadres.length === 0,
+      '2.12 1) D-47: la suma del desglose (con «Otros») es el total del resumen en todas sus cifras', `descuadran: ${descuadres.join(',')}`);
+    // 2) Directorio = Gerencia.
+    const dir = await positive('2.12 2) directorio obtiene las métricas de reuniones', crm('directorio').rpc('metricas_reuniones_fn', P));
+    const firma = (lista) => JSON.stringify((lista ?? []).map((x) => `${x.responsable_id}:${marcas(x).join('+')}:${x.pactadas}`).sort());
+    check(firma(dir?.data?.responsables) === firma(filas), '2.12 2) Directorio ve el mismo desglose con las mismas marcas que Gerencia');
+    // 3) Denegados en reuniones.
+    for (const quien of ['vend1', 'sup1', 'sup2', 'coordinador', 'vendInactive']) {
+      await expectExplicitAuthorizationDenied(`2.12 3) ${quien} no ejecuta metricas_reuniones_fn`, crm(quien).rpc('metricas_reuniones_fn', P));
+    }
+    await expectExplicitAuthorizationDenied('2.12 3) anon no ejecuta metricas_reuniones_fn', anon.schema('crm').rpc('metricas_reuniones_fn', P));
+    // Agenda: 5) sup2 ve a su analista de baja con actividad, marcado; 7) sup1 no; 9) vend1 solo su fila; 10) Gerencia/Directorio también.
+    const agenda = async (quien) => {
+      const r = await positive(`2.12 ${quien} obtiene la agenda del equipo`, crm(quien).rpc('metricas_agenda_fn', P));
+      return r?.data?.vendedores ?? null;
+    };
+    const filaDe = (lista, id) => (lista ?? []).filter((x) => x.vendedor_id === id);
+    const s2 = await agenda('sup2');
+    const enS2 = filaDe(s2, inactivo);
+    check(enS2.length === 1 && enS2[0].de_baja === true && marcas(enS2[0]).length === 1 && (!('activo' in enS2[0]) || enS2[0].activo === false),
+      '2.12 5) sup2 ve a su analista de baja con actividad en el período, con "de_baja": true (y activo:false si viaja)', JSON.stringify(enS2));
+    const s1 = await agenda('sup1');
+    check(Array.isArray(s1) && filaDe(s1, inactivo).length === 0, '2.12 7) sup1 (otro subárbol) no ve al analista de baja de sup2');
+    const v1 = await agenda('vend1');
+    check(Array.isArray(v1) && v1.every((x) => x.vendedor_id === ID('vend1') && marcas(x).length === 0),
+      '2.12 9) vend1 solo recibe su fila, sin marcas', JSON.stringify(v1).slice(0, 200));
+    for (const quien of ['gerencia', 'directorio']) {
+      const lista = await agenda(quien);
+      const fila = filaDe(lista, inactivo);
+      check(fila.length === 1 && fila[0].de_baja === true, `2.12 10) ${quien} ve al analista de baja marcado en la agenda`, JSON.stringify(fila));
+      check((lista ?? []).every((x) => marcas(x).length <= 1 && (x.de_baja !== true || !('activo' in x) || x.activo === false)
+          && (x.suspendido !== true || !('activo' in x) || x.activo === true)),
+        `2.12 12) ${quien}: como mucho una marca por fila y cuadra con «activo»`);
+    }
+    // 13) Denegados en la agenda.
+    for (const quien of ['coordinador', 'vendInactive']) {
+      await expectExplicitAuthorizationDenied(`2.12 13) ${quien} no ejecuta metricas_agenda_fn`, crm(quien).rpc('metricas_agenda_fn', P));
+    }
+    await expectExplicitAuthorizationDenied('2.12 13) anon no ejecuta metricas_agenda_fn', anon.schema('crm').rpc('metricas_agenda_fn', P));
+  } finally {
+    ejecutarFueraDeBanda('2.12: retirar la cita sembrada de vendInactive', `
+      set local session_replication_role = replica;
+      delete from crm.tareas where id = '${cita}';
+      set local session_replication_role = default;`);
+  }
+}
+
+// ── 2.15 · el CRM cancela solo las solicitudes que ya no corresponden (20261022171000; auditor 2.15 TEST GAPS) ────────────────────
+async function gcSolicitudesDesechadasSolas(sessions, seed, _ctx) {
+  console.log('\n— 2.15 · el CRM cancela solo las solicitudes de inversión que ya no corresponden (20261022171000) —');
+  const ID = (k) => seed.profileIdByKey[k];
+  const crm = (k) => sessions[k].client.schema('crm');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-grupo-c-215'));
+  // Catálogo: la tabla de corridas (RLS, sin grants, sin policy DELETE), las dos columnas sin grants, el CHECK, las piezas y las puertas.
+  check(gcCuenta('2.15 tabla', `select count(*) from pg_class c where c.oid = 'crm.solicitudes_desechadas_corridas'::regclass and c.relrowsecurity
+      and c.relowner = 'postgres'::regrole
+      and not exists (select 1 from unnest(array['anon','authenticated','service_role']) r(rol), unnest(array['SELECT','INSERT','UPDATE','DELETE']) x(priv)
+                       where has_table_privilege(r.rol, c.oid, x.priv))
+      and not exists (select 1 from pg_policy p where p.polrelid = c.oid and p.polcmd in ('d', '*'))`) === 1,
+  '2.15 catálogo: crm.solicitudes_desechadas_corridas con RLS, de postgres, sin ningún grant para la API y sin policy DELETE');
+  check(gcCuenta('2.15 columnas', `select count(*) from unnest(array['anon','authenticated']) r(rol), unnest(array['cancelacion_motivo','cancelacion_detalle']) c(col)
+      where has_column_privilege(r.rol, 'crm.inversion_solicitudes', c.col, 'SELECT')`) === 0
+    && gcCuenta('2.15 CHECK', `select count(*) from pg_constraint where conrelid = 'crm.inversion_solicitudes'::regclass
+      and conname in ('inversion_solicitud_cancelacion_motivo_valido', 'inversion_solicitud_cancelacion_coherente') and convalidated`) === 2,
+  '2.15 catálogo: cancelacion_motivo/detalle sin lectura para la API y los dos CHECK del motivo validados');
+  for (const firma of ['private.solicitud_desechar(uuid,text,jsonb)', 'private.solicitudes_desechar_por_contrato(uuid)',
+    'private.solicitudes_desechar_ciclo(timestamptz,integer,integer)', 'private.solicitud_cancelacion_vista(uuid)']) {
+    check(gcCuenta(`2.15 ${firma}`, gcSqlPiezaSoloPostgres(firma, { definer: false })) === 1,
+      `2.15 catálogo: ${firma.split('(')[0]} INVOKER, de postgres, search_path vacío, ACL {postgres=X/postgres}`);
+  }
+  check(gcCuenta('2.15 puertas', `select count(*) from pg_proc p where p.oid in (to_regprocedure('crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb)'),
+      to_regprocedure('crm.solicitud_inversion_fn(uuid)')) and p.prosecdef and has_function_privilege('authenticated', p.oid, 'EXECUTE')
+      and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')`) === 2,
+  '2.15 catálogo: las dos puertas (alta de contrato v2 y consulta de solicitud) solo para authenticated');
+  if (gcTexto('2.15 pg_cron', "select (to_regclass('cron.job') is not null)::text") === 'true') {
+    check(gcCuenta('2.15 reloj', `select count(*) from cron.job j where j.jobname = 'crm-solicitudes-desechar' and j.active and j.schedule = '17 7 * * *'
+        and j.username = 'postgres' and j.command = 'select private.solicitudes_desechar_ciclo()'`) === 1
+      && gcCuenta('2.15 un reloj', "select count(*) from cron.job j where j.command ilike '%solicitudes_desechar%'") === 1,
+    '2.15 el reloj: UN trabajo crm-solicitudes-desechar activo, de postgres, a las 07:17 UTC');
+  } else {
+    saltarGrupoC('⚠ 2.15 el reloj (pg_cron) NO se mide: esta base no tiene cron.job');
+  }
+  // API: la tabla de corridas y las columnas nuevas no se leen por PostgREST (ni service_role, que no tiene grants).
+  for (const [quien, cliente] of [['anon', anon], ['vend1', sessions.vend1.client], ['gerencia', sessions.gerencia.client], ['service_role', admin]]) {
+    await expectExplicitAuthorizationDenied(`2.15 ${quien} no lee crm.solicitudes_desechadas_corridas`,
+      cliente.schema('crm').from('solicitudes_desechadas_corridas').select('id').limit(1));
+    await expectExplicitAuthorizationDenied(`2.15 ${quien} no lee cancelacion_motivo de crm.inversion_solicitudes`,
+      cliente.schema('crm').from('inversion_solicitudes').select('cancelacion_motivo').limit(1));
+  }
+  await gcPrivadaInalcanzable('2.15', 'solicitudes_desechar_ciclo', {}, [['gerencia', sessions.gerencia.client], ['anon', anon]]);
+  await gcPrivadaInalcanzable('2.15', 'solicitud_cancelacion_vista', { p_solicitud: randomUUID() }, [['vend1', sessions.vend1.client]]);
+  // Consulta de una solicitud real de vend1 (la crean los bloques de conversión del gate): las tres claves nuevas y sin regresión de roles.
+  const solicitud = gcTexto('2.15 solicitud de vend1', `select s.id from crm.inversion_solicitudes s join crm.leads l on l.id = s.lead_origen_id
+      where s.responsable_esperado_id = '${ID('vend1')}' and l.vendedor_id = '${ID('vend1')}' order by s.creado_en desc limit 1`);
+  if (!solicitud) {
+    saltarGrupoC('⚠ 2.15 la consulta de una solicitud por roles NO se mide: no hay solicitud de vend1 en esta base (la crean los bloques de conversión del gate)');
+    return;
+  }
+  const consulta = (quien) => (quien === 'anon' ? anon.schema('crm') : crm(quien)).rpc('solicitud_inversion_fn', { p_solicitud: solicitud });
+  for (const quien of ['vend1', 'gerencia']) {
+    const r = await positive(`2.15 ${quien} consulta la solicitud de vend1`, consulta(quien));
+    check(r && ['cancelacion_motivo', 'cancelacion_detalle', 'cancelacion_texto'].every((k) => k in (r.data ?? {}))
+        && (r.data.cancelacion_detalle == null || !('contrato_id' in r.data.cancelacion_detalle)),
+      `2.15 ${quien} recibe las tres claves de la cancelación (sin el contrato_id ajeno)`, JSON.stringify(r?.data ?? null).slice(0, 200));
+  }
+  for (const quien of ['vend3', 'sup2', 'coordinador', 'directorio', 'vendInactive', 'anon']) {
+    const { data, error } = await consulta(quien);
+    check(Boolean(error) && (isAuthorizationError(error) || error?.code === 'P0002') && data == null,
+      `2.15 ${quien} no consulta la solicitud de vend1 (42501/P0002, como hoy)`, errorText(error));
+  }
+}
+
+async function testGrupoCFase4(sessions, seed) {
+  console.log('\n— Fase 4 · grupo C: 2.1, 2.4, 2.7, 2.8, 2.9, 2.11, 2.13, 2.10, 2.12 y 2.15 —');
+  let hay;
+  try {
+    hay = JSON.parse(textoFueraDeBanda('grupo C: detectar las migraciones', `select json_build_object(
+      '2.1', exists (select 1 from pg_proc p where p.oid = to_regprocedure('private.trg_tareas_before_update()')
+                     and position('Aún no llega la hora de la cita' in p.prosrc) > 0),
+      '2.4', to_regprocedure('${GC_NUCLEO_ALTA}') is not null,
+      '2.7', exists (select 1 from pg_proc p where p.oid = to_regprocedure('${GC_NUCLEO_ALTA}') and position('v_convertido' in p.prosrc) > 0),
+      '2.8', to_regprocedure('private.juicio_cliente_convertido(text,text,text,uuid)') is not null,
+      '2.9', exists (select 1 from pg_proc p where p.oid = to_regprocedure('private.bases_carga_contacto_existente(text,text)')
+                     and position('l.telefono_alternativo = p_telefono' in p.prosrc) > 0),
+      '2.11', to_regprocedure('private.juicio_cliente_conservado(uuid)') is not null,
+      '2.13', to_regprocedure('private.juicio_lead_vivo_por_numero(text,uuid)') is not null,
+      '2.10', to_regprocedure('private.conversion_absorber_cliente_antiguo(uuid,uuid,text,uuid,uuid)') is not null,
+      '2.12', to_regprocedure('private.desglose_responsables_reuniones_crm(jsonb)') is not null,
+      '2.15', to_regclass('crm.solicitudes_desechadas_corridas') is not null)::text`) ?? '{}');
+  } catch (error) {
+    saltarGrupoC(`⚠ Grupo C SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  const BLOQUES = [
+    ['2.1', '20261022170100 («No asistió» espera a la hora)', gcNoAsistioEsperaHora, false],
+    ['2.4', '20261022170200 (el alta reactiva la ficha retirada)', gcAltaReactivaRetirado, false],
+    ['2.7', '20261022170300 (cliente por teléfono y DNI)', gcClientePorTelefono, false],
+    ['2.8', '20261022170400 (el cliente no se duplica al editar)', gcClienteNoSeDuplicaAlEditar, false],
+    ['2.9', '20261022170500 (bases y alternativo del cliente)', gcBasesAlternativoCliente, false],
+    ['2.11', '20261022170600 (reactivar reconoce al cliente)', gcReactivarReconoceCliente, false],
+    ['2.13', '20261022170700 (el alternativo del cliente no toma un lead)', gcAlternativoClienteNoTomaLead, false],
+    ['2.10', '20261022170800 (conversión del cliente antiguo)', gcConversionClienteAntiguo, true],
+    ['2.12', '20261022170900 (reuniones y agenda con bajas)', gcReunionesDesgloseConBajas, false],
+    // Ronda 2: la consulta de la solicitud exige el registro multiempresa; un bloque anterior deja las banderas apagadas (en producción
+    // están en true): se guardan, se encienden y se restauran (conInversionesVigentes, l.190).
+    ['2.15', '20261022171000 (solicitudes desechadas solas)', gcSolicitudesDesechadasSolas, true],
+  ];
+  const pendientes = BLOQUES.filter(([bloque, migracion]) => {
+    if (hay[bloque] === true) return true;
+    saltarGrupoC(`⚠ ${migracion} NO está en esta base: bloque ${bloque} SALTADO (no probado)`);
+    return false;
+  });
+  if (pendientes.length === 0) return;
+  let ctx;
+  try {
+    ctx = gcPrepararCorrida();
+  } catch (error) {
+    fail(`grupo C: no se pudo preparar la corrida — ${error?.message ?? String(error)}`);
+    return;
+  }
+  console.log(`  corrida ${ctx.corrida}: teléfonos +51${ctx.prefijoTel}xxxx`);
+  try {
+    for (const [bloque, , prueba, conInversiones] of pendientes) {
+      try {
+        if (conInversiones) await conInversionesVigentes(() => prueba(sessions, seed, ctx));
+        else await prueba(sessions, seed, ctx);
+      } catch (error) {
+        fail(`grupo C ${bloque}: el bloque se interrumpió — ${error?.message ?? String(error)}`);
+      }
+    }
+  } finally {
+    // Da de baja TODO lo de la corrida (marca, bloque de teléfonos e ids) y nunca tapa un error: si falla, queda el SQL a mano.
+    try {
+      ejecutarFueraDeBanda(`grupo C: retirar lo de la corrida ${ctx.corrida}`, gcSqlRetiroDeCorrida(ctx));
+      check(gcCuenta('vivos de la corrida', `select count(*) from crm.leads where activo and (nota = '${ctx.marca}'
+          or telefono like '+51${ctx.prefijoTel}%' or telefono like '${ctx.prefijoTel}%')`) === 0,
+      `grupo C limpieza: ningún lead de la corrida ${ctx.corrida} queda activo`);
+    } catch (error) {
+      fail(`grupo C limpieza: NO se pudo retirar lo de la corrida ${ctx.corrida} — ${error?.message ?? String(error)}. A mano por la vía fuera `
+        + `de banda: begin; ${gcSqlRetiroDeCorrida(ctx).replace(/\s+/g, ' ')} commit;`);
+    }
+  }
+}
+
 async function main() {
   let primaryError = null;
   const recoveryErrors = [];
@@ -21203,6 +22416,9 @@ async function main() {
       // Fase 4 · grupo A (2.3 y 2.6), el ÚLTIMO a propósito: siembra y retira su propio mes sellado (2001-07) y deja
       // inactivas las identidades D-17; nada de eso puede alterar a un bloque posterior.
       await testGrupoAFase4(sessions, verifiedSeed);
+      // Fase 4 · grupo C (2.1, 2.4, 2.7, 2.8, 2.9, 2.11, 2.13, 2.10, 2.12 y 2.15), después del grupo A: siembra sus clientes y leads con
+      // contactos PROPIOS de la corrida y los da de baja en su finally; nada de eso puede alterar a un bloque anterior.
+      await testGrupoCFase4(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;
@@ -21232,13 +22448,19 @@ async function main() {
   }
 
   // Auditor P3-2: si el grupo A se saltó (sin CRM_RLS_EXIGE_GRUPO_A=1), el resumen no puede decir «gate aprobado» a secas.
-  const noProbado = grupoANoProbado.length > 0 ? `grupo A NO PROBADO (${grupoANoProbado.join(' · ')})` : '';
+  // C5 (22/10/2026): lo mismo con el grupo C (sin CRM_RLS_EXIGE_GRUPO_C=1).
+  const noProbado = [
+    grupoANoProbado.length > 0 ? `grupo A NO PROBADO (${grupoANoProbado.join(' · ')})` : '',
+    grupoCNoProbado.length > 0 ? `grupo C NO PROBADO (${grupoCNoProbado.join(' · ')})` : '',
+  ].filter(Boolean).join('; ');
   if (failures === 0) {
     const alcance = args.has('--contratos') ? ' CONTRATOS' : args.has('--identidad-d5') ? ' IDENTIDAD D5'
       : args.has('--facturacion-nombres') ? ' FACTURACIÓN NOMBRES' : args.has('--llamadas') ? ' LLAMADAS' : '';
     if (noProbado) {
-      console.log(`\n⚠️ RLS${alcance} OK — ${assertions} aserciones; ${noProbado}. Esto NO aprueba el grupo A: repetir en su branch `
-        + 'con CRM_RLS_EXIGE_GRUPO_A=1.');
+      const banderas = [grupoANoProbado.length > 0 ? 'CRM_RLS_EXIGE_GRUPO_A=1' : '', grupoCNoProbado.length > 0 ? 'CRM_RLS_EXIGE_GRUPO_C=1' : '']
+        .filter(Boolean).join(' y ');
+      console.log(`\n⚠️ RLS${alcance} OK — ${assertions} aserciones; ${noProbado}. Esto NO aprueba lo no probado: repetir en su branch `
+        + `con ${banderas}.`);
       return;
     }
     console.log(`\n✅ RLS${alcance} OK — ${assertions} aserciones; gate aprobado`);

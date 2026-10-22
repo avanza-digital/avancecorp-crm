@@ -10,6 +10,7 @@ import { defaults, type FiltrosCitas } from './modelo'
 import { metaCitas, baseCitasFiltrada } from './metas'
 import { Inasistencias } from './inasistencias'
 import { AvanceMensualCitas } from './avance-mensual'
+import { MarcaAnalista } from './marca-analista'
 
 function AyudaMetricas({ abierta, onCerrar }: { abierta: boolean; onCerrar: () => void }) {
   const { corte, depositosDisponibles, depositoPorConversion } = useDatosCitas()
@@ -73,7 +74,7 @@ export function Resultados({ citas, filtros = defaults(), onAnalista, onDesglose
           <caption className="sr-only">Resultados por analista de las citas filtradas</caption>
           <thead><tr><th scope="col">Analista</th>{columnas.supervisor && <th scope="col">Supervisor</th>}<th scope="col">Citas computables</th><th scope="col">Leads asignados</th><th scope="col">Citas por lead</th><th scope="col">Cumplimiento</th>{columnas.repetidos && <th scope="col">Leads con 2+ citas</th>}{columnas.realizadas && <th scope="col">Realizadas</th>}<th scope="col"><span className="sr-only">Detalle por lead</span></th></tr></thead>
           <tbody>{filas.map(fila => <tr key={fila.id}>
-            <th scope="row"><Button variant="link" className="citas-enlace-analista" onClick={() => onAnalista(fila.id)}>{fila.nombre}</Button></th>
+            <th scope="row"><span className="inline-flex flex-wrap items-center gap-1.5"><Button variant="link" className="citas-enlace-analista" onClick={() => onAnalista(fila.id)}>{fila.nombre}</Button><MarcaAnalista estado={fila.estado} /></span></th>
             {columnas.supervisor && <td>{fila.supervisor}</td>}
             <td>{fila.citas ?? '—'}</td><td>{fila.leads ?? '—'}</td><td className="citas-promedio">{numero(fila.promedio, 2)}</td><td aria-label={fila.cumplimiento === null ? "Sin base" : `${numero(fila.cumplimiento, 1)}%`}><div className="citas-cumplimiento"><strong>{fila.cumplimiento === null ? '—' : numero(fila.cumplimiento, 1) + '%'}</strong><div className="citas-barra-meta" aria-hidden="true"><Progress value={(fila.cumplimiento ?? 0)} color="var(--gi-blue)" /></div></div></td>
             {columnas.repetidos && <td>{fila.repetidos}</td>}{columnas.realizadas && <td>{fila.realizadas}</td>}
@@ -88,14 +89,14 @@ export function Resultados({ citas, filtros = defaults(), onAnalista, onDesglose
 }
 
 export function DetalleLeads({ analista, citas, filtros = defaults(), onCerrar, onLead }: { analista: string | null; citas: CitaConLead[]; filtros?: FiltrosCitas; onCerrar: () => void; onLead: (leadId: string, analista: string) => void }) {
-  const { nombreAnalista, gestion, onAbrirLead } = useDatosCitas()
+  const { nombreAnalista, estadoAnalista, gestion, onAbrirLead } = useDatosCitas()
   const delAnalista = citas.filter(cita => cita.analista === analista)
   const base = gestion ? baseCitasFiltrada(gestion.asignaciones, filtros).filter(l => l.id === analista && !l.manualPropio) : undefined
   const conCitas = citasPorLead(delAnalista)
   const leads = [...conCitas, ...(base ?? []).filter(l => !conCitas.some(c => c.id === l.leadId)).map(l => ({id:l.leadId,nombre:l.nombreLead,citas:[] as CitaConLead[]}))]
   const resumen = metaCitas(delAnalista, base, gestion?.citasPorLead, gestion?.actividadManuales)
   return <Sheet open={Boolean(analista)} onClose={onCerrar} className="citas-crm-dialogo w-[540px]">
-    <SheetHeader><div className="flex items-start justify-between gap-3"><div><p className="mb-1 text-xs text-muted-foreground-strong">Citas por lead · filtros actuales</p><SheetTitle>{analista ? nombreAnalista(analista) : 'Detalle por lead'}</SheetTitle></div><Button variant="ghost" size="icon" aria-label="Cerrar detalle por lead" onClick={onCerrar}><X aria-hidden /></Button></div></SheetHeader>
+    <SheetHeader><div className="flex items-start justify-between gap-3"><div><p className="mb-1 text-xs text-muted-foreground-strong">Citas por lead · filtros actuales</p><SheetTitle>{analista ? <span className="inline-flex flex-wrap items-center gap-1.5">{nombreAnalista(analista)}<MarcaAnalista estado={estadoAnalista(analista)} /></span> : 'Detalle por lead'}</SheetTitle></div><Button variant="ghost" size="icon" aria-label="Cerrar detalle por lead" onClick={onCerrar}><X aria-hidden /></Button></div></SheetHeader>
     <SheetBody><p className="mb-2 text-sm"><strong>{delAnalista.length} citas</strong> en <strong>{conCitas.length} leads con cita</strong>. La base del mes contiene <strong>{resumen.leads ?? '—'} leads asignados</strong>.</p>
       <p className="mb-4 text-sm text-muted-foreground-strong">{resumen.cumplimiento === null ? 'Sin base' : numero(resumen.cumplimiento, 1) + '% de cumplimiento'}</p>
       <ul className="divide-y divide-border">{leads.map(lead => <li key={lead.id} className="flex items-center justify-between gap-3 py-4"><div><h3 className="text-sm font-semibold">{lead.nombre}</h3><p className="mt-1 text-xs text-muted-foreground-strong">{lead.id} · {lead.citas.length} {lead.citas.length === 1 ? 'cita' : 'citas'}</p></div>{lead.citas.length ? <Button variant="outline" size="sm" aria-label={'Ver citas de ' + lead.nombre} onClick={() => onLead(lead.id, analista!)}>Ver citas <ChevronRight aria-hidden /></Button> : onAbrirLead ? <Button variant="outline" size="sm" onClick={() => { onCerrar(); onAbrirLead(lead.id, '') }}>Ver ficha</Button> : <span className="text-xs text-muted-foreground-strong">Sin citas</span>}</li>)}</ul>

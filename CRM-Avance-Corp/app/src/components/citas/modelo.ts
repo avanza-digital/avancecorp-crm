@@ -1,7 +1,13 @@
 import { diaCitasValido } from '@/lib/enlace-citas'
 
 export type EstadoCita = 'vencida' | 'programada' | 'realizada' | 'no_show' | 'reprogramada' | 'cancelada' | 'sistema'
-export interface PersonaCitas { id: string; nombre: string; supervisor: string; supervisorId: string }
+/** D-53 (bloque 2.14): el estado de hoy del analista, con las definiciones del 2.12 («activo» = sin marca). */
+export type EstadoAnalista = 'activo' | 'de_baja' | 'suspendido'
+export interface PersonaCitas { id: string; nombre: string; supervisor: string; supervisorId: string; estado?: EstadoAnalista }
+/** La marca como texto, para donde no cabe una etiqueta (las opciones del filtro de analista y su chip). */
+export function sufijoEstado(estado?: EstadoAnalista | undefined): string {
+  return estado === 'de_baja' ? ' · de baja' : estado === 'suspendido' ? ' · suspendido' : ''
+}
 export interface CitaEjemplo {
   id: string; leadId: string; nombre: string; telefono: string; analista: string; analistaNombre: string;
   supervisor: string; supervisorId: string; fecha: string; hora: string; estado: EstadoCita;
@@ -11,6 +17,8 @@ export interface CitaEjemplo {
   citaAnteriorId?: string; reprogramadaEn?: string; asistioEn?: string;
   manualPropio?: boolean;
   registroManual?: boolean; creadoEn?: string;
+  /** D-53: el estado de hoy del analista responsable (el servidor anterior no lo manda). */
+  analistaEstado?: EstadoAnalista;
   /** La persona YA era cliente al crearse la cita (servidor, Fase 0). Ausente: la Proyección usa su respaldo. */
   esCliente?: boolean;
 }
@@ -104,6 +112,18 @@ export function csv(citas: CitaEjemplo[]) {
 }
 
 export function equipoCitas(citas: CitaEjemplo[]): PersonaCitas[] {
-  return [...new Map(citas.map(c => [c.analista, { id: c.analista, nombre: c.analistaNombre, supervisor: c.supervisor, supervisorId: c.supervisorId }])).values()]
+  return fusionarPersonas(citas.map(c => ({ id: c.analista, nombre: c.analistaNombre, supervisor: c.supervisor, supervisorId: c.supervisorId, ...(c.analistaEstado ? { estado: c.analistaEstado } : {}) })))
     .sort((a,b) => a.nombre.localeCompare(b.nombre, 'es'))
+}
+
+/** Una persona por id: la última fuente manda en nombre y supervisor (las fuentes con actividad van al final), y el
+ * estado de hoy se conserva aunque una fuente posterior no lo traiga (D-53). */
+export function fusionarPersonas<T extends PersonaCitas>(personas: T[]): T[] {
+  const porId = new Map<string, T>()
+  for (const persona of personas) {
+    const previa = porId.get(persona.id)
+    const estado = persona.estado ?? previa?.estado
+    porId.set(persona.id, { ...previa, ...persona, ...(estado ? { estado } : {}) })
+  }
+  return [...porId.values()]
 }

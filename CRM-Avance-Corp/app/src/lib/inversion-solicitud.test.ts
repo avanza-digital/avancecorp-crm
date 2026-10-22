@@ -5,6 +5,28 @@ import {datosAvanceRevisados,mismoContenidoInversion,guardarBorradorAcceso,guard
   solicitudCorresponde,SolicitudInversionSchema,type DatosBorradorCondiciones,type SolicitudInversion,type DatosInversion} from './inversion-solicitud'
 import * as v from 'valibot'
 const base: DatosInversion={inversionista_id:'11111111-1111-4111-8111-111111111111',empresa:'avance'}
+describe('Motivo de una cancelación automática (bloque 2.15)',()=>{
+  const base_solicitud={solicitud_id:'11111111-1111-4111-8111-111111111111',estado:'cancelada',inversion_id:null,
+    inversionista_id:'11111111-1111-4111-8111-111111111111',inversionista_origen_id:'11111111-1111-4111-8111-111111111111',
+    identidad_fusionada:false,responsable_esperado_id:null,responsable_actual_id:null,requiere_revision_responsable:false,
+    revision_datos:0,revision_responsable:0,hash_datos:'h',necesita_portal:false,comprobante_bucket:null,comprobante_ruta:null,resultado:null}
+  it('acepta las tres claves del servidor (motivo, detalle y texto) y las conserva',()=>{
+    const r=v.parse(SolicitudInversionSchema,{...base_solicitud,cancelacion_motivo:'sin_movimiento',
+      cancelacion_detalle:{via:'tarea',dias:30,corrida_id:'22222222-2222-4222-8222-222222222222'},
+      cancelacion_texto:'El CRM canceló esta solicitud: llevaba 30 días sin confirmarse ni corregirse.'})
+    expect(r.cancelacion_motivo).toBe('sin_movimiento')
+    expect(r.cancelacion_texto).toBe('El CRM canceló esta solicitud: llevaba 30 días sin confirmarse ni corregirse.')
+    expect(r.cancelacion_detalle).toEqual({via:'tarea',dias:30,corrida_id:'22222222-2222-4222-8222-222222222222'})
+  })
+  it('sin las claves (servidor anterior) o con ellas nulas (cancelación de la pantalla) sigue válida y sin motivo',()=>{
+    expect(v.parse(SolicitudInversionSchema,base_solicitud).cancelacion_texto).toBeUndefined()
+    const r=v.parse(SolicitudInversionSchema,{...base_solicitud,cancelacion_motivo:null,cancelacion_detalle:null,cancelacion_texto:null})
+    expect(r.cancelacion_motivo).toBeNull();expect(r.cancelacion_texto).toBeNull()
+  })
+  it('rechaza un motivo que el CRM no emite',()=>{
+    expect(v.safeParse(SolicitudInversionSchema,{...base_solicitud,cancelacion_motivo:'otro',cancelacion_detalle:{},cancelacion_texto:'x'}).success).toBe(false)
+  })
+})
 describe('Contenido de una solicitud F5',()=>{
   it('releer JSONB con otro orden no exige corregir; cambiar importe u orden de cuotas sí',()=>{
     const a={...base,contrato:{capital:1500,moneda:'PEN'},cuenta:{banco:'BCP',tipo:'nueva'},cronograma:[1,2]}

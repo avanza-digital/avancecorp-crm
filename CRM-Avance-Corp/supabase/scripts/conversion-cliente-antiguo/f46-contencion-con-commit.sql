@@ -1,0 +1,79 @@
+-- F4.6 (branch de integración) — CONTENCIÓN REAL CON COMMIT del bloque 2.10 («convertir y editar a la vez»). NO SE EJECUTA EN EL
+-- LABORATORIO compartido: una de las dos sesiones CONFIRMA, y allí nada se confirma. Es el guion para la branch (base desechable),
+-- con psql y dos conexiones; las variables (-v) salen del montaje previo.
+--
+-- Qué defiende la migración (medido en el laboratorio sin confirmar: `espera.sh`, candado del documento) y qué queda por probar aquí:
+--   · La pieza de absorción toma la fila de cada cliente antiguo candidato FOR UPDATE NOWAIT, DESPUÉS de los candados de hoy
+--     (documento → persona → el lead que se convierte). Quien tenga esa fila (una edición por la ficha, un retiro por API, un enlace
+--     de Gerencia) hace que la conversión responda 40001 «El lead está en uso por otra operación; vuelve a intentarlo» sin escribir
+--     nada; quien llegue después de un COMMIT ajeno juzga con lo confirmado (Postgres reevalúa la fila al tomarla).
+--   · Quien cambie el DNI del antiguo por su puerta (`crm.fijar_dni_lead_fn` / corrección de Gerencia) pasa por el candado del
+--     documento, que la conversión ya tenía: se serializa delante o detrás (espera medida en el laboratorio).
+--   · Un antiguo ya absorbido (puente histórico) no admite cambiar su DNI (`private.trg_leads_zz_enlaza_identidad`: «documento de
+--     una persona reconocida»).
+--   · Ronda 2 (D-83): la pieza toma también el CIERRE EXTERNO INICIAL de cada candidato FOR UPDATE NOWAIT antes de completarlo con la
+--     persona (quien tenga esa fila —una anulación comercial, una corrección de Gerencia— hace que la conversión responda 40001).
+--
+-- Montaje previo (como el oráculo; bloque de números 92409 libre): un cliente antiguo SIN persona, ACTIVO, de VEND2 (alta real +
+-- conversión sembrada con su cierre externo inicial), y un lead nuevo de VEND2 sin DNI. Variables: antiguo, nuevo, vend2, gerencia, dni.
+--
+-- ══ CARRERA 1: retirar el antiguo (Gerencia, por API) mientras VEND2 convierte ═════════════════════════════════════════
+-- Sesión A (conexión 1):
+-- begin;
+-- select set_config('request.jwt.claim.sub', :'gerencia', true),
+--        set_config('request.jwt.claims', json_build_object('sub', :'gerencia', 'role', 'authenticated')::text, true);
+-- update crm.leads set activo = false where id = :'antiguo'::uuid;   -- la fila queda tomada
+-- select pg_sleep(8);
+-- commit;
+-- Sesión B (conexión 2; empieza 1 s después de A):
+-- begin;
+-- \i <la migración de este bloque sin su begin/commit>    -- (en la branch ya estará aplicada: entonces sin \i)
+-- select set_config('request.jwt.claim.sub', :'vend2', true),
+--        set_config('request.jwt.claims', json_build_object('sub', :'vend2', 'role', 'authenticated')::text, true);
+-- select crm.preparar_persona_lead_inversion_fn(:'nuevo'::uuid, 'DNI', :'dni', 'F46 NUEVO');
+-- -- Esperado mientras A retiene: 40001 «El lead está en uso por otra operación; vuelve a intentarlo» (NOWAIT: no espera) y nada
+-- -- escrito. Tras el COMMIT de A, repetir la llamada: ok; el antiguo (ya retirado por Gerencia) se absorbe como retirado: sin nota,
+-- -- sin retiro nuevo, con puente histórico y su operación «enlace» (detalle lead_antiguo_activo=false).
+-- rollback;
+--
+-- ══ CARRERA 2: cambiar el DNI del antiguo por la ficha (VEND2) mientras otro convierte con ese DNI ═════════════════════
+-- Sesión A: begin; (sesión de VEND2) select crm.editar_lead_fn(:'antiguo'::uuid, jsonb_build_object('dni', '<otro DNI libre>'));
+--           select pg_sleep(8); commit;
+-- Sesión B (1 s después): la preparación con :'dni' ⇒ ESPERA en el candado del documento (si A fue por la puerta del DNI) o 40001
+--           (si A tomó la fila primero); tras el COMMIT de A el antiguo ya no tiene ese DNI: no es candidato ⇒ persona nueva (como
+--           hoy, correcto: el DNI ya no es suyo).
+--
+-- ══ CARRERA 3: convertir primero y editar el DNI del antiguo después del COMMIT ═══════════════════════════════════════
+-- Sesión B: la preparación completa con :'dni' y COMMIT (el antiguo queda retirado y con puente histórico).
+-- Sesión A: (VEND2) select crm.editar_lead_fn(:'antiguo'::uuid, jsonb_build_object('dni', '<otro DNI>')); ⇒ P0409 «El documento
+--           pertenece a una persona reconocida: solo Gerencia lo corrige» (el puente lo protege).
+--
+-- ══ CARRERA 4 (K-conc 2 del auditor): dos sesiones convierten DOS leads distintos con el MISMO DNI del antiguo ═══════════
+-- Montaje: el antiguo RETIRADO sin persona (VEND1) y dos leads nuevos de VEND2 (L4, L5) sin DNI.
+-- Sesión A: begin; (VEND2) la preparación de L4 con :'dni'; select pg_sleep(8); commit;
+-- Sesión B (1 s después): (VEND2) la preparación de L5 con :'dni' ⇒ ESPERA en el candado del documento (`inv_resolver:DNI:<dni>`;
+--           medido en el laboratorio: `espera.sh`) y, tras el COMMIT de A, P0409 «Esta persona ya tiene otra identidad o lead;
+--           requiere conciliación» (L4 ya es el lead canónico de la persona y el antiguo su historia): nada escrito por B.
+--
+-- ══ CARRERA 5 (K-conc 3 del auditor): Gerencia enlaza el antiguo a OTRA persona mientras VEND2 convierte con su DNI ════════
+-- Sesión A: begin; (Gerencia) select crm.enlazar_lead_inversionista_fn(:'antiguo'::uuid, :'otra_persona_con_ese_dni'::uuid, 'F46');
+--           select pg_sleep(8); commit;
+-- Sesión B (1 s después): (VEND2) la preparación con :'dni' ⇒ serializadas por el candado del documento; el que llega segundo cae en
+--           P0409 (B: el antiguo ya tiene puente a otra persona ⇒ no es candidato y esa persona ya tiene un lead con el DNI ⇒
+--           conciliación; o A: «El puente del lead apunta a otra persona» si B confirmó antes). Nada escrito por el segundo.
+--
+-- ══ CARRERA 6 (ronda 4, D-86/D-87): el PERFIL DEL PORTAL del antiguo cambia mientras VEND2 convierte ══════════════════════════════
+-- La pieza LEE public.perfiles sin candado (regla de public) y completa crm.inversionistas.perfil_id después del UPDATE del lead.
+-- 6a. Sesión A: begin; (Gerencia) enlaza ese perfil a OTRA persona (crm.enlazar_lead_inversionista_fn de otro lead con ese perfil, o la
+--     corrección de Gerencia que lo haga); select pg_sleep(8); commit;
+--     Sesión B (1 s después): la preparación con :'dni' (antiguo con ese perfil). Esperado: si B lee el perfil ANTES del COMMIT de A,
+--     su UPDATE de perfil_id choca con el índice único inversionistas_perfil_uidx (espera al COMMIT de A y da 23505) ⇒ la pieza responde
+--     el 40001 de la casa «La cuenta del Portal del cliente antiguo cambió mientras se enlazaba; vuelve a intentarlo», nada escrito; al
+--     reintentar, D-86 «pertenece a otra persona» (P0409). Si lo lee DESPUÉS, D-86 directamente.
+-- 6b. Sesión A: begin; (soporte) cambia el documento del perfil (public.perfiles.dni, protegido por su disparador); pg_sleep(8); commit;
+--     Sesión B: la preparación lee el documento de antes del COMMIT (sin candado) y decide con él: es el LÍMITE aceptado (D-86: «el CRM
+--     solo LEE el perfil»); la FK de perfil_id toma un FOR KEY SHARE que solo choca con borrar el perfil o cambiar su id.
+--
+-- Registrar en F4.6 los tiempos de espera de B, sus errores (40001 / P0409) y el estado final del antiguo, del nuevo, de su cierre
+-- (D-83: `inversionista_id` del cierre inicial del antiguo = la persona de la conversión; `vendedor_id` intacto) y de la ficha (D-87:
+-- `crm.inversionistas.perfil_id`).

@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 import { sb } from '@/lib/supabase'
-import { CrmApiError } from './crm-api'
+import { CrmApiError, errorDelVeredictoP0481 } from './crm-api'
 import { respuestaInversionistas } from './inversionistas-api'
 import { ConfirmacionInversionSchema, SolicitudInversionSchema, jsonInversion, type IntentoInversion } from '@/lib/inversion-solicitud'
 
@@ -13,10 +13,15 @@ const ContextoConversionSchema = v.object({
   capacidades: v.object({nueva_inversion: v.boolean(), motivo_no_operable: v.nullable(v.string())}),
 })
 export async function prepararPersonaLeadInversion(lead: string, tipo: string, documento: string, nombre: string) {
-  return respuestaInversionistas(v.object({inversionista_id: Id, lead_id: Id, solicitud_id: v.nullable(Id)}),
-    await cliente().schema('crm').rpc('preparar_persona_lead_inversion_fn', {
-      p_lead: lead, p_tipo_documento: tipo, p_documento: documento, p_nombre: nombre,
-    }))
+  const respuesta = await cliente().schema('crm').rpc('preparar_persona_lead_inversion_fn', {
+    p_lead: lead, p_tipo_documento: tipo, p_documento: documento, p_nombre: nombre,
+  })
+  // Bloque 2.10 (D-38, D-29): el cliente antiguo sin ficha que sigue activo de otro asesor detiene la conversión con el
+  // `P0481` y el veredicto del alta en el detalle: se presenta como el alta («Esta persona ya es cliente y está a cargo de
+  // X.»). El «No insistir» (D-94), un detalle ilegible y los demás errores (P0409, 42501, PT409) siguen como hoy.
+  const veredicto = respuesta.error ? errorDelVeredictoP0481(respuesta.error) : null
+  if (veredicto) throw veredicto
+  return respuestaInversionistas(v.object({inversionista_id: Id, lead_id: Id, solicitud_id: v.nullable(Id)}), respuesta)
 }
 export async function obtenerContextoConversionInversion(lead: string, persona: string | undefined, signal: AbortSignal) {
   const r = await cliente().schema('crm').rpc('contexto_conversion_inversion_fn', {p_lead: lead, ...(persona ? {p_persona: persona} : {})}).abortSignal(signal)

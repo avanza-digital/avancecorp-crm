@@ -6,6 +6,7 @@ import { capitalLead, money, fmtFecha, iniciales } from '@/lib/format'
 import { ESTADOS, ordenar, type EstadoCita } from './modelo'
 import type { CitaConLead as CitaEjemplo } from './datos'
 import { siguientePaso, contextoCita } from './presentacion'
+import { MarcaAnalista } from './marca-analista'
 
 const COLORES: Record<EstadoCita, string> = {
   vencida: 'var(--destructive-text)', programada: 'var(--accent-press)', realizada: 'var(--primary)',
@@ -17,8 +18,8 @@ export function Estado({ cita }: { cita: CitaEjemplo }) {
 }
 
 function Responsable({ cita }: { cita: CitaEjemplo }) {
-  const { nombreAnalista } = useDatosCitas()
-  return <div className="flex items-center gap-2"><span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-xs font-semibold text-primary">{iniciales(nombreAnalista(cita.analista))}</span><div><p className="font-medium">{nombreAnalista(cita.analista)}</p><p className="mt-1 text-xs text-muted-foreground-strong">{cita.supervisor}</p></div></div>
+  const { nombreAnalista, estadoAnalista } = useDatosCitas()
+  return <div className="flex items-center gap-2"><span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-xs font-semibold text-primary">{iniciales(nombreAnalista(cita.analista))}</span><div><p className="flex flex-wrap items-center gap-1.5 font-medium">{nombreAnalista(cita.analista)}<MarcaAnalista estado={estadoAnalista(cita.analista)} /></p><p className="mt-1 text-xs text-muted-foreground-strong">{cita.supervisor}</p></div></div>
 }
 
 interface PropsCitas { citas: CitaEjemplo[]; onDetalle: (cita: CitaEjemplo) => void }
@@ -49,7 +50,7 @@ export function Bandeja({ citas, onDetalle }: PropsCitas) {
 }
 
 export function Agenda({ citas, onDetalle }: PropsCitas) {
-  const { nombreAnalista } = useDatosCitas()
+  const { nombreAnalista, estadoAnalista } = useDatosCitas()
   const dias = new Map<string, CitaEjemplo[]>()
   for (const cita of ordenar(citas, 'fecha')) {
     const filas = dias.get(cita.fecha) ?? []
@@ -60,7 +61,7 @@ export function Agenda({ citas, onDetalle }: PropsCitas) {
     <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><CalendarDays aria-hidden className="size-4 text-accent" />{fmtFecha(fecha)}<span className="font-normal text-muted-foreground-strong">{filas.length} {filas.length === 1 ? 'cita' : 'citas'}</span></h3>
     <ul className="divide-y divide-border rounded-xl border border-border">{filas.map(cita => <li key={cita.id} className="grid gap-3 p-4 sm:grid-cols-[105px_minmax(0,1fr)_auto] sm:items-center">
       <div className="flex items-center gap-2 text-sm font-semibold"><Clock3 aria-hidden className="size-4 text-muted-foreground" />{cita.hora}</div>
-      <div><Button variant="link" className="h-auto p-0" onClick={() => onDetalle(cita)}>{cita.nombre}</Button><p className="mt-1 text-sm text-muted-foreground-strong">{nombreAnalista(cita.analista)}</p><p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground-strong">{cita.modalidad === 'Virtual' ? <Video aria-hidden className="size-3.5" /> : <MapPin aria-hidden className="size-3.5" />}{cita.modalidad} · {cita.origen}</p></div>
+      <div><Button variant="link" className="h-auto p-0" onClick={() => onDetalle(cita)}>{cita.nombre}</Button><p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground-strong">{nombreAnalista(cita.analista)}<MarcaAnalista estado={estadoAnalista(cita.analista)} /></p><p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground-strong">{cita.modalidad === 'Virtual' ? <Video aria-hidden className="size-3.5" /> : <MapPin aria-hidden className="size-3.5" />}{cita.modalidad} · {cita.origen}</p></div>
       <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end"><Estado cita={cita} /><Button variant="ghost" size="sm" aria-label={`Ver detalle de ${cita.nombre}`} onClick={() => onDetalle(cita)}>Ver cita <ChevronRight aria-hidden /></Button></div>
     </li>)}</ul>
   </section>)}</div>

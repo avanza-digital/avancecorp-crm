@@ -6,6 +6,7 @@ import {
   Eye,
   RefreshCw,
 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -14,14 +15,14 @@ import { GERENCIA_CHART_COLORS as C } from '@/components/gerencia/chart-theme'
 import { AtencionCitas } from '@/components/gerencia/atencion-citas'
 import { IndicadorGerencia } from '@/components/gerencia/indicador-gerencia'
 import { money, numero, fmtFecha } from '@/lib/format'
-import type { MetricasReuniones } from '@/lib/metricas-reuniones'
+import type { MetricasReunionesConBajas, ResponsableReuniones } from '@/data/crm-api'
 import { presentarCitas } from '@/lib/terminologia'
 import { etiquetaOrigen } from '@/lib/tipos'
 
-type Modalidad = MetricasReuniones['modalidades'][number]['modalidad']
+type Modalidad = MetricasReunionesConBajas['modalidades'][number]['modalidad']
 
 interface ReunionesGerenciaPanelProps {
-  datos: MetricasReuniones | null | undefined
+  datos: MetricasReunionesConBajas | null | undefined
   cargando: boolean
   error: string | null
   modoDemo: boolean
@@ -45,6 +46,31 @@ function textoResultado(valor: string): string {
   return limpio.charAt(0).toUpperCase() + limpio.slice(1)
 }
 
+/** D-43: analista dado de baja que sigue en el desglose con sus citas. Mismo estilo que la marca «inactivo» de Mi cartera. */
+function MarcaDeBaja(): JSX.Element {
+  return <Badge color="var(--muted-foreground)" className="shrink-0 align-middle" title="Dado de baja del equipo: sus citas del período siguen en el desglose y en el total">de baja</Badge>
+}
+
+/** D-46: suspendido en el Portal (su ficha del CRM sigue activa). El color de «Suspendido en Portal» de Usuarios. */
+function MarcaSuspendido(): JSX.Element {
+  return <Badge color="var(--destructive)" className="shrink-0 align-middle" title="Suspendido en el Portal: no puede entrar, pero su ficha del CRM sigue activa; sus citas del período siguen en el desglose y en el total">suspendido</Badge>
+}
+
+/** La marca de una fila del desglose, junto al nombre (D-43 y D-46). */
+function MarcaResponsable({ fila }: { fila: ResponsableReuniones }): JSX.Element | null {
+  if (fila.de_baja) return <>{' '}<MarcaDeBaja /></>
+  if (fila.suspendido) return <>{' '}<MarcaSuspendido /></>
+  return null
+}
+
+/** D-47: qué reúne la fila «Otros» (dicho también en texto al pie de la tabla). */
+const TITULO_OTROS = 'Citas sin responsable o de quienes no son analistas ni supervisores (Gerencia, Coordinación): con esta fila, el desglose suma el total'
+
+/** Clave estable de una fila: «Otros» no tiene responsable y nunca choca con un analista que se llame así. */
+function claveFila(fila: ResponsableReuniones): string {
+  return fila.otros ? 'fila-otros' : fila.responsable_id ?? fila.nombre
+}
+
 function ErrorPanel({ error, onReintentar }: Pick<ReunionesGerenciaPanelProps, 'error' | 'onReintentar'>): JSX.Element | null {
   if (!error) return null
   return <div className="m-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3" role="alert"><span className="flex items-center gap-2 text-sm font-semibold"><AlertTriangle className="size-4 text-destructive" />{presentarCitas(error)}</span><Button type="button" variant="outline" size="sm" onClick={onReintentar}><RefreshCw /> Reintentar</Button></div>
@@ -58,7 +84,7 @@ function Vacio(): JSX.Element {
   return <CardContent className="py-14 text-center"><CalendarCheck className="mx-auto size-8 text-[var(--gi-muted)]" /><p className="mt-3 text-sm font-semibold">Aún no hay citas en este período</p></CardContent>
 }
 
-function ResultadosPorVendedor({ datos, destino }: { datos: MetricasReuniones; destino: RefObject<HTMLElement | null> }): JSX.Element {
+function ResultadosPorVendedor({ datos, destino }: { datos: MetricasReunionesConBajas; destino: RefObject<HTMLElement | null> }): JSX.Element {
   const visibles = datos.responsables.reduce((total, fila) => ({
     pactadas: total.pactadas + fila.pactadas,
     realizadas: total.realizadas + fila.realizadas,
@@ -84,9 +110,11 @@ function ResultadosPorVendedor({ datos, destino }: { datos: MetricasReuniones; d
               && fila.canceladas_sistema_vencidas != null && fila.canceladas_ajenas_vencidas != null
               && fila.reprogramadas_vencidas != null && fila.programadas_futuras != null
             return (
-              <tr key={fila.responsable_id ?? fila.nombre}>
-                <th scope="row" className="px-5 py-3 text-left font-semibold">{fila.nombre}</th>
-                <td className="px-3 py-3 text-[var(--gi-muted)]">{fila.supervisor_nombre}</td>
+              <tr key={claveFila(fila)} className={fila.otros ? 'bg-[var(--gi-soft)]' : undefined}>
+                {fila.otros
+                  ? <th scope="row" className="px-5 py-3 text-left font-semibold italic text-[var(--gi-muted)]" title={TITULO_OTROS}>Otros</th>
+                  : <th scope="row" className="px-5 py-3 text-left font-semibold">{fila.nombre}<MarcaResponsable fila={fila} /></th>}
+                <td className="px-3 py-3 text-[var(--gi-muted)]">{fila.otros ? '—' : fila.supervisor_nombre}</td>
                 <td className="px-3 py-3 text-right tabular-nums">{numero(fila.pactadas)}</td>
                 <td className="px-3 py-3 text-right tabular-nums">{numero(fila.realizadas)}</td>
                 <td className="px-3 py-3 text-right font-semibold tabular-nums">{numero(fila.pendientes_cierre)}</td>
@@ -111,10 +139,10 @@ function ResultadosPorVendedor({ datos, destino }: { datos: MetricasReuniones; d
           </tfoot>
         </table>
       </div>
-      <ul className="divide-y divide-[var(--gi-line)] md:hidden" aria-label="Citas por analista">{datos.responsables.map((fila) => <li key={fila.responsable_id ?? fila.nombre} className="space-y-3 p-4"><div><h4 className="text-sm font-semibold">{fila.nombre}</h4><p className="text-xs text-[var(--muted-foreground-strong)]">{fila.supervisor_nombre}</p></div><dl className="grid grid-cols-2 gap-3 text-xs">{[['Pactadas', numero(fila.pactadas)], ['Realizadas', numero(fila.realizadas)], ['Sin resultado', numero(fila.pendientes_cierre)], ['Realización', pct(fila.pct_realizacion)]].map(([etiqueta, valor]) => <div key={etiqueta}><dt className="text-[var(--muted-foreground-strong)]">{etiqueta}</dt><dd className="mt-1 text-sm font-semibold tabular-nums">{valor}</dd></div>)}</dl><p className="text-xs text-[var(--gi-muted)]">{fila.divisor_realizacion == null ? 'Base no disponible' : `${numero(fila.realizadas)} de ${numero(fila.divisor_realizacion)} computables`}</p></li>)}</ul>
+      <ul className="divide-y divide-[var(--gi-line)] md:hidden" aria-label="Citas por analista">{datos.responsables.map((fila) => <li key={claveFila(fila)} className={fila.otros ? 'space-y-3 bg-[var(--gi-soft)] p-4' : 'space-y-3 p-4'}><div>{fila.otros ? <h4 className="text-sm font-semibold italic text-[var(--gi-muted)]" title={TITULO_OTROS}>Otros</h4> : <h4 className="text-sm font-semibold">{fila.nombre}<MarcaResponsable fila={fila} /></h4>}<p className="text-xs text-[var(--muted-foreground-strong)]">{fila.otros ? 'Sin responsable u otros roles' : fila.supervisor_nombre}</p></div><dl className="grid grid-cols-2 gap-3 text-xs">{[['Pactadas', numero(fila.pactadas)], ['Realizadas', numero(fila.realizadas)], ['Sin resultado', numero(fila.pendientes_cierre)], ['Realización', pct(fila.pct_realizacion)]].map(([etiqueta, valor]) => <div key={etiqueta}><dt className="text-[var(--muted-foreground-strong)]">{etiqueta}</dt><dd className="mt-1 text-sm font-semibold tabular-nums">{valor}</dd></div>)}</dl><p className="text-xs text-[var(--gi-muted)]">{fila.divisor_realizacion == null ? 'Base no disponible' : `${numero(fila.realizadas)} de ${numero(fila.divisor_realizacion)} computables`}</p></li>)}</ul>
       <div className="space-y-2 border-t border-[var(--gi-line)] p-4 text-xs md:hidden">{concilia && Object.values(fuera).some((valor) => valor > 0) && <p>Fuera del desglose actual: {numero(fuera.pactadas)} pactadas · {numero(fuera.realizadas)} realizadas · {numero(fuera.pendientes_cierre)} sin resultado.</p>}<p className="font-semibold">Total del período: {numero(datos.resumen.pactadas)} pactadas · {numero(datos.resumen.realizadas)} realizadas · {numero(datos.resumen.pendientes_cierre)} sin resultado.</p></div>
       {!concilia && <p role="alert" className="px-5 py-3 text-sm text-destructive">El desglose no concilia con el total de citas.</p>}
-      <p className="border-t border-[var(--gi-line)] px-5 py-3 text-xs text-[var(--gi-muted)]">Cada base descuenta las canceladas por sistema, por otro asesor y las reprogramadas. Las citas fuera del desglose se conservan en el total.</p>
+      <p className="border-t border-[var(--gi-line)] px-5 py-3 text-xs text-[var(--gi-muted)]">Cada base descuenta las canceladas por sistema, por otro asesor y las reprogramadas. Las citas fuera del desglose se conservan en el total.{datos.responsables.some((fila) => fila.de_baja) && ' Los marcados «de baja» ya no están en el equipo: sus citas del período siguen en el desglose y en el total.'}{datos.responsables.some((fila) => fila.suspendido) && ' Los marcados «suspendido» están suspendidos en el Portal (su ficha del CRM sigue activa): sus citas del período siguen en el desglose y en el total.'}{datos.responsables.some((fila) => fila.otros) && ' «Otros» reúne las citas sin responsable y las de quienes no son analistas ni supervisores (Gerencia, Coordinación): con esa fila, el desglose suma el total.'}</p>
     </section>
   )
 }
