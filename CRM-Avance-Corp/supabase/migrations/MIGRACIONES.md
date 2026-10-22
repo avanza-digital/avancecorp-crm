@@ -1,3 +1,1817 @@
+## 20261022171000 — El CRM cancela solo las solicitudes de inversión que ya no corresponden (piezas `private.solicitud_desechar`, `private.solicitudes_desechar_por_contrato`, `private.solicitudes_desechar_ciclo`, `private.solicitud_cancelacion_vista`; puertas `crm.crear_contrato_con_cuenta_pdf_v2` y `crm.solicitud_inversion_fn` re-emitidas; tabla `crm.solicitudes_desechadas_corridas`; job `crm-solicitudes-desechar`)
+
+**INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022171000_crm_solicitudes_desechadas_solas.sql`** (bloque 2.15 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261010000200_crm_solicitudes_desechadas_solas.sql`, copia `fase2`, sha256 del origen `2da58642f8fe…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
+
+**Nota de integración (22/10/2026, auditor C5 P2-1/P3-4):** «Pendiente de la verificación del Director y del cierre» ya no aplica (cerrado el 10/10, re-asentado el 22/10). **Pendiente del OK de Miguel:** la pieza toma `FOR KEY SHARE SKIP LOCKED` sobre `public.contratos` (l.453; lo pidió Codex r1 del bloque): es un candado de lectura sobre `public`, sin escritura; el auditor C5 pide el OK escrito aquí. **OK de Miguel el 22/10/2026 (2026-10-22 18:29 Lima, D-41): el candado de lectura se queda.** El cron `17 7 * * *` corre a las 02:17 Lima (servidor en UTC).
+
+**PENDIENTE DE BRANCH. Verificada solo en el laboratorio local por el escritor (10/10/2026, rondas 1 a 5; laboratorio = producción `main` 0bac1e77 + los
+bloques 2.1, 2.6, 2.3, 2.2, 2.4, 2.7 y 2.8 + banco); no aplicada en ninguna base real. Auditor de permisos r1 (10/10): CHANGES_REQUESTED, permisos limpios, un
+P2 de corrección y un P3 de simetría atendidos en la ronda 3. Codex r1 (10/10): CHANGES_REQUESTED, seis P2 técnicos (carrera con el contrato, tope por corrida,
+progreso, preflight/S17, reversa, cron) atendidos en la ronda 4 (verificada por el Director). Codex r2 (10/10, segunda y última consulta): CHANGES_REQUESTED, un P2
+(la reversa fijaba solo nombre/tipo/nulabilidad de la tabla de corridas) y P3 (oráculo poblado por existencia, marca de laboratorio, ficha de las funciones ajenas,
+textos absolutos, coste) atendidos en la ronda 5. Pendiente de la verificación del Director y del cierre. La fecha definitiva del archivo se pone al integrar.** Plan de mantenibilidad del backend (AVANCE-BACKEND-0810-F2), fase 2, bloque
+2.15 (orden de Miguel **D-58**, 09/10/2026; decisiones **D-59** —los dos casos— y **D-63** —30 días—; plan corto aprobado **D-66**; decisiones de la ronda 2
+**D-74**, **D-75**, **D-76** y **D-77** y de la ronda 3 **D-79** y **D-80**, del 10/10/2026; antecedente D-19/D-56/D-57 y la lectura F4.7). Va DESPUÉS del 2.14 en la copia `fase2`. Añade dos
+columnas, una tabla, cuatro piezas y un job; re-emite dos puertas por ancla única; NO toca `public`, policies ni grants de tablas; no borra ninguna fila.
+
+**Qué pasaba (medido en producción, 09/10):** una solicitud de inversión preparada de Avance crea su contrato al confirmarse con `datos.contrato.numero_contrato`;
+si otro contrato tomó ese número, ya no se puede confirmar nunca («El N de contrato … ya existe») y se queda preparada para siempre (había 6, canceladas a mano
+en D-58). ROJO medido en el laboratorio: el alta entra y las solicitudes con su número siguen preparadas (26 fallos del oráculo, 31 ok).
+
+**Qué hace:** (1) `cancelacion_motivo` (`numero_contrato_usado` | `sin_movimiento`) y `cancelacion_detalle` (vía, contrato con el que choca, corrida, días, último
+movimiento, cuándo) en `crm.inversion_solicitudes`, con CHECK (motivo solo con `cancelada`). (2) `private.solicitud_desechar` (único escritor: `FOR UPDATE SKIP
+LOCKED`, relee las guardas de `crm.cancelar_solicitud_inversion_fn` —preparada, sin acceso Avance pendiente, sin inversión, sin haber creado su contrato— Y
+EL MOTIVO —el número actual sigue siendo el del detalle; `actualizado_en` sigue siendo el último movimiento observado y ≤ corte − días; si no, o sin esos
+datos en el detalle, `omitida` sin tocar la fila (P2 del auditor r1, ronda 3: una solicitud corregida entre la consulta de candidatas y el candado ya no se
+cancela con un motivo falso)— Y EL CONTRATO (Codex r1, P2-1, ronda 4: para `numero_contrato_usado` el contrato del detalle tiene que existir y seguir con ese
+número, leído bajo `FOR KEY SHARE SKIP LOCKED`; si lo está eliminando o cambiando otra sesión, o ya no existe o no lleva ese número, `omitida`; orden de
+candados solicitud → contrato, el mismo que la confirmación; la eliminación de contratos bloquea solo el contrato y no toca solicitudes: sin ciclo en las vías
+directas medidas en el catálogo, sin excluir accesos transitivos —dos sesiones en F4.6—) y cancela en una
+subtransacción que aísla el rechazo de un disparador al UPDATE (la fila queda como estaba; las consultas previas y un `query_canceled` no están cubiertos). (3) CASO 1: `private.solicitudes_desechar_por_contrato`, llamada desde
+`crm.crear_contrato_con_cuenta_pdf_v2` tras guardar la memoria de idempotencia (la creadora queda excluida por su clave y, además, por la guarda): las preparadas
+de Avance con ese número se cancelan al instante. (4) CASO 2: `private.solicitudes_desechar_ciclo` (pg_cron `crm-solicitudes-desechar`, 07:17 UTC = 02:17 Lima,
+D-77): primero las preparadas de Avance cuyo número ya lo usa un contrato que no crearon (red para los contratos nacidos fuera del CRM: Portal; D-75/D-77),
+después las preparadas de cualquier empresa con 30 días sin confirmarse ni corregirse, también la que no tiene número (D-74); PRESUPUESTO ÚNICO de COMO MÁXIMO
+200 cancelaciones por corrida compartido por las dos pasadas (Codex r1, P2-2, ronda 4), que las omitidas y rechazadas no consumen —el recorrido sigue, en orden
+estable, hasta agotar candidatas o presupuesto— y con las exclusiones permanentes (acceso pendiente, con inversión, ya creó su contrato) descartadas ANTES del
+recorrido (P2-3: una cola de rechazadas no tapa a una candidata válida); rastro en `crm.solicitudes_desechadas_corridas`; idempotente (sin efectos duplicados sobre
+la misma solicitud). (5) `crm.solicitud_inversion_fn` devuelve además `cancelacion_motivo`, `cancelacion_detalle` —sin `contrato_id`: el UUID de un contrato
+ajeno no sale a la API; queda en la fila y en `public.audit_log` (ronda 4)— y `cancelacion_texto`; la app lo muestra en «Solicitud cancelada».
+
+**Dónde nacen los contratos (medido):** todas las vías llegan a `public.crear_contrato`; la única puerta viva del CRM es `crm.crear_contrato_con_cuenta_pdf_v2`
+(ahí se engancha); la llamada directa del Portal solo podría cubrirse al instante desde `public`: Miguel decidió no tocarlo (**D-75**), la cubre la tarea nocturna
+con un día de retraso como máximo (límite documentado en la cabecera de la migración y en el README del ensayo).
+
+**Lo que la regla nunca toca sola (D-76, D-77):** una solicitud con `auth_claim_id` (ni a los 30 días: la cancela una persona desde la pantalla); una con
+inversión; la que ya creó su contrato; la creadora; las de otra empresa por el número. Una reinversión/upgrade cuya continuidad de postventa
+(`trg_solicitudes_zz_postventa`) se niega a cancelar queda preparada y la corrida la informa como «rechazada» para que una persona decida (medido con S17 en el
+banco: «La inversión de origen no está disponible», P0409; la tarea no aborta).
+
+**Preflight fail-closed:** huella (prosrc y definición), ficha y comentario de las dos puertas y de lo que la regla da por sabido (cancelar, confirmar —con
+`'clave_idempotencia',v_s.id` en su texto—, corregir y el resultado público); anclas únicas; forma de `crm.inversion_solicitudes`, `private.contrato_altas_idempotentes`,
+`public.contratos` (UNIQUE) y `crm.empresas`; auditor de la solicitud HABILITADO (`tgenabled = 'O'`) y la continuidad de postventa fijada entera (disparador
+`trg_solicitudes_zz_postventa`, `private.postventa_reinversion_guard()` y `private.continuidad_coopac_fuente()` por huella: Codex r1, P2-4, ronda 4; y su FICHA
+—dueño `postgres`, DEFINER sí/no, `search_path=""` ± `lock_timeout=5s`— que la huella no fija: Codex r2, ronda 5); nada nuevo preexistente; reloj OBLIGATORIO (sin
+pg_cron la migración se niega; solo un banco de laboratorio sin reloj sigue, con la marca `crm.laboratorio_sin_cron = 1` que pone el armador del ensayo: P2-6; la
+marca es una excepción operativa explícita, no una frontera de permisos, y con pg_cron PRESENTE y la marca puesta el preflight también se niega: ronda 5); foto de
+los `assert_*` sin `*_mutantes`. **Postflight:** huellas exactas (alta v2 6ecd78e3…/9c2ff20f…;
+consulta ca715d07…/1ad5589b…), fichas idénticas y sin EXECUTE para `anon` ni `service_role` (P3 del auditor r1, ronda 3), piezas con su ficha, columnas,
+CHECK, tabla (RLS, sin grants, auditor habilitado, `tablas_sin_rastro()` no la lista), auditor y continuidad intactos, job (obligatorio salvo la marca), intactas,
+SONDA que se deshace (la tarea y la pieza ejecutadas en una subtransacción revertida) y foto idéntica.
+
+**Verificación en el laboratorio, ronda 5 (10/10, 19:45-19:57, todo sobre los archivos finales):** ROJO de la reversa de la ronda 4 contra las seis derivas nuevas de
+la reversa (RD6 CHECK añadido, RD7 índice, RD8 valor por defecto, RD9 comentario de columna, RD10 política, RD11 default en una columna nueva; con la migración y la
+reversa de la ronda 4): las seis SE COLABAN («la reversa NO abortó: revirtió pese a la deriva instalada») —la medición del defecto—; con la reversa nueva, las once
+derivas de la reversa se niegan sin rastro; VERDE 0 fallos / 78 ok; ROJO sin migración 42 / 36; reversa VERDE, reversa con SET VERDE y reversa POBLADA VERDE con el
+oráculo de igualdad exacta (motivo y `cancelacion_detalle` enteros de las 6 canceladas y la fila entera de la corrida iguales a su `data_despues` en
+`public.audit_log`); trinquetes 36/36 idénticos (29 pasan, 7 caen, = ronda 4); mutantes 36/40 muertos + 4 equivalentes (dos corridas chocaron con un deadlock ajeno
+y se repitieron a solas con el mismo resultado); derivas 30 (28 + «sin pg_cron sin marca» + su control, como `supabase_admin`; nuevas: la guarda de postventa con
+otro `search_path` y la marca puesta con el reloj presente ⇒ abortan) + 2 mutantes de la migración + 11 derivas de la reversa: 42 veredictos ✓ y 2 (RD2, RD3) cuyo
+único defecto era el texto esperado del guion (sus salidas traen el mensaje nuevo de la reversa y foto IGUAL); la repetición con el guion ya corregido NO se pudo
+ejecutar (bloqueo de la herramienta del escritor, no del laboratorio): la corre el Director en su verificación. App: NO RUN en la ronda 5
+(nada de `app/` ni de la respuesta pública cambió; los resultados de la ronda 4 siguen: lint 0, typecheck 0, vitest 392/6343).
+
+**Verificación en el laboratorio (`supabase/scripts/solicitudes-desechadas-solas/`, todo con rollback, huella IGUAL, ninguna corrida con código 9; ronda 4 del
+10/10, 15:51-19:20, todo repetido sobre la migración final de esa ronda):** ROJO del caso nuevo (migración de la ronda 3 + oráculo nuevo) 11 fallos / 67 ok —sin la relectura del contrato S3 se cancela con un contrato
+que lleva otro número; con 200 por pasada la corrida cancela más de 200; con el LIMIT antes de las guardas 205 rechazadas tapan a la válida; S19 llega a la
+pieza; `contrato_id` sale a la API—; ROJO sin migración 42 fallos / 36 ok; VERDE 0 fallos / 78 ok (alta real por la v2 como vendedor del banco, 19 solicitudes
+sembradas, tarea dos veces con filas completas y auditoría comparadas, consulta como el asesor, cancelación de la pantalla intacta, R12 y R13 —motivo y contrato
+releídos bajo candado, en una sesión—, R14 —250 candidatas: 200 + 53 + 0— y R15 —205 rechazadas delante de una válida— en subtransacciones que se deshacen,
+S17 rechazada por la continuidad y S18 cancelada —expectativa independiente—, K7 —la consulta de runbook—, catálogo); mutantes 36/40 muertos por su fallo + 4
+equivalentes confirmados (guarda de estado duplicada; SKIP LOCKED inobservable en una sesión; exclusión de la creadora duplicada por la guarda «ya creó su
+contrato»; comparación del número en el filtro del alta duplicada por la relectura del número); derivas 27/27 abortan en el preflight sin rastro (entre ellas:
+auditor deshabilitado, guarda de postventa y continuidad sustituidas, sin pg_cron —esta y su control como `supabase_admin`, dueño del stub del reloj del
+laboratorio—) + control entra + control «sin pg_cron con la marca de laboratorio» entra avisando + 2 mutantes de la migración (sin comparar la ficha se cuela un EXECUTE con opción de concesión —`anon` y `service_role` los para además el
+postflight—; sin comparar el comentario, un comentario ajeno) + 5 derivas de la reversa (SET en una pieza, columna añadida a la tabla, CHECK quitado, lector
+directo, job cambiado: la reversa se niega sin rastro); reversa VERDE, reversa con SET VERDE y reversa POBLADA VERDE (6 canceladas con motivo antes de revertir:
+estados conservados, motivos y corrida recuperables desde `public.audit_log`); trinquetes 36/36 idénticos con y sin la migración, a solas (29 pasan, 7 caen
+desde antes, los mismos). Las huellas de las dos puertas no cambiaron en las rondas 3 y 4 (el postflight las exige exactas). App (archivos sin cambios desde la
+ronda 1; repetidos completos en la ronda 4 porque la respuesta pública pierde `contrato_id`): lint 0 errores (7 avisos previos ajenos), typecheck 0, vitest 392
+archivos / 6343 pruebas. NO ejecutados: branch, `test-rls.mjs`, advisors, HTTP, e2e, `gen:types`, concurrencia con dos sesiones, pg_cron real (el laboratorio
+tiene un stub).
+
+**Decisiones de Miguel aplicadas (10/10/2026):** D-74 (D-63 manda sobre D-56: la preparada sin número también se desecha a los 30 días; nada especial para ella),
+D-75 (no se toca `public`; el Portal lo cubre la pasada nocturna), D-76 (nunca una con `auth_claim_id`), D-77 (pasada «número usado» como red; reinversiones
+rechazadas quedan preparadas e informadas; 02:17 Lima), **D-79** (la pasada «número usado» cancela TODAS las preparadas cuyo número ya es de otro contrato, también
+si el contrato es anterior a la solicitud —tipeo corregible—: como las 6 de D-58, si hace falta se crea de nuevo; sin cambio de código) y **D-80** (las corridas
+las lee el Director por ahora con la consulta de abajo; una puerta de lectura para Gerencia sería un bloque aparte). Ninguna cambió un cuerpo de función en la
+ronda 2; la ronda 3 cambió SOLO el cuerpo de `private.solicitud_desechar` (relectura del motivo) y una condición del postflight (`service_role`): las huellas de
+las dos puertas no cambian (el postflight no fija la pieza por huella: la ficha de la pieza —dueño, INVOKER, `search_path`, ACL— sí). La ronda 4 (Codex r1: seis
+P2 técnicos, sin decisiones de negocio nuevas) cambió los cuerpos de `private.solicitud_desechar` (contrato releído bajo candado), `private.solicitudes_desechar_ciclo`
+(presupuesto único por corrida; recorrido que no se atasca; exclusiones permanentes antes) y `private.solicitud_cancelacion_vista` (sin `contrato_id`), el preflight
+(auditor habilitado, continuidad fijada, cron obligatorio), el reloj, el postflight, la reversa (fija piezas, tabla, columnas y job; detecta lectores directos) y el
+ensayo (S17/S18/S19, R13, R14, R15, R9 con filas completas, derivas y reversa poblada); las huellas de las dos puertas siguen sin cambiar.
+
+**Para integrar (runbook del grupo C; lo que pidió el auditor r1):** (1) aplicar en hora valle: `ADD/DROP COLUMN` sobre `crm.inversion_solicitudes` toma
+ACCESS EXCLUSIVE (bloquea las puertas de solicitudes mientras dura la transacción) y la sonda del postflight ejecuta de verdad la tarea sobre una fila real
+dentro de una subtransacción que se revierte (puede tomar y soltar un candado y consumir secuencias de `public.audit_log`). (2) La preparada SIN número de D-56
+(> 30 días) cae la primera noche (D-74): avisar antes. (3) Leer la primera corrida (02:17 Lima del día siguiente) y en las revisiones periódicas, con esta
+consulta de solo lectura (D-80; el ensayo la ejecuta en K7):
+```sql
+select c.id, c.creado_en, c.corte, c.dias, c.limite, c.canceladas_numero_usado, c.canceladas_sin_movimiento, c.omitidas, c.rechazadas, c.duracion_ms,
+       (select jsonb_agg(e) from jsonb_array_elements(c.detalle) e where e ->> 'resultado' like 'rechazada:%') as rechazadas_detalle
+  from crm.solicitudes_desechadas_corridas c
+ order by c.creado_en desc
+ limit 1;
+```
+Una reinversión cuya continuidad rechaza la cancelación saldrá como «rechazada» todas las noches hasta que una persona decida (D-77). (4) Atribución en
+`public.audit_log`: en el caso 1 el UPDATE de la solicitud queda a nombre del actor del alta (puede ser otro vendedor), y en la tarea sin usuario; quien lea
+la auditoría debe mirar `cancelacion_detalle.via` (`alta` + `contrato_id`, o `tarea` + `corrida_id`). (5) En el alta, una «rechazada» de un disparador solo
+deja un NOTICE (no persiste; la pasada nocturna la vuelve a informar en su corrida). (6) `test-rls.mjs` está roto desde el 2.3 (`payloadIdem`, ajeno a este
+bloque): adaptarlo antes de correr el gate. (7) La matriz de pruebas del auditor r1 (`fase-2/bloque-2.15/revision/respuesta-auditor.md`, «TEST GAPS») es la
+lista de casos de `test-rls.mjs` para la integración: permitido (vend1 prepara con N y da de alta con N ⇒ cancelada con motivo; la creadora confirmada sin
+motivo), denegado (vend3/sup2/coordinador/directorio/vendInactive/anon ⇒ 42501/P0002; gerencia la ve), API (`solicitudes_desechadas_corridas` y las columnas
+nuevas inaccesibles; `has_function_privilege` de piezas y puertas), fuera de banda (job único de `postgres` a las 07:17 UTC; `solicitudes_desechar_ciclo()`
+sobre una sembrada de 31 días; `auth_claim_id` intacta; segunda llamada 0) y el caso del P2 (detalle «viejo» ⇒ `omitida`, fila intacta). (8) pg_cron REAL
+(Codex r1, P2-6): el laboratorio solo tiene un stub; tras aplicar en la branch y en producción, comprobar `cron.job` (jobname `crm-solicitudes-desechar`, usuario
+`postgres`, base de destino, `17 7 * * *`, activo) y la primera ejecución efectiva en `cron.job_run_details`. (9) Lo que «no espera» está acotado: la pieza no
+espera por la fila de la solicitud ni por el contrato (SKIP LOCKED); los disparadores de la tabla pueden esperar con sus propios candados (la continuidad de
+postventa convierte la espera en 40001 ⇒ «rechazada»), acotado por `lock_timeout` (10 s en la tarea, 5 s en el alta); la subtransacción aísla el rechazo del UPDATE,
+no las consultas previas ni un `query_canceled`. (10) Las pruebas con dos sesiones (corrección vs selección, confirmación vs cron, dos altas, eliminación del
+contrato vs cancelación) quedan para F4.6/branch y la matriz: en el laboratorio no hay segunda sesión. (11) PRECONDICIÓN DEL EJECUTOR (Codex r2, ronda 5): la
+marca `crm.laboratorio_sin_cron` es una excepción operativa explícita, no una frontera de permisos (cualquier sesión puede ponerla, también a nivel de sesión);
+antes de aplicar en la branch y en producción, comprobar `select current_setting('crm.laboratorio_sin_cron', true)` vacío o nulo Y `to_regclass('cron.job')` no
+nulo (lo corre el Director en F4.6). Con pg_cron presente y la marca puesta, el preflight se niega; el residuo (una base real SIN pg_cron con una marca ajena ⇒ entra
+sin job) lo cubre esta precondición. (12) COSTE de la corrida nocturna (riesgo a medir, no defecto): no acota las candidatas examinadas; las rechazadas conservan
+los candados tomados antes de la subtransacción del UPDATE hasta el fin de la corrida y `v_lista` crece con cada candidata; `lock_timeout` (10 s) acota cada espera,
+no la corrida; un timeout que aborte la llamada deshace también las cancelaciones de esa corrida (vuelven a intentarse la noche siguiente). Medición con volumen
+representativo: lista de integración F4.6. (13) Nota de método sobre los mutantes: #12 prueba la respuesta «omitida: el contrato ya no existe», no que quitar esa
+comprobación permita cancelar (sin la rama, el número `NULL` también omite); #11 sí prueba que sin releer el número del contrato se cancela. El tope es «como máximo
+200 cancelaciones por corrida», no 200 exactas; «sin ciclo» vale para las vías directas medidas en el catálogo (eliminación, confirmación, alta v2), no para accesos
+transitivos por funciones o disparadores (dos sesiones en F4.6); «ocupado» / «ya no existe» es un diagnóstico aproximado bajo READ COMMITTED (ambas ramas omiten).
+
+**Reversa:** `supabase/scripts/solicitudes-desechadas-solas/reversa.sql` — falla cerrada. Lo que fija EXACTAMENTE antes de borrar (ni más ni menos; Codex r1 P2-5
+y Codex r2 P2, rondas 4 y 5): las dos puertas (huella de cuerpo y de definición, ficha —dueño, DEFINER, volatilidad, paralelo, configuración, ACL con opción de
+concesión— y comentario); las cuatro piezas (md5 de `pg_get_functiondef` y ficha); la tabla de corridas con su ficha completa (dueño, RLS y FORCE RLS, ACL, columnas
+con tipo/nulabilidad/default, todas las restricciones, índices, disparadores y si están habilitados, políticas, comentario de la tabla y de cada columna); las dos
+columnas nuevas (tipo, nulabilidad, default, comentario) y sus dos CHECK; la configuración del job (horario, comando, activo) si existe; y que ninguna otra función
+ni vista nombre a las piezas ni lea la tabla o las columnas nuevas. No fija nada fuera de esos objetos. Repone las dos puertas byte a byte y sus comentarios,
+desprograma el job, borra piezas, tabla y columnas; NO deshace cancelaciones: los motivos, los `cancelacion_detalle` enteros y la fila entera de cada corrida quedan en
+`public.audit_log` (ensayado con cancelaciones y corridas reales, `--reversa-poblada`, con igualdad exacta entre lo capturado antes de revertir y la auditoría).
+
+**SHA-256 del archivo de la migración (ronda 5, 10/10/2026):** `ab3f6db9548014e5a8e61ea2e569b47189258af5083bebf42b7c2e820682642b` (ronda 4: `1da183bd…`; ronda 3:
+`44c20711…`; ronda 2: `1b900080…`, solo cabecera respecto a la ronda 1 `d22729b0…`; ronda 5: + ficha de las dos funciones ajenas de postventa en preflight y postflight,
++ «marca puesta con pg_cron presente ⇒ se niega», + comentarios acotados en la pieza escritora —sin ciclo solo en las vías directas medidas; ocupado/inexistente como
+diagnóstico aproximado— y en la cabecera). Las huellas de las dos puertas no cambian en ninguna ronda (alta v2 6ecd78e3…, consulta ca715d07…).
+
+**Reselle C2 (22/10/2026):** `crm.confirmar_inversion_revisada_fn` se fija por su huella de producción del 22/10 (`ef53419d…`/`33af606a…`, antes `5a4693a2…`/`68828d0a…`: el recorrido del 19/10 le añadió `private.recorrido_exigir`; la clave de idempotencia = id de la solicitud sigue igual) en preflight, postflight y K5 (encargo C2-a, plan AVANCE-BACKEND-1310-C2). SHA-256: `2da58642f8fec834af3c68b5dfb5820a41eed4652959a9c77730d5e21b26716c`.
+
+
+## 20261022170900 — Reuniones y agenda: el analista dado de baja o suspendido sigue con su marca y el desglose de reuniones suma el total (`crm.metricas_reuniones_fn`, `crm.metricas_agenda_fn` + piezas `private.filtrar_desglose_sujetos_con_bajas_crm` y `private.desglose_responsables_reuniones_crm`)
+
+**INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170900_crm_reuniones_desglose_con_bajas.sql`** (bloque 2.12 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261009230000_crm_reuniones_desglose_con_bajas.sql`, copia `fase2`, sha256 del origen `dfa2a98254ce…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
+
+**Nota de integración (22/10/2026, auditor C5 P3-4):** la cabecera (l.100–101) dice «pendiente de la verificación del Director y de Codex»: ya verificada (rondas 1–4 del bloque, C2 el 22/10, gate RLS 26/26 aserciones nuevas). El K4 del oráculo del kit se re-asentó a las tres funciones de conversiones que cambió `20261012165115` (H-C3-4).
+
+**PENDIENTE DE BRANCH. Estado (09/10/2026): verificada en el laboratorio por el escritor y por el Director (rondas 2 y 3,
+`fase-2/bloque-2.12/revision/resultados-r2.md` y `resultados-r3.md`); el auditor de permisos r1 pidió cambios (P2-1 resuelto por D-54,
+P2-2 por D-53, P3-1…P3-5 y los TEST GAPS), atendidos en la ronda 3; Codex r1 pidió cambios (sin defectos de permisos ni de cálculo:
+P3-1 precedencia de la baja, P3-2 Directorio obligatorio en el ensayo, P3-3 texto de la agenda, divisor y casos extra), atendidos en la
+ronda 4. Las revisiones del bloque están agotadas: lo cierra la verificación del Director de la ronda 4. No aplicada en ninguna base
+real.** Plan de mantenibilidad del backend, fase 2, bloque 2.12 (decisiones D-43,
+D-46, D-47, D-48, D-53 y D-54 de Miguel, 09/10/2026; plan aprobado en D-45). Va **encima del bloque 2.2** (`20261007205643`): se
+integra con el grupo C, después del grupo B; la fecha definitiva del nombre se pone al integrar.
+
+🔴 **Orden de despliegue: PRIMERO LA APP, DESPUÉS ESTA MIGRACIÓN, con una ventana de convivencia** (decisión del Director,
+09/10/2026: expandir → cambiar; nada de puerta nueva). La app publicada valida la agenda con un objeto ESTRICTO
+(`app/src/lib/metricas-agenda.ts`, `v.strictObject`): con la respuesta nueva (`de_baja`, `suspendido`) tumba el panel «Agenda del
+equipo» entero (medido en vitest: «Las métricas de agenda no tienen el formato esperado»; la regla de `LEEME.md`). La app nueva
+(`crm-api.ts`) acepta las marcas como opcionales y funciona con la respuesta de antes y con la nueva (vitest con las dos).
+- **Ventana de convivencia:** la app no se recarga sola al publicar (`app/src/components/app/version-publicada.tsx` solo avisa,
+  consulta cada 60 s): una pestaña abierta conserva el código viejo. Publicar la app, avisar «recargar» y aplicar esta migración
+  después, p. ej. a primera hora del día siguiente.
+- **Revertir la app exige revertir ANTES esta migración** (una app anterior al 2.12 con la migración aplicada tumba la agenda en
+  cuanto hay un marcado con actividad). Revertir la migración con la app nueva publicada es seguro.
+- Reuniones no tiene ese problema (`v.object`).
+
+**Quién consume estas puertas hoy (D-53).** `crm.metricas_reuniones_fn`: solo el Resumen de Gerencia
+(`app/src/screens/hoy/resumen-gerencia.tsx:231-232`), que lee `resumen` y `conversion`; el panel que pinta el desglose por
+responsable (`ReunionesGerenciaPanel`, de `HoyGerencia seccion="reuniones"`) **no se monta en ninguna ruta**
+(`screens/gerencia.tsx:15-18`, `lib/vistas.ts:98`, `lib/roles.ts:89,101`): Gerencia y Supervisión ven «Citas del equipo»
+(`TableroCitas`), que lee `crm.citas_gerencia_consulta_fn`. El desglose con marcas y «Otros» de esta migración **queda como
+coherencia de la API** (suma el total) y no se ve hoy en ninguna pantalla; la marca llega a «Citas del equipo» en el bloque **2.14**
+(D-53). `crm.metricas_agenda_fn`: el panel «Agenda del equipo» del puesto de mando del supervisor (`screens/hoy.tsx:16-17` →
+`supervisor-mando.tsx:977`): ahí sí se ven las marcas.
+
+Reglas:
+- **D-43** — en el desglose por responsable de `crm.metricas_reuniones_fn`, quien **fue** analista o supervisor y **hoy está dado
+  de baja** (ficha de `crm.equipo` inactiva: `private.analista_dado_de_baja`) sigue con **sus** citas y `"de_baja": true`.
+- **D-46** — el **suspendido en el Portal** (ficha activa, perfil `activo is not true`, la definición del CRM en
+  `crm.fijar_membresia_activa_fn` y `crm.usuarios_administrables_fn`) también, con `"suspendido": true`. Si la ficha está inactiva,
+  gana «de baja» (confirmado por el Director).
+- **D-47** — lo que el desglose deja fuera (citas sin responsable, de Gerencia o Coordinación —también de un ex Gerencia de baja—, de
+  un perfil sin rol efectivo) va a una fila **«Otros»** al final (`responsable_id` nulo, `nombre` «Otros», `supervisor_nombre` «—»
+  —confirmado por el Director—, `"otros": true`, las mismas cifras y su porcentaje): el desglose suma **siempre** el total **en los
+  diez contadores** (pactadas, debieron_ocurrir, realizadas, no_show, canceladas, reprogramadas, pendientes_cierre,
+  programadas_futuras, canceladas_sistema_vencidas, reprogramadas_vencidas) y **NO en el divisor de realización**: cada fila
+  descuenta las canceladas por otro asesor y el resumen no (diferencia deliberada y previa de la implementación). En D2: divisor del
+  resumen 10 − 1 = 9; filas P + B + «Otros» = 2 + 1 + 5 = 8; la diferencia es la cancelada ajena (Codex r1). El ensayo fija las dos
+  cosas (caso R5).
+- **D-48** — `crm.metricas_agenda_fn` conserva al de baja, con su marca, **solo si tiene actividad registrada en el período o tareas
+  pendientes actuales**, con la definición de la app (`app/src/lib/agenda-equipo-vista.ts:138-150`: toques, citas realizadas,
+  completadas, no asistió, canceladas, tareas creadas, citas agendadas y reprogramaciones —del período— o pendientes —una foto de hoy,
+  no del período—). La pantalla lo dice así (Codex r1, P3-3).
+- **D-54** — y también al **suspendido** con esa actividad, con «suspendido»: lo ven el **supervisor (solo su subárbol) y Directorio**,
+  como Gerencia (un estado del Portal que hasta ahora solo veían Gerencia y Superadmin; Miguel decidió que lo vean, para saber por
+  qué se le quedan tareas paradas y repartirlas).
+- **Nombre de reserva** (auditor r1, P3-5) — un marcado con el `nombre` vacío o en blanco sale como «(sin nombre)» (la agenda de la
+  app exige texto no vacío y `public.perfiles.nombre_completo` no lo impide).
+
+**Qué pasaba:** las dos puertas pasan su payload por `private.filtrar_desglose_sujetos_crm(…, array['vendedor','supervisor'])`, que
+solo deja a quien `private.rol_crm` reconoce (ficha y perfil activos). En reuniones, la implementación del 2.2 agrupa por
+`t.vendedor_id` sin mirar la ficha: las citas del de baja, del suspendido, sin responsable y de otros roles seguían en el total, pero
+no en el desglose. En la agenda, la implementación lista a todo el equipo visible, activo o no, y la puerta quitaba al de baja y al
+suspendido aunque hubieran trabajado en el período. Desde `20260807203757`.
+
+**Qué hace:** crea la pieza genérica `private.filtrar_desglose_sujetos_con_bajas_crm(jsonb,text,text,text[],text[])` —el cuerpo del
+filtro común más UNA rama: conserva, en su sitio y con su marca, al de baja o suspendido cuya ficha es de uno de los roles pedidos, si
+el último argumento es nulo o alguna de esas claves de su elemento es distinta de cero; si su nombre está vacío o en blanco, le pone
+«(sin nombre)»— y la pieza de reuniones `private.desglose_responsables_reuniones_crm(jsonb)` —la genérica con analistas y
+supervisores (sin condición de actividad) y, si alguien queda fuera, la fila «Otros» al final (cada cifra = la de todos los elementos
+menos la de los que quedaron; el porcentaje, recalculado como en la implementación)—; las dos, de `postgres`, SECURITY INVOKER,
+STABLE, `search_path` vacío, EXECUTE solo para el dueño y con comentario. Re-emite `crm.metricas_reuniones_fn` con un solo cambio
+(llama a la pieza de reuniones: `md5(prosrc)` ca480bc7… → e448db0c…, definición de328143… → 8399e433…) y `crm.metricas_agenda_fn`
+con un solo cambio (llama a la genérica con las nueve claves de actividad: 104d863b… → c41eb0d8…, definición 1a5f2938… → 671b7fcd…);
+dueño, ACL y atributos intactos; comentario nuevo en las dos (el de reuniones dice qué la consume hoy y que el desglose es coherencia
+de la API). Piezas: genérica 4980e12d… / e1ea83ff…; reuniones 041b9ca6… / 671a0b3d…. Sin bajas, suspendidos ni «Otros» en la
+ventana, la respuesta es idéntica byte a byte.
+
+**Qué no cambia, y qué sí:** no cambia A QUIÉN ve cada rol —quién consulta y su ámbito, que decide la implementación (en la agenda,
+`private.vendedor_ids_visibles`, que para un supervisor recorre su subárbol sin mirar `activo`, y que esta migración fija con su
+huella)—; sí cambia QUÉ ve de su ámbito: en la agenda, el supervisor (solo su subárbol) y Directorio, como Gerencia, pasan a ver al
+de baja y al suspendido con actividad, con su marca (D-48 y D-54). El analista no recibe nada nuevo. Tampoco cambian las
+implementaciones, su exención analítica ni el sello; el filtro común y las otras tres métricas que lo usan (conversiones,
+conversiones del equipo, conversión mensual); tablas, grants de tablas, policies, `public`. Las marcas no conceden autoridad. No
+corrige datos.
+
+**Excepción delimitada:** es una excepción deliberada, SOLO en reuniones y agenda, a la invariante «un analista dado de baja no
+reaparece con nombre propio» ([[crm-p04-revocado-vs-ajeno]], `test-rls.mjs:13150-13162`, comprobada sobre
+`crm.conversion_mensual_fn`, que el 2.12 no toca): `crm.conversion_mensual_fn` y las demás métricas siguen sin él.
+
+**Efecto conocido (agenda agrupada):** con más de un supervisor en la respuesta, la app agrupa por el roster
+(`crm.equipo_visible_fn`, `agenda-equipo-vista.ts:206-224`), que no incluye a quien no tiene rol efectivo: el marcado cae en «Sin
+equipo asignado» y un supervisor de baja con actividad forma su propio grupo. Solo de presentación; arreglarlo exige que la
+respuesta traiga el `supervisor_id` (otro cambio; puede ir al 2.14 si Miguel lo pide).
+
+**Precondiciones (fail-closed):** el preflight exige las dos puertas auditadas (cuerpo, definición, dueño, ACL efectiva, sin
+comentario; si alguna ya es la nueva, se niega), que no exista ninguna de las dos piezas (con cualquier firma), y la huella y la
+ficha del filtro común (`1cce2929…`), `private.rol_crm` (`d2878a21…`), `private.es_lector_global` (`c7c5828b…`), la implementación
+de reuniones del 2.2 (`ca6fe61e…` / `ce852e37…`; si es la anterior al 2.2, se niega con su mensaje) con su exención (`d54d4f87…`,
+declarada y al día) y el sello coherente, la de la agenda (`0fc09f91…` / `5cb341dc…`) y `private.vendedor_ids_visibles`
+(`33ece9ba…` / `85544c70…`, auditor r1, P3-2); y la forma de `crm.equipo` (PK `perfil_id`; `activo` y `rol_crm` NOT NULL; FK a
+`public.perfiles`) y de `public.perfiles.activo` (boolean). El postflight exige las huellas exactas de las dos puertas y las dos
+piezas, sus fichas y comentarios, las dependencias intactas (las mismas seis), las otras tres puertas, los dos censos, el registro
+analítico y la FOTO de los `private.assert_*()` sin argumentos y sin los `*_mutantes` (estado o SQLSTATE y texto íntegro del primer
+error) idénticos a los previos. La reversa vuelve a comprobar las seis dependencias. No acredita PASS de los gates que ya caían.
+
+**Verificación en el laboratorio (ronda 4, 09/10/2026 noche: producción de hoy, `main` 0bac1e77, + los bloques 2.1, 2.6, 2.3, 2.2, 2.4, 2.7 y 2.8 + banco):** `supabase/scripts/reuniones-desglose-con-bajas/`, todo en transacciones con rollback.
+Huella de la base IGUAL en todas las corridas (ninguna con código 9). **La migración no cambió en la ronda 4** (solo el ensayo, la app
+y los textos): SHA-256 `dfa2a98254cece224a78e5cda81a05b9479255a1b7c36221a0460f9e0a2d72ba`, el de la ronda 3. El ensayo exige a TODOS
+sus actores, también el lector global (Directorio): sin él aborta.
+- Oráculo **ROJO sin la migración: 64 fallos**, todos por el motivo correcto (faltan las marcas en reuniones y en la agenda, falta
+  «Otros» —también como única fila en D3—, el desglose no suma el total, P con el perfil nulo no sale, los nombres vacíos no se
+  reemplazan, la baja con el perfil inactivo o nulo no sale, la actividad de una sola clave no se ve, y las piezas no existen); 165
+  casos en «ok». **VERDE: 0 fallos, 229 «ok»** (el postflight confirmó las cuatro huellas y 30 trinquetes idénticos). En la ronda 3:
+  ROJO 53 / VERDE 212, y con la migración de la ronda 2, 1 fallo (el nombre vacío del P3-5 del auditor, medido).
+- **Precedencia de la baja (Codex r1, P3-1), medida:** con el oráculo de la ronda 3, un mutante que da prioridad a la suspensión
+  SOBREVIVÍA (VERDE con el mutante instalado). El caso nuevo (ficha inactiva y perfil inactivo o nulo, con actividad ⇒ solo
+  «de baja», en reuniones y en la agenda) lo mata.
+- Casos nuevos de la ronda 4: D3 con «Otros» como única fila y divisor 0 (porcentaje nulo); el divisor de realización en las seis
+  ventanas; actividad de una sola clave (solo un toque, solo una reprogramación).
+- Con: A y S «de baja» y P «suspendido» con exactamente las cifras de la implementación; «Otros» de D2 con X, C, N, Z y M (7
+  pactadas, 4 realizadas, divisor 5, 80,0 %, 19 claves); el desglose suma el total en las cinco ventanas; quitando los marcados y
+  «Otros», byte a byte la de antes; la respuesta, exactamente la esperada que el oráculo construye desde la implementación. Agenda:
+  Gerencia y lector ven a A, S, P y Q1 marcados (Q1 solo por su tarea pendiente); el supervisor, a A y P; el analista, lo de siempre;
+  Q2 (de baja sin nada), R (suspendido con solo rezago) y M (desalineado) siguen fuera. Sin: reuniones byte a byte (con «Otros» en
+  D2 y el año: la de antes + «Otros»); agenda byte a byte en los ocho roles y cuatro ventanas. Lo que ve cada rol, igual. Las otras
+  tres métricas, byte a byte. Un marcado con el nombre vacío o en blanco sale «(sin nombre)».
+- `mutantes.sh`: **32/32 mutantes muertos**, cada uno nombrando su fallo (los 31 de la ronda 3 —cada puerta vuelve al filtro
+  común; sin cada marca; el suspendido como «de baja»; sin la rama del suspendido; `is false` en vez de `is not true`; sin mirar el
+  rol; sin la condición de actividad; la actividad solo con toques o sin pendientes; la actividad también para los activos;
+  `de_baja: false` a los activos; una clave nueva; los de baja al final; sin el nombre de reserva; sin «Otros», «Otros» siempre, al
+  principio, sin su marca, sin porcentaje, con el divisor mal; reuniones con condición de actividad; Coordinación consultando cada
+  puerta con las dos cerraduras abiertas; seis de catálogo— y el nuevo «la suspensión gana a la baja», que muere por el caso de la
+  ficha inactiva con el perfil inactivo o nulo) y **3 equivalentes** confirmados (abrir solo una puerta a Coordinación: cada
+  implementación tiene su propia cerradura; `not v_ficha_activa`).
+- `derivas.sh` (sin cambios en la ronda 4): **25/25** derivas previas la hacen abortar sin rastro (24 en el preflight —cuerpo, `SET`,
+  INVOKER, ACL y comentario de las dos puertas; las dos piezas ajenas; filtro común, `rol_crm`, `es_lector_global`, las dos
+  implementaciones y `private.vendedor_ids_visibles` alterados; implementación anterior al 2.2; registro analítico; `activo` nulable;
+  sin la FK a `public.perfiles`; ya aplicada— y 1 en el postflight: un gate sembrado cuyo primer error cambia después del carácter
+  160). El control entra. **5/5 mutantes de la migración** mueren. La reversa con el gate sembrado ABORTA en su postflight, y una
+  reversa con la foto truncada lo deja pasar (su mutante muere). (Una primera corrida de la ronda 4 no pudo instalar la deriva de la
+  FK por un interbloqueo con otra corrida mía lanzada a la vez; repetida sola, sale bien.)
+- Sin el lector global (Directorio), el montaje ABORTA con «falta un lector global (Directorio)» (comprobado en el laboratorio).
+- Reversa → las dos puertas vuelven a ca480bc7… / de328143… y 104d863b… / 1a5f2938…, sin piezas, ficha idéntica, 30 trinquetes
+  idénticos; la reversa tras un `ALTER FUNCTION … SET lock_timeout` ABORTA sin rastro.
+- Trinquetes (`--trinquetes`, los 36 `assert_*` con los `*_mutantes` y el censo): idénticos con y sin la migración (29 pasan, 7 caen
+  desde antes por causas ajenas).
+- **Tras el 2.12, el oráculo del 2.2 cae en 6b porque fija la puerta; es evidencia histórica del 2.2** (decisión del Director: no se
+  toca). Sus otros 24 casos y sus medidas, iguales que sin el 2.12 (salvo la hora).
+- NO ejecutados: branch de Supabase, `test-rls.mjs`, advisors, el banco por HTTP, build y e2e.
+
+**Pantalla:** `app/src/data/crm-api.ts` valida y conserva las marcas (reuniones: `de_baja`, `suspendido`, `otros`, cada una ausente
+o `true`, una por fila, «Otros» única, última y sin responsable; agenda: `de_baja` con `activo: false`, `suspendido` con `activo:
+true`, quitadas antes del objeto estricto, que sigue rechazando cualquier otra clave) y exporta `MetricasReunionesConBajas` y
+`MetricasAgendaConMarcas`. `agenda-equipo.tsx` pinta «de baja» y «suspendido» junto al nombre y una nota al pie (la pantalla viva).
+`reuniones-gerencia.tsx` pinta «suspendido» y la fila «Otros», pero ese panel no se monta hoy (ver arriba). En la agenda, la marca y
+la nota al pie dicen «aparece(n) porque tiene(n) actividad registrada en el período o tareas pendientes actuales» (ronda 4, Codex r1,
+P3-3). Pruebas: `reuniones-gerencia.test.tsx`, `crm-api-reuniones-bajas-msw.test.ts`, `crm-api-agenda-bajas-msw.test.ts` (la
+respuesta de antes y la nueva) y `screens/hoy/agenda-equipo.test.tsx` (con el texto y un marcado con solo tareas pendientes). Ronda 4:
+`npm run lint` 0 errores (7 avisos previos en otros archivos), `npm run typecheck` 0 y `npx vitest run` completo: 391 archivos, 6322
+pruebas en verde.
+
+**Pruebas para la integración (grupo C) — `test-rls.mjs`** (lista del auditor de permisos r1 y de Codex r1; no se tocan en este bloque). Hoy solo
+cubre `7881-7915` (reuniones: Gerencia y Directorio con forma; vend1, sup1 y coordinador denegados) y `9893-9900` (agenda:
+Coordinación denegado).
+- Fixture: `vendInactive` (de baja) con cita y actividad; un suspendido (patrón P04, `test-rls.mjs:4354-4369`, sobre vend2,
+  restaurándolo); una baja sin actividad; una cita de Gerencia o con `vendedor_id` nulo.
+- Reuniones: 1) Gerencia: vendInactive `de_baja:true`, el suspendido `suspendido:true`, una sola fila `otros:true` (la última,
+  `responsable_id:null`), suma del desglose = resumen en los diez contadores, ninguna otra fila con marca. 2) Directorio = Gerencia.
+  3) 42501: vend1, sup1, sup2, coordinador, vendInactive y el suspendido (con su token vigente); anónimo 401/42501. 4) Piezas
+  inalcanzables por `schema('private').rpc` y `has_function_privilege` falso para `anon`, `authenticated` y `service_role`.
+- Agenda: 5) sup2 ve a vendInactive `de_baja:true`, `activo:false`, con actividad; no sin actividad. 6) sup1 ve a su suspendido
+  `suspendido:true`, `activo:true`; no a vendInactive. 7) sup2 no ve al suspendido de sup1. 8) sup1Nested no ve hacia arriba.
+  9) vend1: solo su fila, sin marcas. 10) Gerencia y Directorio: el mismo conjunto con los dos marcados. 11) Solo rezago ⇒ no
+  aparece. 12) Contrato: claves del `strictObject` + `de_baja`/`suspendido`; como mucho una marca; la marca cuadra con `activo`.
+  13) 42501: coordinador, anónimo, vendInactive y el suspendido. 14) No regresión: `testConversionMensual` (13150-13162) sigue
+  excluyendo a vendInactive.
+- Divisor (Codex r1): 15) en reuniones, el desglose suma el total en los diez contadores y NO en `divisor_realizacion`: la suma de
+  los divisores de las filas + sus `canceladas_ajenas_vencidas` = el divisor del resumen (con una cita cancelada por otro asesor).
+- E2E del grupo C (local, con Docker): 16) el recorrido real RPC → datos del supervisor (`datos-supervisor.ts`) → panel «Agenda del
+  equipo»: un de baja y un suspendido con actividad salen marcados; con varios supervisores (agrupada), el marcado cae en «Sin
+  equipo asignado» (efecto conocido) y un supervisor marcado forma su propio grupo; y una app anterior con la migración aplicada
+  falla cerrada (fija el orden de despliegue).
+
+**Consecuencias para integrar:** el oráculo del 2.2 (`metricas-reuniones-realizacion/pruebas.sql`, caso 6b) fija `md5(prosrc)`
+ca480bc7… de la puerta de reuniones (ver arriba). El pre y postflight de la migración del 2.2 también la fijan: el orden de aplicación
+es 2.2 → 2.12, y el de reversión, 2.12 → 2.2. Y la app de este bloque se publica ANTES que esta migración (ventana de convivencia).
+Antes de aplicar en producción: leer (solo lectura) las huellas vivas y cuántos de baja o suspendidos tienen actividad.
+
+**Reversa:** `supabase/scripts/reuniones-desglose-con-bajas/reversa.sql` — FALLA CERRADA (puertas y piezas exactamente como las dejó
+la migración, y ninguna otra función que nombre las piezas); repone los cuerpos anteriores de las dos puertas byte a byte, les quita
+el comentario y borra las dos piezas; después comprueba las seis dependencias. No deshace datos.
+
+**SHA-256 del archivo de la migración (rondas 3 y 4, 09/10/2026; no cambió en la ronda 4):** `dfa2a98254cece224a78e5cda81a05b9479255a1b7c36221a0460f9e0a2d72ba` (sustituye a los de la ronda 1, `806c9309…`, y
+de la ronda 2, `0f1aecd8…`).
+
+
+## 20261022170800 — Convertir a un cliente antiguo sin ficha de persona usa su misma ficha (puerta `crm.preparar_persona_lead_inversion_fn`; núcleos `private.inversion_persona_contexto_para` y `private.inversion_contexto_lectura_para`; piezas `private.conversion_absorber_cliente_antiguo`, `private.conversion_enlazar_cliente_antiguo` y `private.lead_historia_de_persona`)
+
+**INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170800_crm_conversion_cliente_antiguo_misma_ficha.sql`** (bloque 2.10 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261009235900_crm_conversion_cliente_antiguo_misma_ficha.sql`, copia `fase2b`, sha256 del origen `3d1c499aad10…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
+
+**Nota de integración (22/10/2026, auditor C5 P3-3/P3-5):** la cabecera (l.4–9) da por hecho el 2.16; no está en esta tanda. El armador del kit deja de pegar el 2.16 por defecto (H-C3-6). La dependencia 2.13 → 2.10 quedó medida en C3: VERDE 0/90 sobre el laboratorio con el 2.13 aplicado delante.
+
+**PENDIENTE DE BRANCH. Verificada solo en el laboratorio local (ronda 1 el 10/10/2026; ronda 2 el 10/10/2026 tras el auditor de
+permisos r1 —CHANGES_REQUESTED sin P0/P1— y las decisiones D-81 y D-83; ronda 3 el 10/10/2026 con D-84 y D-85; ronda 4 el 10/10/2026 tras el auditor de permisos r2 —CHANGES_REQUESTED sin P0/P1— y las
+decisiones D-86, D-87 y D-88; ronda 5 el 10/10/2026 con D-89; ronda 6 el 10/10/2026 tras Codex r1 —CHANGES_REQUESTED sin P0/P1— y D-90; ronda 7 el 11/10/2026 con D-91 y D-92; ronda 8 el 11/10/2026 con D-91 solo cuando la preparación escribe el DNI; ronda 9 el 12/10/2026 tras Codex r2 —CHANGES_REQUESTED sin P0/P1— y D-94; laboratorio igual a producción —`main` 0bac1e77— con los siete
+bloques de la fase 2 aplicados y las migraciones del 2.11 y del 2.16 pegadas delante en cada ensayo; también sin ellas); no aplicada en
+ninguna base real. La fecha definitiva del archivo se pone al integrar.** Plan de mantenibilidad del backend (AVANCE-BACKEND-0810-F2),
+fase 2, bloque 2.10 (decisiones **D-38**, **D-81**, **D-83**, **D-84**, **D-85**, **D-86**, **D-87**, **D-88**, **D-89**, **D-90**, **D-91**, **D-92**, **D-93** y **D-94** de Miguel, 09 al 12/10/2026; plan aprobado en D-45; la regla del cliente y lo
+que revela «ya es cliente de X» son las del 2.7 y el 2.8: D-22, D-25, D-27, D-29). **Orden de instalación fijado por el Director: 2.8 →
+2.9 → 2.11 → 2.16 → 2.13 → 2.10: esta va la ÚLTIMA (se renombra al integrar con una marca posterior a las definitivas del 2.16 y del 2.13;
+ensayada con el 2.11 y el 2.16 pegadas delante y también sin ellas: no depende de ninguna de las dos, ni del 2.9 ni del 2.13; el oráculo
+se repite con el 2.13 delante en la branch —o en el laboratorio cuando esté aplicado— y la cifra va al runbook del grupo C).** No toca
+ninguna función que fije el preflight del 2.11 ni el del 2.16 (`private.persona_vetada`, `private.juicio_reapertura`,
+`private.bloquear_personas_de_leads`, `private.lead_dentro_de_bloqueo`, `private.trg_leads_disponibilidad_atomica`, los dos núcleos del
+2.11, las cuatro puertas del 2.16) y, al revés, lo que fija su preflight no lo toca ninguno de ellos; ensayado: la reversa del 2.11 y la
+del 2.16 ENTRAN con esta aplicada, y esta entra con ellas aplicadas o no. Crea tres piezas y cambia, por ancla única, el cuerpo y el
+comentario de la puerta y de dos núcleos. No toca tablas, grants, policies, `private.leads_de_personas`, el verificador, el disparador
+de disponibilidad, el puente de identidad ni nada de `public`.
+
+**Qué pasa hoy (medido en ROJO; el P2 del 2.8):** la preparación de la conversión resuelve o crea la persona del documento y solo detecta
+otros leads de esa persona por sus enlaces (puntero, puente o «sueltos VIVOS» con su documento). Un cliente antiguo SIN ficha de persona
+(lead `convertido` con `inversionista_id` nulo y sin puente) que está RETIRADO no aparece por ningún camino ⇒ nace una persona nueva y
+el cliente queda con dos registros; si sigue ACTIVO es un «suelto vivo» ⇒ «Esta persona ya tiene otra identidad o lead; requiere
+conciliación» (P0409), sea de otro asesor o del mismo. Con un cliente que SÍ tiene ficha, hoy es ese mismo P0409 y NO cambia. Su cierre
+externo inicial (la inversión de cooperativa hecha fuera del CRM) queda sin persona: no sale en la ficha de Cartera y, mientras exista
+uno así, `crm.cartera_inversionistas_estado_fn` declara la cartera «no habilitada» para todos (cobertura; medido en la ronda 2).
+
+**Qué hace:** en `crm.preparar_persona_lead_inversion_fn`, bajo los candados de hoy (documento → persona → la fila del lead que se
+convierte `FOR UPDATE NOWAIT`), DESPUÉS de todo lo que hoy decide (rol, ámbito, documento, identidad que cambió, el reintento
+idempotente, «ya está cerrado», persona que no opera, No insistir, analista activo) y ANTES de la conciliación: (1) la pieza
+`private.conversion_absorber_cliente_antiguo` busca los leads `convertido` SIN persona ni puente cuyo DNI es el de la conversión
+(distintos del que se convierte), toma sus filas `FOR UPDATE NOWAIT` (40001 «El lead está en uso por otra operación; vuelve a
+intentarlo» si otra operación las tiene) y decide por prioridad (activo → más reciente → id): si alguno sigue ACTIVO a nombre de OTRO
+asesor ⇒ devuelve «ya es cliente de X» (el formato y los datos del alta para un convertido sin persona: estado `ya_es_cliente`, asesor =
+dueño de esa ficha —vendedor o bandeja del supervisor— o «sin asesor asignado») y la puerta responde `P0481` «Contacto no disponible» con
+el veredicto en el detalle, sin escribir nada; si no (todos retirados, o activos del MISMO asesor) ⇒ los absorbe, bajo la válvula y como
+hace la puerta de enlace de Gerencia (`crm.enlazar_lead_inversionista_fn`), en su orden —primero el perfil, después el cierre: medido en la
+ronda 4 (`salidas/ronda4/trabajo/medida/medida-perfil.salida.txt`)—: **(a0) D-86/D-87, el PERFIL DEL PORTAL del antiguo** (si tiene): si
+ya es de OTRA persona no fusionada ⇒ `P0409` «El perfil del Portal del cliente antiguo pertenece a otra persona; requiere conciliación de
+Gerencia»; si es de nadie pero la ficha YA tiene otro perfil ⇒ `P0409` «La ficha ya tiene otra cuenta del Portal; requiere conciliación
+de Gerencia»; si es de nadie y su documento (`public.perfiles.dni`, `tipo_documento`) no es de la persona —otro DNI, otro tipo o SIN
+documento: la puerta de Gerencia tampoco los distingue— ⇒ `P0409` «El perfil del Portal del cliente antiguo lleva otro documento; requiere
+conciliación de Gerencia»; en los tres, nada escrito (D-86); si es de nadie, la ficha no tiene otro y su documento es de la persona ⇒ se
+enlaza a la ficha (`crm.inversionistas.perfil_id`, D-87; el detalle de la operación dice `perfil_completado`), pero DESPUÉS del UPDATE del
+lead que se convierte, en `private.conversion_enlazar_cliente_antiguo`: el verificador que corre al escribir el DNI trata como «ya es
+cliente» (vía identidad) a una persona con perfil enlazado y rechazaría la conversión (medido: mutante M33); **D-89 (ronda 5):** si esa
+cuenta propia está DESACTIVADA —exactamente el predicado con el que el núcleo responde «El perfil Avance requiere revisión antes de operar»:
+`not found or activo is not true or rol <> 'cliente'`, l. 37 de los cuerpos vivos de `private.inversion_persona_contexto_para` y
+`private.inversion_contexto_lectura_para`, fijados por el preflight— NO se enlaza (Gerencia puede hacerlo después con su puerta): la
+absorción y la conversión siguen y el detalle dice `perfil_no_enlazado` (su id) y `perfil_motivo` «cuenta del Portal desactivada»; así un
+perfil enlazado pasa el núcleo con lo leído —el núcleo lo vuelve a leer `FOR SHARE`: un cambio simultáneo del perfil puede detener la
+preparación— (A1m/A1mb; en la ronda 4 se enlazaba y el núcleo detenía la preparación); los conflictos de D-86 se
+miran ANTES y detienen aunque la cuenta esté desactivada (A1q; A1j, A1k y A1p también con cuentas desactivadas; mutante M39); si ya es de la persona ⇒ no se
+toca (y el verificador detiene la conversión con «ya es cliente» vía identidad, como hoy: A1o). `public.perfiles` se LEE con un SELECT
+simple, SIN candado (regla de `public`); completar `perfil_id` no pide la válvula (medido) y, como toda escritura de esa columna, su clave
+foránea toma un FOR KEY SHARE sobre la fila del perfil (solo choca con borrarlo o cambiar su id) y el disparador de la casa
+`trg_zzzz_usuario_retirado` un FOR SHARE NOWAIT sobre el perfil del responsable (como el UPDATE del responsable que la puerta ya hace hoy):
+**son los únicos candados sobre `public` y son IMPLÍCITOS** —el efecto automático de escribir en `crm` con una clave foránea hacia `public` y
+de un disparador de la casa—; esta migración no añade ningún `FOR SHARE` (ni otro candado o escritura) explícito sobre `public` (aceptado
+por el Director, conciliación de la ronda 4); el núcleo PREEXISTENTE del contexto de la persona (`private.inversion_persona_contexto_para`,
+código de la casa que esta migración solo parchea en su conciliación) sí lee el perfil enlazado `FOR SHARE` (Codex r1);
+el índice único `inversionistas_perfil_uidx` convierte una carrera con otra persona en 23505, que la pieza traduce al `40001` de la casa
+«La cuenta del Portal del cliente antiguo cambió mientras se enlazaba; vuelve a intentarlo» (U6). **(a) D-83:** su CIERRE EXTERNO INICIAL, tomado `FOR UPDATE
+NOWAIT`, se completa con la persona (`update crm.cierres_externos set inversionista_id`) solo si sigue sin persona y
+`private.documento_es_de_identidad(persona, documento_tipo, documento)`; el asesor de origen del cierre (`vendedor_id`) no cambia —no se
+mueven cifras entre asesores; `private.trg_cierres_externos_inmutables` lo restaura incluso bajo la válvula (U3)—; **D-84:** si el
+cierre ya es de OTRA persona ⇒ `P0409` «El cierre del cliente antiguo pertenece a otra persona; requiere conciliación de Gerencia» y nada
+escrito; **D-85:** si sigue sin persona y su documento NO es de la persona que se convierte —otro DNI, un CE, un pasaporte— ⇒ `P0409` «El
+cierre del cliente antiguo lleva otro documento; requiere conciliación de Gerencia» y nada escrito (ni puente, ni retiro, ni nota, ni
+cierre, ni tareas: A1e/A1g); es lo mismo, y en el mismo orden (primero «de otra persona», después «otro documento»), que hace la puerta
+de enlace de Gerencia, medida en la ronda 3 (`salidas/ronda3/trabajo/medida/`): ella responde «El cierre del lead pertenece a otra
+persona reconocida: reconciliación» y «El documento del cierre del lead no es de esta persona: reconciliación documental primero», no
+distingue un CE de otro DNI, y un cierre SIN documento no existe (`documento` y `documento_tipo` NOT NULL con CHECK de formato, ni con
+los disparadores apagados: U4) —por eso no hay rama «sin documento»—; si el cierre YA es de esta persona, no se toca (como esa puerta) y
+la operación lo dice (`cierre_no_completado` = su id, `cierre_motivo` «el cierre ya es de esta persona»: A1f, el único caso que se absorbe
+sin completar el cierre); **(b)** su rastro en el libro append-only `crm.inversionista_operaciones` (tipo `enlace`, motivo sin documento,
+detalle con la vía, el rol, el lead de la conversión, si estaba activo y se retiró, los dos asesores y `cierre_completado` —el id— o,
+si el cierre ya era de esta persona, `cierre_no_completado` + `cierre_motivo`; `por` = quien convierte); **(c) D-81:** si el antiguo sigue ACTIVO, una nota en `crm.actividades` (evento
+`enlace_identidad`) y su RETIRO (`activo = false`, como lo retira la casa: la tenencia a NULL; sus tareas pendientes las cancela la casa
+como `sistema` —`private.trg_leads_sync_tareas`, medido—): la casa no admite dos leads vivos de una persona (el verificador de
+disponibilidad, sellado, aplica «un solo lead total por persona» al escribir el DNI en el lead que se convierte y rechazaría la
+conversión), y el que sigue vivo es el que se convierte; si la casa no deja retirarlo (`private.leads_before_update`: convertido sin
+perfil del Portal ni cierre inicial; un episodio abierto anómalo) ⇒ `P0409` «El cliente antiguo no se puede retirar; requiere
+conciliación de Gerencia» con SOLO el código del error original en el detalle (el texto va a `raise log`, al registro del servidor: P3-2
+del auditor r2) y nada escrito (P3-2.i); si otra operación tiene la fila (55P03), el `40001` de la casa; ni el dueño ni la etapa del antiguo cambian; el
+cliente pasa al asesor que convierte porque la persona nace (o sigue) con ese responsable (el bloque de responsable que ya existe en la
+puerta). (2) La conciliación de la puerta y la de los dos núcleos del contexto de la persona (`private.inversion_persona_contexto_para`,
+que corre al preparar la solicitud y al confirmarla, y `private.inversion_contexto_lectura_para`, que decide lo que la pantalla puede
+hacer) dejan de contar esa historia como «otro lead» (`private.lead_historia_de_persona`: puente `historico` a esa persona, lead
+convertido, sin puntero y **RETIRADO** —**D-90**: solo los retirados, como los que deja la absorción; un antiguo ya unido por puente y
+ACTIVO sigue siendo «otro lead», como hoy (A1s); un canónico, un puntero o un suelto vivo también—): sin eso la conversión se detendría en el
+paso siguiente. **D-91 (ronda 7, precisado en la ronda 8):** en la PUERTA, esa historia solo exime si la puso ESTA conversión —la operación de enlace
+del antiguo lleva `lead_conversion` = el lead que se convierte—; un puente HISTÓRICO a la persona que ya existía ANTES (de Gerencia, de la
+carga o de la conversión de OTRO lead) ⇒ el `P0409` de conciliación de hoy, nada escrito (una condición más en la misma comprobación de la
+puerta), **pero solo cuando esta preparación SOLICITA escribir el DNI del lead**, que es cuando corre el verificador sellado que D-91 quiere evitar.
+Medido en el catálogo vivo (`salidas/ronda8/trabajo/medida/condicion-exacta.txt`): el UPDATE de la puerta (l. 93-94 de su definición,
+`b40dded8…`) cambia el DNI solo si el documento es un DNI que el lead aún no lleva —`p_tipo_documento='DNI' and v_l.dni is distinct from
+v_doc`; antes, l. 34 y 47, el DNI del lead está vacío o es el documento— y el disparador de disponibilidad (`trg_leads_00_disponibilidad_update`)
+llama al verificador solo si cambia el teléfono o el DNI (l. 42-43 y 70 de su función, `418b0976…`, que esta migración no fija y el 2.13 cambia:
+lo que se supone de ella lo prueban A1u/A1u2/A1v, también en la branch con el 2.13 delante; la puerta no toca el teléfono). La condición dice que el
+UPDATE SOLICITA cambiar el DNI y, **en el flujo ordinario auditado**, eso alcanza el verificador: el disparador tiene una salida anticipada para la
+corrección de documento de Gerencia (l. 58-69 de su función: la válvula, la GUC `crm.correccion_documento` en `on`, solo cambia el DNI y la persona se
+conserva) y que ninguna sesión la conserve al llamar a esta puerta es una **premisa que se verifica al integrar** (con el 2.13 delante), no algo que
+esta migración demuestre (Codex r2, P3-1; no hay una vía demostrada desde HTTP). Si el lead YA lleva
+ese DNI —el estado del backfill de identidad y de la carga de septiembre: el lead vivo canónico y un convertido retirado con puente
+histórico (A1u), o el lead con el DNI y sin puntero (A1u2)— o el documento es un CE o un pasaporte (A1v: el UPDATE no escribe DNI; **D-93**, Miguel 11/10: con CE o
+pasaporte la conversión SIGUE), el verificador no corre
+y manda D-90: la historia cuenta, la conversión SIGUE y la confirmación entra (medido: hoy `P0409`; con la ronda 6, `ok`,
+`nueva_inversion = true` y la confirmación entra; con la ronda 7, `P0409` otra vez —`medida-dni.*.salida.txt` y `medida-ce.*.salida.txt`—).
+El reintento de la misma preparación (A13) ya lleva el DNI y no llega a la comprobación: la exención por `lead_conversion` se conserva (D-91
+tal como se decidió; la conserva la conciliación del Director del 11/10, cubierta por C1d) pero ningún flujo real la ejercita —sin ella A13 sigue en verde: M44 solo muere por la inspección C1d—. Los dos núcleos
+mantienen D-90.
+**D-94 (ronda 9; P2-1 de Codex r2, medido por el Director en rollback: `revision/codex-r2-medida/`):** el «No insistir» de un antiguo de la persona que
+la conversión CUENTA COMO HISTORIA (los leads de la persona que reconoce `private.lead_historia_de_persona`: retirados ya unidos por puente histórico,
+D-90) o que ABSORBE (los candidatos de la pieza de absorción, D-38) detiene SIEMPRE la conversión con la respuesta exacta que hoy dan el alta y el
+verificador sellado en A15/A20 —`P0481`, «Contacto no disponible», detalle `{"estado": "no_contactar"}`, como texto y como jsonb— y nada escrito (el
+rechazo deshace la absorción que la pieza acaba de hacer), aunque el verificador no corra: el lead YA lleva el DNI (A1w, A1wc) o el documento es un CE o
+un pasaporte (A1wv). Antes de la ronda 9 no: M1 (retirado ya unido con No insistir y el lead con el DNI ya escrito) daba hoy `P0409` y la ronda 8
+convertía; M4 (lo mismo con un CE) hoy `P0409` y la ronda 8 convertía; M2 (un retirado SIN puente con No insistir, candidato a absorción, y el lead con
+el DNI ya escrito) hoy convertía sin absorber y la ronda 8 convertía **y lo absorbía**; el alta de un lead nuevo con ese DNI ya respondía
+`no_contactar`. **Dónde:** una comprobación más en la puerta, al final del ancla `$n2$`, DESPUÉS del `P0409` de conciliación (l. 69-75 de la definición
+viva `b40dded8…`: el antiguo que no es historia sigue yendo al `P0409` de hoy y, con el lead SIN DNI, manda el `P0409` de D-91: A1wb) y ANTES del UPDATE
+que escribe la persona y el DNI (l. 93-94), que es donde hoy el verificador pararía este veto. Va en la puerta y no en la pieza de absorción porque
+esa pieza corre ANTES de la conciliación (devolver allí el veredicto `no_contactar` cambiaría qué respuesta gana cuando la conciliación también
+detiene) y solo ve los candidatos, no la historia; así la pieza, sus huellas y la reversa de la pieza no cambian (la puerta llama ahora tres veces a la
+pieza de historia). **Candados:** ninguno nuevo; los candidatos ya los tiene la pieza `FOR UPDATE NOWAIT`; la marca de los leads de la historia se lee
+con un SELECT simple, como la lee el verificador (una marca que se levanta a la vez es la carrera de siempre de ese veto). **Medido** (rollback;
+`salidas/ronda9/trabajo/medida/medida-extra.*.salida.txt`; hoy / ronda 8 / ronda 9): E1, el estado de A1w con la persona con OTRO responsable:
+`P0409` de conciliación / `P0409` de responsable / `P0481` `no_contactar` (la comprobación va antes que el `P0409` de responsable de las l. 76-78:
+el veto del cliente manda; ver «Decisiones» (7)); E2, con un PASAPORTE: `P0409` / ok / `P0481`; E3, un retirado ya unido limpio y otro por absorber con
+No insistir: `P0409` / ok y lo absorbe / `P0481` sin absorber; E4, el reintento con No insistir puesto entre las dos llamadas: ok / ok / `P0481`; E5, un
+antiguo ACTIVO del mismo asesor con No insistir y el DNI ya escrito: `P0409` / ok y lo retira / `P0481` y sigue activo. **No cambia por D-94:** D-90,
+D-91 (ronda 8), D-93, la exención conservada, los dos núcleos y las tres piezas. Si la persona volvió por su cuenta, Supervisión o Gerencia levantan la
+marca con «Quitar No contactar» (`crm.levantar_no_contactar`, motivo obligatorio; levanta la persona y TODOS sus leads) y se vuelve a convertir. El
+perfil ACTIVO del Portal con el DNI ya escrito (M3 del Director) queda como hoy (límite vii; a D-92).
+(3) DESPUÉS del UPDATE que escribe la persona y el DNI en el lead que se convierte (ese UPDATE pasa por el verificador,
+que contaría un puente como «otro lead»), `private.conversion_enlazar_cliente_antiguo` pone a cada absorbido el puente HISTÓRICO
+(`crm.inversionista_leads` rol `historico`, sin tomar el puntero —el canónico es el lead que se convierte—, `creado_por` = quien
+convierte; el estado que el backfill de identidad y la puerta única dan a un convertido de una persona que ya tiene su lead vivo). (4)
+Comentarios: a la puerta (sin comentario hoy) se le pone uno; a los dos núcleos se les añade una frase (la reversa los quita). Solo con
+DNI (`crm.leads.dni` solo guarda DNI). Con el cierre completado, Cartera (`private.cartera_f5_fuentes()`, `crm.inversionista_ficha_fn`)
+atribuye la inversión antigua a la persona (medido: 2 inversiones y 6 000 PEN tras absorber y confirmar; 3 cierres con tres antiguos).
+
+**Cuándo se DETIENE la conversión (nada escrito; el mensaje es el de la casa, y la pantalla lo enseña tal cual):** cliente CON ficha, o
+un lead vivo de la persona, o un antiguo ya unido por puente y ACTIVO (D-90: A1s), o un antiguo RETIRADO ya unido por puente histórico
+ANTES de esta preparación **cuando ésta ESCRIBE el DNI del lead** (**D-91**: A1r, con el lead sin DNI; también con otro antiguo del
+mismo DNI por absorber, A1r2, y con la operación de enlace de OTRA conversión, A1r3), o la conversión de OTRO lead de una persona ya
+absorbida (A1t, y A1tb con el DNI ya escrito) ⇒ `P0409` «Esta persona ya tiene otra identidad o lead; requiere conciliación» (como hoy: el
+texto exacto del cuerpo vivo de la puerta, l. 74 de su definición `b40dded8…`; en la ronda 6 el retirado ya unido pasaba la conciliación y
+el verificador sellado lo paraba con `P0481` «ya es cliente» vía identidad); si el lead YA lleva ese DNI, o el documento es un CE o un
+pasaporte, **la conversión sigue** (D-90: A1u, A1u2, A1v; **D-93** para el CE y el pasaporte); el REINTENTO de la
+misma preparación sigue (A13); cliente antiguo
+ACTIVO de otro asesor ⇒ `P0481` «Contacto no disponible» con «ya es cliente de X» en el detalle; un antiguo de la persona que la conversión cuenta
+como historia (retirado ya unido por puente histórico) o absorbe (candidato) con «No insistir» ⇒ `P0481` «Contacto no disponible» con
+`{"estado": "no_contactar"}` (**D-94**: A1w, A1wc, A1wv, también con el DNI ya escrito, un CE o un pasaporte; con el lead SIN DNI manda el `P0409` de
+D-91: A1wb); el cierre inicial del antiguo es de OTRA
+persona ⇒ `P0409` «El cierre del cliente antiguo pertenece a otra persona; requiere conciliación de Gerencia» (**D-84**); el cierre lleva
+otro documento ⇒ `P0409` «El cierre del cliente antiguo lleva otro documento; requiere conciliación de Gerencia» (**D-85**); el antiguo
+activo no se puede retirar ⇒ `P0409` «El cliente antiguo no se puede retirar; requiere conciliación de Gerencia» (P3-2.i); el perfil del
+Portal del antiguo es de OTRA persona ⇒ `P0409` «El perfil del Portal del cliente antiguo pertenece a otra persona; requiere conciliación
+de Gerencia» (**D-86**); la ficha ya tiene otra cuenta del Portal ⇒ `P0409` «La ficha ya tiene otra cuenta del Portal; requiere
+conciliación de Gerencia» (**D-86**); el perfil lleva otro documento (o ninguno) ⇒ `P0409` «El perfil del Portal del cliente antiguo
+lleva otro documento; requiere conciliación de Gerencia» (**D-86**; los tres, también con la cuenta desactivada); otra operación tiene la fila del antiguo
+o de su cierre, o la cuenta del Portal cambió mientras se enlazaba ⇒ `40001` (se reintenta); y todo lo que ya detenía antes la
+preparación (rol, ámbito, documento, «ya está cerrado», No insistir, analista activo) va antes. **Cuándo se ENLAZA el perfil del Portal
+(D-87):** de nadie, la ficha sin otro, su documento de la persona y la cuenta NO desactivada; si está desactivada (D-89), NO se enlaza y la
+conversión sigue (el detalle lo dice). Detrás de la absorción va el `P0409` de
+responsable de la puerta: si la persona del DNI ya existe con otro responsable (el estado que deja el backfill), «El responsable de la
+persona y el analista del lead deben coincidir antes de invertir» y la absorción se deshace (A1fb).
+
+**No cambia (medido):** los leads sin coincidencia (persona nueva); los clientes CON ficha, activos o retirados, también en sus dos
+estados heredados (puntero sin puente, puente canónico sin puntero): P0409 conciliación; un lead vivo NO convertido con ese DNI (P0409);
+un convertido con puente histórico a OTRA persona (no es candidato); CE y pasaporte; todo lo que hoy ya rechaza y va antes (No insistir
+del lead, «ya está cerrado»); un antiguo retirado —o ACTIVO del mismo asesor— con «No insistir» (lo rechaza `P0481` `no_contactar`, y el rechazo deshace la absorción y el
+retiro: hasta la ronda 8 solo el verificador, al escribir el DNI; desde la ronda 9, D-94, la puerta, antes del UPDATE, y también con el DNI ya escrito
+o con un CE o un pasaporte); el supervisor que convierte con un antiguo activo de
+OTRO analista de su equipo y Gerencia con un antiguo activo de otro asesor reciben el veredicto («ya es cliente de <ese analista>», la
+referencia del alta): «otro asesor» no es «otro subárbol»; el reintento (misma persona, un puente, una operación); la validación, la
+solicitud, el comprobante y la confirmación de la inversión. **Límites (P3-2 del auditor; medidos o razonados; D-82 los dimensiona):**
+(i) un antiguo ACTIVO del mismo asesor SIN perfil del Portal ni cierre externo inicial —estado que `private.leads_before_update`
+(sellado, P4 relajada) declara imposible de editar; en producción un convertido tiene perfil o cierre— no se puede retirar: `P0409` «El
+cliente antiguo no se puede retirar; requiere conciliación de Gerencia», en el detalle solo `P0001`, y nada escrito (hoy, P0409
+conciliación); (ii) un convertido sin persona con **perfil del Portal ACTIVO** con ese DNI: la pieza lo acepta (D-87) y después el
+verificador responde «ya es cliente de <asesor del perfil>» por `public.perfiles` ⇒ `P0481` y todo se deshace, como hoy (MEDIDO en la
+ronda 4 con perfiles creados en la transacción del ensayo: A1n); si ese perfil es de OTRA persona, ahora se detiene antes con el `P0409`
+de D-86: esa combinación pasa del `P0481` del verificador («ya es cliente de X») al `P0409` de D-86 —los dos detienen sin escribir; con
+datos incoherentes (el DNI del perfil no es de su persona) la conciliación de Gerencia es lo correcto y revela menos (sin nombre): aceptado
+por el Director, conciliación de la ronda 4—; (iii) un convertido activo con episodio abierto anómalo en
+`lead_asignaciones` ⇒ el mismo `P0409` de (i) (el ledger rechaza «Invariante rota» al retirarlo); (iv) **D-89 (ronda 5)**: el perfil
+propio DESACTIVADO no se enlaza y la conversión sigue (MEDIDO, A1m/A1mb; en la ronda 4 D-87 lo enlazaba y el núcleo detenía la preparación con
+«El perfil Avance requiere revisión antes de operar»); (v) D-87 solo ENLAZA en una conversión que sigue cuando el perfil propio está activo
+y no choca con el DNI ni con el teléfono del lead (p. ej. un CE de la persona: A1l, que confirma); (vi) un
+cambio simultáneo del perfil (su documento, o enlazarlo a otra persona) es carrera de F4.6: lo segundo lo frena el índice único (40001); (vii, Codex r2,
+medido por el Director como M3) un perfil ACTIVO del Portal con el mismo DNI o teléfono y el lead que YA lleva el DNI: el verificador no corre y la
+conversión sigue como hoy (hoy `ok`, ronda 8 `ok`, ronda 9 `ok`); el alta de un lead nuevo con ese DNI sí lo frena (`ya_es_cliente`); D-94 no lo cambia
+(solo el «No insistir» del antiguo): queda para el bloque de D-92.
+**D-88 (aceptado por Miguel):** quien convierte ve la ficha del antiguo —su dinero (cierres: monto, cooperativa, tasa, número, asesor de
+origen, comprobante si existe) y su historia— desde la PREPARACIÓN, aunque no confirme la inversión: consecuencia de D-38 + D-83 (la
+persona tiene fuentes y su responsable es quien convierte; medido: A23b lee la ficha con `solicitud_id` nulo). Queda el rastro: el libro
+de operaciones (`por`), el `audit_log` del cierre y las lecturas de la ficha (`private.cartera_f5_registrar('ficha')`). **Deuda H-3
+(medida, A24):** tras absorber, el alta con el TELÉFONO del antiguo sigue nombrando al dueño viejo (`private.juicio_cliente_convertido`
+juzga por el lead convertido que encuentra, sin puente; con el DNI nombra al responsable de la persona, vía identidad): bloque corto
+posterior sobre esa pieza (fijada por los preflights del 2.9/2.11/2.16), no aquí. **Deuda D-92 (decidida por Miguel, junto a H-3):** un
+bloque corto posterior al grupo C —con su plan aprobado por Miguel antes de empezar— ajustará el verificador
+(`private.verificar_disponibilidad_lead_impl` / su disparador) para que los antiguos RETIRADOS ya unidos por puente conviertan sin trámite
+(lo que pedía D-90; hoy, con D-91, van a conciliación cuando la conversión escribe el DNI: A1r/A1r2/A1r3; con el DNI ya escrito convierten
+por D-90: A1u/A1u2 —salvo «No insistir»: D-94—) y resolverá H-3 en el mismo bloque. **Alcance de D-92 (ampliado por Codex r2):** ajustar solo el
+verificador no elimina el `P0409` que D-91 lanza antes, en la puerta: D-92 revisa también ese `P0409`; la exención conservada (su subconsulta no exige
+`o.inversionista_id = v_persona`: hoy no demuestra corrupción); la discrepancia núcleo/puerta (los núcleos cuentan la historia preexistente por D-90 y
+la puerta añade D-91 al escribir el DNI: ningún caso mide `nueva_inversion=true` ANTES de una preparación rechazada); y el perfil ACTIVO del Portal
+con el DNI ya escrito (límite vii).
+
+**Lo que decide el efecto y NO se fija (y por qué):** `private.trg_leads_disponibilidad_atomica` y
+`private.verificar_disponibilidad_lead_impl` (el 2.13 cambia el disparador y las bases cargadas fijan el verificador; lo que esta
+migración necesita de ellos —que el verificador corra al escribir el DNI bajo la válvula y no juzgue el retiro— se MIDE en el oráculo:
+A4, A15, A20); `private.trg_leads_sync_tareas` (cancela como `sistema` las tareas pendientes del antiguo retirado: efecto de la casa,
+medido en A4e); `private.trg_leads_asignaciones` (el ledger: con el episodio cerrado no escribe; con uno abierto anómalo rechaza: límite
+iii); `private.trg_leads_zz_reapertura_solo_rpc` (lo fija el 2.16); `private.trg_leads_guard_tenencia`; `private.log_audit_sin_secretos`
+(la auditoría del retiro y del cierre, sin el documento); `private.f4_sincronizar_cierre` y `private.conversion_acreditacion_evento_trg`
+(no se disparan: sus `UPDATE OF` no incluyen `inversionista_id`); `private.juicio_persona` e `private.inversionista_canonica` (los fijan
+el 2.11 y el 2.16; aquí solo se leen); `private.no_asignar_usuario_retirado` y `private.set_actualizado_en_crm` (funciones de la casa
+que comparten muchas tablas; lo que el enlace del perfil necesita de ellas se MIDE: A1l). La regla del verificador que obliga a enlazar el
+perfil DESPUÉS del UPDATE («una persona con perfil enlazado ya es cliente», `verificar_disponibilidad_lead_impl`) también se mide (M33).
+**Sí se fijan desde la ronda 2** (P3-4; ningún bloque de la fase 2 las toca): `private.leads_before_update`,
+`private.trg_leads_tenencia_desde`, `private.documento_es_de_identidad`, `private.trg_cierres_externos_inmutables` y
+`private.f4_fuente_inmutable` (definición, dueño y ACL), con sus derivas; **y desde la ronda 4** (riesgo de arquitectura del auditor r2)
+`private.inversionista_fusion_destino_activo` (disparador de `crm.inversionistas` que reacciona al enlazar el perfil) y las PREMISAS de
+D-83/D-85 y D-86/D-87: el índice de un cierre inicial por lead (`cierres_externos_inicial_por_lead_uidx`), el documento del cierre y su
+tipo NOT NULL con su CHECK de formato (por eso no hay rama «sin documento»), `crm.inversiones.inversionista_id` NOT NULL, el disparador
+`trg_cierres_externos_00_inmutables` enlazado y activo, el índice único del perfil (`inversionistas_perfil_uidx`) y su clave foránea, y el
+conjunto exacto y activo de los disparadores de `crm.inversionistas`; con sus derivas (d61–d70). La ACL de
+`private.trg_cierres_externos_inmutables` (EXECUTE para PUBLIC, como todo disparador) queda fijada tal cual: un endurecimiento futuro
+(REVOKE FROM PUBLIC) bloquearía la instalación del 2.10 (falla cerrada): hay que ordenarlo antes. **Premisa del disparador (Codex r2, P3-1):** la condición de
+D-91 y el «no insistir» de D-94 suponen que el UPDATE de la puerta que solicita cambiar el DNI llega al verificador; el disparador tiene una salida
+anticipada para la corrección de documento (l. 58-69: válvula + GUC `crm.correccion_documento` en `on` + solo cambia el DNI + la persona se conserva),
+que ninguna sesión debería conservar al llamar a la puerta: se verifica al integrar (con el 2.13 delante, que cambia ese disparador).
+
+**Pantalla (§5 del informe; precedente D-36 y §5 del 2.16; no hay cambio de app en esta copia):** la pantalla de conversión
+(`inversion-desde-lead.tsx` → `prepararPersonaLeadInversion` → `respuestaInversionistas`) enseña hoy el mensaje del servidor («Contacto no
+disponible»), no «ya es cliente de X»; el veredicto viaja en el detalle como en la edición antes de D-36. Cambio mínimo (otro bloque,
+copia de pantalla, vitest/msw en ROJO primero): en `prepararPersonaLeadInversion` (`app/src/data/inversion-solicitud-api.ts:15-20`), antes
+de `respuestaInversionistas`, si `error.code === 'P0481'` presentar con `presentacionDelP0481` (`crm-api.ts:2580`; exportarla o llevarla a
+`disponibilidad-lead.ts`): `{"estado":"ya_es_cliente","asesor":"Ana"}` ⇒ «Esta persona ya es cliente y está a cargo de Ana.»;
+`no_contactar` ⇒ el texto fijo de hoy; un detalle con clave de más ⇒ texto genérico (espejo del mutante M12); P0409/42501/PT409 sin
+cambio. **Textos de P3-2.i, D-84, D-85 y D-86:** no hace falta decidirlos en la app: el servidor responde `P0409` con el mensaje de
+la casa («El cliente antiguo no se puede retirar; requiere conciliación de Gerencia», «El cierre del cliente antiguo pertenece a otra
+persona; requiere conciliación de Gerencia», «El cierre del cliente antiguo lleva otro documento; requiere conciliación de Gerencia», «El
+perfil del Portal del cliente antiguo pertenece a otra persona; requiere conciliación de Gerencia», «La ficha ya tiene otra cuenta del
+Portal; requiere conciliación de Gerencia», «El perfil del Portal del cliente antiguo lleva otro documento; requiere conciliación de
+Gerencia») y la pantalla los enseña TAL CUAL (comprobado en la ronda 4 en el código:
+`respuestaInversionistas`, `inversionistas-api.ts:13-24`, lanza `CrmApiError(message, code)` salvo 42501; `mensajeDeError`,
+`crm-api.ts:357-358`, devuelve `presentarCitas(e.message)`; `presentarCitas`, `terminologia.ts:18-24`, solo cambia «reunión» por «cita»;
+`inversion-desde-lead.tsx:108-111`); en el detalle del retiro solo va el código (`P0001`), que la app no muestra. D-29 vale igual (mismos datos, mismos roles). Tras absorber, la pantalla sigue hasta Nueva inversión sin cambios
+(A1b/A4b: `capacidades.nueva_inversion = true`) y la ficha de Cartera de la persona enseña la inversión antigua (A1c/A4d/A23b).
+
+**«Retirado ⇒ se absorbe y convierte» tiene excepciones** (todas detienen sin escribir; Codex r1): la persona del DNI ya tiene otro
+responsable (el `P0409` de responsable: A1fb); un perfil del Portal ACTIVO coincide con el DNI o el teléfono del lead (P0481, límite ii:
+A1n); No insistir (A15/A20 y, desde la ronda 9, D-94, también con el DNI ya escrito o con un CE o un pasaporte: A1w/A1wc/A1wv); el retiro imposible (A4c); D-84, D-85 y D-86; y el retirado ya unido por puente ANTES de esta preparación cuando ésta ESCRIBE el DNI (D-91: A1r/A1r2/A1r3, arriba; D-92 lo resolverá;
+con el DNI ya escrito o con un CE o un pasaporte la conversión sigue: A1u/A1u2/A1v; D-93; salvo que ese antiguo tenga No insistir: D-94, A1w/A1wc/A1wv).
+
+**INTEGRACIÓN (grupo C) — lista:** (1) oráculos ajenos: con esta migración cambia SOLO el caso de catálogo **C6 del 2.8** (fija la huella
+de hoy de `crm.preparar_persona_lead_inversion_fn`: `d1c9358d…` → `eda40bbe…`); los del 2.4, 2.7, 2.9, 2.11 y 2.16 idénticos sin y con
+—varios salen ROJOS antes y después por casos suyos: eso prueba «sin diferencias», NO que pasen—; al integrar se actualiza ese esperado.
+El oráculo de la conversión unificada (`supabase/scripts/conversion-inversion/test-conversion.sql`) es **NOT RUN**: aborta antes de su
+oráculo en este laboratorio por su catálogo (prodelco solo en PEN; igual sin y con la migración): en la branch. (2) En la
+branch, el oráculo del 2.10 con el 2.13 delante. (3) **Matriz del auditor para `test-rls.mjs`** (PostgREST, sesiones reales; montaje: C_R
+convertido sin persona RETIRADO de vend1 con DNI D1 y cierre inicial; C_A activo de vend1 con D2; C_M activo de vend2 con D3; C_B activo
+en bandeja de sup2 con D4; C_P convertido sin persona con perfil del Portal activo con D5; L1..L5 leads vivos de vend2 sin DNI):
+permitido **K1** vend2 convierte L1 con D1 ⇒ 200 con `inversionista_id`, C_R con 1 puente `historico` `creado_por=vend2`, 1 operación
+`enlace` `por=vend2` sin DNI en `motivo` y —D-83— su cierre inicial con `inversionista_id` = la persona y `vendedor_id=vend1`, C_R sigue
+`convertido`, `activo=false`, `vendedor_id=vend1`, sin nota, responsable vend2, una sola persona con D1, luego
+`contexto_conversion_inversion_fn(L1, persona)` ⇒ `capacidades.nueva_inversion=true`, el flujo de `rls-conversion-vigente.mjs` confirma y
+`inversionista_ficha_fn(persona)` como vend2 cuenta el cierre de C_R; **K1-pre (D-88)**: justo tras la preparación —sin solicitud—, vend2
+lee `inversionista_ficha_fn(P)` con el cierre de C_R (monto, cooperativa, tasa, número, asesor de origen) y, si tiene comprobante,
+`inversionista_documento_fn`; **K1-dueño viejo**: vend1 recibe `null`/42501 de la ficha de P y P no aparece en su cartera; con lo que añaden **D-84/D-85**: C_R con su cierre a nombre de OTRA
+persona, o con un CE ⇒ `P0409` con el mensaje de la casa y 0 filas nuevas en todas las tablas (ni puente, ni retiro, ni nota, ni cierre);
+**K2** vend2 con D3 (C_M, mismo asesor) ⇒ 200, C_M `activo=false`,
+`tenencia_desde` NULL, nota `enlace_identidad` `creado_por=vend2`, puente histórico, cierre completado, sus tareas pendientes
+`cancelada`/`sistema`; `GET /leads?id=eq.C_M` como vend2 ⇒ 0 filas (RLS); `inversionista_ficha_fn(persona)` como vend2 ⇒ `historial`
+con las actividades de C_M y su inversión; como vend1 ⇒ 42501/`null`; **K3** sup1 convierte L2 con D3 ⇒ 200, nota `creado_por=sup1`,
+responsable vend2; **K4** reintento de K1 ⇒ misma persona, 1 puente, 1 operación; **K13** (D-91) C_U convertido sin persona RETIRADO con D6, ya unido
+por puente histórico a la persona de D6 (como lo deja Gerencia), y vend2 convierte L6 —vivo, SIN DNI: la conversión lo escribe— con D6 ⇒ `P0409` «Esta persona ya tiene otra identidad
+o lead; requiere conciliación» y 0 filas nuevas; tras K1, otro lead vivo de vend2 con D1 ⇒ el mismo `P0409`; **K13b** (D-91, ronda 8) el estado del backfill: L7 vivo de vend2 que YA lleva D7 y
+es el canónico de la persona de D7, y C_U2 retirado ya unido de antes ⇒ 200 con la MISMA persona, C_U2 intacto, `capacidades.nueva_inversion=true`
+y la confirmación entra (con un CE de la persona, igual: A1v); **K14** (D-94) el «No insistir» del antiguo detiene siempre: L8
+vivo de vend2 que YA lleva D8 y C_V retirado ya unido de antes a la persona de D8 con `no_contactar=true` (A1w), o C_W retirado SIN puente con
+`no_contactar=true` y el mismo D8 en otro lead que ya lo lleva (A1wc), o la persona de un CE con el retirado ya unido con `no_contactar=true` (A1wv) ⇒
+`P0481` «Contacto no disponible», `details` EXACTAMENTE `{"estado":"no_contactar"}` y 0 filas nuevas en `inversionistas`/`identificadores`/
+`operaciones`/`actividades`/`inversionista_leads`/`audit_log`, C_V y C_W sin puente ni cierre completado; **K14b** (control) el mismo C_V con un lead
+SIN DNI ⇒ el `P0409` de conciliación de D-91; **K14c** `crm.levantar_no_contactar` (Supervisión/Gerencia, con motivo) y la misma conversión ⇒ 200;
+denegado CON veredicto y nada escrito **K5** vend2 con
+D2 (C_A de vend1) ⇒ `P0481` «Contacto no disponible», `details` EXACTAMENTE `{"estado":"ya_es_cliente","asesor":"<vend1>"}`, C_A y L3
+intactos, 0 filas nuevas en `inversionistas`/`identificadores`/`operaciones`/`actividades`/`audit_log`; **K6** vend2 con D4 (bandeja) ⇒
+`asesor` = sup2; **K7** gerencia con D2 ⇒ el mismo veredicto (Gerencia no absorbe a un activo ajeno); **K8** vend2 con D5 (C_P con
+perfil) ⇒ `P0481` `ya_es_cliente` con el asesor del perfil y C_P sin puente (límite ii); denegado SIN veredicto **D1**
+coordinador/directorio/anon/service_role ⇒ 42501 en la puerta; **D2** `POST /rpc/conversion_absorber_cliente_antiguo`,
+`…/conversion_enlazar_cliente_antiguo`, `…/lead_historia_de_persona` ⇒ PGRST202/404 para todos los roles; **D3** vend3 (otro subárbol)
+sobre L1 ⇒ 42501 «fuera de tu ámbito» antes de cualquier veredicto; **D4** PATCH `crm.leads` `activo=false` de C_M como vend2 ⇒ 0 filas;
+sin cambio **N1** DNI libre ⇒ persona nueva, sin puentes; **N2** DNI de cliente con ficha ⇒ P0409 «otra identidad o lead»; **N3**
+CE/pasaporte ⇒ sin absorción; **N4** lead con `no_contactar` ⇒ P0429 antes del veredicto; catálogo **C1** huellas nuevas de
+puerta/núcleos/piezas y ACL (piezas solo postgres; puerta authenticated+postgres); **C2** el esperado C6 del oráculo del 2.8; **C3**
+`assert_*` idénticos; advisors sin alertas nuevas; concurrencia (F4.6, branch) las tres carreras de `f46-contencion-con-commit.sql` más
+**K-conc 2** (dos sesiones convierten L4 y L5 con el mismo D1: la segunda espera en el candado del documento y, tras el COMMIT de la
+primera, P0409 conciliación) y **K-conc 3** (Gerencia `enlazar_lead_inversionista_fn(C_R, otra persona con D1)` mientras vend2 convierte:
+serializados por el documento; el segundo cae en P0409); además (auditor r2) **K9** varios antiguos con el mismo DNI y el segundo
+detenido (D-84/D-85/D-86 o P3-2.i) ⇒ `P0409` y 0 filas (tampoco del primero); **K10** el body `details` del `P0409` del retiro ⇒ solo el
+código (`"P0001"`), nunca el texto del disparador; **K11** el estado del backfill (la persona del DNI con responsable vend1) y convierte
+vend2 ⇒ `P0409` de responsable y 0 filas; **K12** (D-86/D-87) C_R con perfil del Portal de OTRA persona / la persona con otro perfil / el
+perfil con otro documento ⇒ `P0409` con su mensaje y 0 filas; con perfil propio activo ⇒ `crm.inversionistas.perfil_id` = el perfil y
+`perfil_completado` en la operación (lectura por Gerencia); con perfil propio DESACTIVADO ⇒ 200, `perfil_id` de la persona sigue NULL y la
+operación dice `perfil_no_enlazado` + «cuenta del Portal desactivada» (D-89), y la confirmación entra; con perfil de OTRA persona y
+desactivado ⇒ el `P0409` de D-86; **Lector global (Directorio)**: la ficha de P sin la fuente de cooperativa ni la historia del lead; y la carrera 6 de
+F4.6 (el perfil cambia mientras se convierte). (4) **Conteo D-82** (producción, MCP, solo lectura, solo números; sin nombres ni
+documentos; antes de publicar el grupo C): convertidos sin persona (etapa `convertido`, `inversionista_id` NULL, sin fila en
+`inversionista_leads`) totales; × {con `perfil_id` / con cierre inicial / con `inversiones_eliminadas` anulada / con ninguno} × {activo /
+retirado}; de ellos con DNI NULL (no absorbibles); cuántos comparten DNI con un lead VIVO (activo, etapa ∉ convertido/descartado) y, de
+esos, cuántos con el mismo `vendedor_id` que ese lead vivo y cuántos con otro (o bandeja / asesor de baja); cuántos DNI tienen más de un
+convertido sin persona (varios candidatos); cuántos con `no_contactar`; cuántos cuyo DNI ya tiene persona con identificador vigente
+(irán a conciliación); **TODOS los cierres iniciales de los candidatos** (Codex r1, P3-1), en cuatro grupos: sin persona y con el
+documento de la persona del DNI (se completarán: D-83), sin persona y con otro documento (la conversión se DETENDRÁ: D-85, A1e/A1g), ya
+con la persona del DNI (se absorben sin tocar el cierre: A1f) y de OTRA persona (se detendrá: D-84, A1d); **convertidos ya unidos por
+puente histórico a la persona de su DNI, sin puntero** (D-90/D-91): los activos (conciliación, como hoy: A1s) y los retirados, que
+se separan en dos clases: **(a) los de una persona con un lead vivo que todavía NO lleva el DNI** (la conversión lo escribirá y el verificador
+sellado detendría con `P0481` «ya es cliente»: con D-91 se detienen en conciliación, como hoy, A1r) —son los casos que resolverá el
+bloque de **D-92**—; **(b) los de una persona con un lead vivo que YA lleva el DNI** (el estado del backfill de identidad y de la carga: su
+conversión no escribe el DNI y no pasa por el verificador; **convierten por D-90** —medido en la ronda 8, A1u/A1u2, y en
+`salidas/ronda8/trabajo/medida/medida-dni.*.salida.txt`— y no son casos de D-92). **(a) y (b) NO son excluyentes** (Codex r2): una persona puede
+tener a la vez leads vivos con y sin DNI, y qué clase manda depende de cuál se convierta: se cuentan por separado —personas y retirados ya
+unidos de cada clase— y además **«ambos»** (personas con leads vivos de las dos clases); y, por separado, **cuántos de esos retirados ya unidos
+tienen `no_contactar`** (historia con veto: la conversión de esa persona se detendrá con `P0481` `no_contactar` en (a) y en (b), D-94, A1w/A1wv) y
+**cuántos candidatos a absorción (sin puente) tienen `no_contactar`** (D-94, A1wc; ya contados arriba como «con `no_contactar`», aquí con su
+clase de lead vivo); «YA lleva el DNI ⇒ convierte» sigue sujeto al responsable, a los vetos y a las demás conciliaciones; cierres iniciales SIN persona con alguna
+fila en `crm.inversiones` (esperado 0: `crm.inversiones.inversionista_id` es NOT NULL y esa fila solo se crea cuando el cierre ya tiene
+persona; P3-4 del auditor r2); convertidos activos con episodio abierto en `lead_asignaciones` (límite iii); convertidos activos con
+tareas pendientes (A4e); **H-8 hoy**: las fuentes reales que bloquean `habilitada` (`private.cartera_f5_fuentes_reales()` sin
+`identidad_coherente`, sin persona o con persona no canónica) y el estado de `crm.multiempresa_flags` `ficha_360_neutral` (si dan 0, D-83 y
+D-85 dan 0 en producción y las ramas reales son A1f y D-84); **candidatos según `crm.backfill_multiempresa_mapa`** (`fuente='lead'`,
+`clase='E'`, por `regla`); **candidatos con `perfil_id`** (D-86/D-87): perfil de OTRA persona / de la misma / documento del perfil distinto
+del DNI del lead / sin documento / perfil activo o desactivado (el activo con el DNI del lead es el límite ii); **cuántos candidatos con
+perfil PROPIO DESACTIVADO** (de nadie, documento de la persona, con el predicado EXACTO del núcleo `activo is not true or rol <> 'cliente'`:
+D-89, no se enlazará y la conversión seguirá);
+**persona del DNI ya existente con responsable vigente** (y si coincide con el vendedor del antiguo: si no, el `P0409` de responsable,
+A1fb). Solo números, sin PII. (5) El cambio
+de app de §5 antes o junto al servidor. (6) **Reversas:** `supabase/scripts/conversion-cliente-antiguo/reversa.sql` no bloquea la del
+2.11 ni la del 2.16 ni ellas la de esta; para volver al punto de partida, LIFO: esta → 2.16 → 2.11 (ensayado). Desde la ronda 6 (P2-2 de
+Codex r1) la reversa exige, además de las piezas, la puerta, los núcleos, las dependencias, los llamadores y las restricciones, los mismos
+bloques de índices únicos y RLS del puente y del libro y de PREMISAS que el preflight de la migración (antes y después de revertir), con
+sus derivas (índice del perfil quitado, disparador de inmutables o de `leads_before_update` deshabilitado, FK del perfil cambiada, puente
+único quitado, RLS del libro apagada: la reversa se niega sin rastro). **Lo que la reversa NO
+deshace** (datos): los puentes históricos, los retiros, las operaciones del libro, los cierres completados (D-83) y los perfiles enlazados
+a la ficha (D-87). **Tras revertir**, una conversión PREPARADA y no confirmada que ya absorbió historia se detiene al seguir: la pantalla
+recibe `nueva_inversion=false` con «La persona ya tiene una conversión inicial; requiere conciliación» y `preparar_inversion_fn` el `P0409`
+con ese mensaje (MEDIDO en la ronda 4, `salidas/ronda4/trabajo/medida/tras-revertir.salida.txt`): el núcleo vuelve a contar el puente
+histórico como otro lead; se resuelve por conciliación de Gerencia.
+
+**Preflight** (falla cerrada): no aplicada (las tres piezas no existen y nadie —función ni `cron.job`— las nombra); la puerta EXACTA
+(`d1c9358d…`/`b40dded8…`, dueño postgres, DEFINER, volátil, su SET, ACL EXECUTE para authenticated y postgres, SIN comentario); los dos
+núcleos EXACTOS (`b67d8181…`/`dcc540a4…` y `b1106c6c…`/`477d0e80…`, DEFINER, volátil, su SET, EXECUTE solo postgres, comentarios
+`5e022638…` y `84620ea8…`); la definición completa, el dueño y la ACL efectiva de las **43** funciones que llaman a las tres o deciden
+su efecto (el resolver, los dos enlaces de identidad, el puente, la pieza del 2.8, la puerta de enlace de Gerencia, el núcleo de
+preparación y la confirmación de la inversión, los envoltorios y los llamadores de los núcleos…, desde la ronda 2 las cinco que deciden el
+retiro y el cierre y desde la ronda 4 `private.inversionista_fusion_destino_activo`); las PREMISAS de D-83/D-85 y D-86/D-87 (arriba;
+desde la ronda 6 también los disparadores de `crm.leads` que usan `private.leads_before_update` y `private.trg_leads_tenencia_desde`
+—`trg_leads_before_update`, `trg_leads_zzz_tenencia_desde`— enlazados y habilitados); que NADIE MÁS nombre a las tres (cuerpos sin distinguir mayúsculas, salvo los llamadores conocidos;
+`pg_depend`; `cron.job`); las restricciones de las que depende la regla (`leads_dni_check`, el rol del puente, sus claves foráneas, el
+puente único por lead y por persona canónica, el puntero único, el tipo y el motivo del libro) y la RLS activa sin grants en el puente y
+el libro; el inventario y las definiciones de los 29 `assert_*` que ningún bloque de la fase 2 toca (`29|a11bf250…`; el trinquete que
+re-sella el 2.16, `private.assert_gestion_diaria_resultado()`, solo tiene que existir: por eso se instala igual antes o después del
+2.16) y la foto de los 30. **Postflight:** las tres piezas EXACTAS (absorción `e42060a4…`/`c7c41e6a…`, enlace `5f3ff244…`/`b950e46f…`,
+historia `32c3b183…`/`fbde8ab2…`; INVOKER, dueño postgres, EXECUTE solo postgres, comentarios `0fe920d9…`, `c3ce0733…`, `80f36c9d…`); la
+puerta y los núcleos con su cuerpo nuevo EXACTO (puerta `eda40bbe…`/`f0e6a96b…` —la absorción una vez, el enlace una vez y después del
+UPDATE, la historia TRES veces —las dos comprobaciones de conciliación y la de D-94—, desde la ronda 7 la comprobación de D-91 —desde la ronda 8 solo con
+el DNI que se solicita escribir— y desde la ronda 9 la de D-94, escritura `514fda0a…`/`151b1ae1…`, lectura `8e96ddef…`/`c79c0a93…`), la misma ficha que antes y su
+comentario nuevo (puerta `7b00e6ea…` —con D-83…D-94—, `ae778268…`, `2f172398…`); dependencias, llamadores,
+restricciones, premisas y RLS intactos; nadie más usa las
+piezas; el inventario de los 29 el de antes y la foto de los 30 idéntica. Sin DDL de tablas.
+
+**Ensayo** (`supabase/scripts/conversion-cliente-antiguo/`; ronda 9 en `fase-2/bloque-2.10/salidas/ronda9/cadena/`): ROJO de hoy
+**64 de 90** y **ROJO-PRIMERO de la ronda 9: 5 de 90** con la migración de la ronda 8 y el oráculo nuevo (A1w, A1wc, A1wv, C1, C1e: con la ronda 8
+el lead que ya lleva el DNI y el CE se convertían —y el candidato se absorbía— pasando por encima del «No insistir» del antiguo, donde el verificador
+no corre; C1 y C1e porque esa puerta no llama tres veces a la pieza de historia ni tiene la comprobación; A1wb, el lead SIN DNI, es un control que
+pasa igual, y U9 pasa porque el juez corregido es del propio oráculo) → VERDE **0 de 90** (con el 2.11 y el 2.16 delante, y sin ellos; A1r, A1r2, A1r3 y
+A1wb —el lead SIN DNI— siguen en conciliación; A13 —el reintento— y todos los flujos de D-38/D-81 siguen verdes; A15 y A20 con la MISMA respuesta que hoy,
+ahora dada por la puerta); el juez de la absorción cuenta los UPDATE FÍSICOS (un antiguo retirado no cambia de versión de fila; uno activo recibe
+exactamente un UPDATE auditado) y la huella de escritura las filas nuevas de `public.audit_log` de la transacción (la auditoría omite los UPDATE que
+solo cambian `actualizado_en`: ese es su límite); reversa VERDE, reversa LIFO VERDE, las reversas del 2.11 y del 2.16 con el 2.10 encima ENTRAN;
+**61/61 mutantes** mueren cada uno por su fallo (ronda 9: M51 sin la comprobación de D-94 por A1w, A1wc y A1wv; M52 solo con la historia por A1wc; M53 solo con los candidatos por A1w y A1wv; M54 con la comprobación antes de la conciliación por A1wb; M55 con otro detalle y M56 con otro código por A1w, A1wc y A1wv —y también por A15 y A20, que ahora responden desde la puerta—; los seis, además, por la inspección C1e; M51 y M53, también por C1; ronda 8: M47 sin la condición del DNI por A1u, A1ub, A1u2 y A1v; M48 con la condición invertida por A1r, A1r2, A1r3, A1u y A1u2; M49 sin el tipo de documento por A1v; M50 por el puntero en vez de por el DNI por A1u2; M44, sin la exención de los puentes de ESTA conversión, solo por la inspección C1d: A13 ya no la ejercita; M43 por A1r, A1r2 y A1r3; M45 por A1r2; M46 por A1r3 y C1d) (M8 muere por la inspección del catálogo, C1b: no prueba contención real; M44, la exención de los puentes de ESTA conversión,
+muere solo por la inspección C1d: ningún flujo real la ejercita); **las 72 derivas** abortan en el preflight sin rastro, MP1/MP2 abortan en el postflight y MP1b/MP3 mueren, **las 21 derivas de la reversa** abortan sin rastro y RM1 muere; **los 30 `assert_*` sin `*_mutantes` y el censo idénticos sin y con** (diff 0 líneas; con los `*_mutantes`: 36 gates, 29/29 pasan, diff 0 líneas; en ventana tranquila); espera entre dos sesiones: con A reteniendo el candado del documento, B esperó 2541 ms (A vio la espera) y al soltarse absorbió al antiguo; sin A, 30 ms (mide el bloqueo por el documento y la
+absorción posterior, no la edición concurrente ni la reevaluación tras COMMIT: F4.6); oráculos ajenos: 2.4, 2.7, 2.9, 2.11, 2.16 y la conversión unificada idénticos sin y con; el 2.8 solo en C6 (`d1c9358d…` → `eda40bbe…`). Sin contención: ninguna corrida abortó por 40001/40P01/deadlock; nada se repitió (sesiones ajenas al lanzar: 0 en todas).
+Banco, RLS/HTTP, la carrera con COMMIT (`f46-contencion-con-commit.sql`, con K-conc 2/3 y la carrera 6 del perfil), la app, perfiles
+reales del Portal con cuenta de acceso (los del ensayo se crean dentro de su transacción), el 2.13 delante, branch: NO EJECUTADO.
+
+**Decisiones del escritor (con evidencia; a confirmar por el Director / Miguel):** (1) el antiguo ACTIVO del mismo asesor queda
+**retirado** al absorberse: ya decidido (**D-81**); (2) el puente histórico se pone después del UPDATE (mutante M3 lo prueba); (3) el
+rastro es el de la puerta de enlace de Gerencia, sin el documento en claro; (4) la conciliación de la puerta y de los dos núcleos no
+cuenta la historia absorbida; (5) entre varios candidatos basta un activo de otro asesor para el veredicto; los demás se absorben
+todos. Decididas por Miguel: **D-81** (el antiguo activo del mismo asesor se retira al juntar), **D-83** (el cierre inicial se completa
+con la persona), **D-84** (cierre de OTRA persona ⇒ la conversión se detiene: confirmado lo implementado en la ronda 2), **D-85** (cierre
+con otro documento ⇒ la conversión se detiene; en la ronda 2 se absorbía sin completarlo), **D-86** (perfil del Portal conflictivo ⇒ se
+detiene), **D-87** (perfil propio ⇒ se enlaza a la ficha), **D-88** (quien convierte ve la ficha del antiguo desde la preparación) y
+**D-89** (la cuenta propia DESACTIVADA no se enlaza; la conversión sigue y el detalle lo dice), **D-90** (solo los antiguos RETIRADOS
+cuentan como historia; un antiguo ya unido y activo se comporta como hoy), **D-91** (en la puerta, un antiguo RETIRADO ya unido por puente
+ANTES de esta preparación ⇒ el `P0409` de conciliación de hoy, solo cuando la preparación ESCRIBE el DNI del lead —si ya lo lleva, o es un CE,
+manda D-90 y la conversión sigue—; el reintento de la misma preparación sigue; los núcleos mantienen D-90), **D-93** (Miguel, 11/10: con carné de extranjería
+o pasaporte la conversión SIGUE, porque el UPDATE no escribe DNI y el verificador no corre: se quedan `p_tipo_documento='DNI'`, A1v y M49), **D-94** (Miguel, 12/10: el «No insistir» de un
+antiguo que la conversión cuenta como historia o absorbe detiene SIEMPRE, también con el DNI ya escrito o con un CE o un pasaporte: `P0481`
+`no_contactar`, nada escrito) y **D-92** (deuda: el verificador y H-3, en un bloque corto posterior al grupo C).
+**Decisiones del escritor de la ronda 9 (con evidencia; a confirmar por el Director):** (6) D-94 va en la PUERTA y no en la pieza de absorción: la
+pieza corre antes de la conciliación y solo ve los candidatos; así no cambian la pieza, sus huellas ni su reversa; (7) la comprobación va justo
+DESPUÉS de la conciliación, no justo antes del UPDATE: medido E1, el veto del cliente pasa a ir antes que el `P0409` de responsable (y que el de
+reserva pendiente) de las l. 76-83 de la definición viva, que hoy irían antes que el veredicto del verificador; la alternativa —una quinta ancla justo
+antes del UPDATE, que conserva el orden de hoy en todos los casos— cuesta una ancla más en el parche, en las huellas y en la reversa; (8) (a) usa la
+pieza de historia como filtro aunque, ya pasada la conciliación, todo lead de la persona que llegue ahí es historia (la conciliación detiene a los
+demás): es redundante a propósito, para que el código diga lo que cubre; (9) el juez de «el DNI ya escrito» exige que la fila del lead exista
+(`not exists` en vez de `if (select …)`; U9 lo vigila).
+
+**SHA-256 del archivo de la migración (ronda 9, 12/10/2026):** `feff83fc1b47091c2fe09983d5bad1668f6f347c07e659786c1431935d2c75ad`.
+
+**Reselle C1 (13/10/2026):** la Fase 6 de Facturación (`20261010203951`, en producción) cambió `crm.inversionista_ficha_fn(uuid,integer,integer)` —la ficha de Cartera que lee quien convierte, D-88—: `d0c6543b…` → `9d981c6c…` (dos claves nuevas por inversión, `analista_venta_id` y `analista_venta_nombre`, y un `cross join lateral` de una fila por inversión; la autorización, la firma, los permisos y las filas no cambian: medido con los 38 perfiles del laboratorio sobre sus 17 personas, 646 pares idénticos quitadas las dos claves). Se reselló la huella en el preflight, el postflight y la reversa (regenerada con su generador); nada más cambia (ni la regla, ni los mensajes, ni los candados). Cadena repetida con el laboratorio de `main` `4ec46ba3` + 2.1, 2.4, 2.7 y 2.8: ROJO 64/90 (ROJO-PRIMERO 5/90), VERDE 0/90 con y sin 2.11 + 2.16, 61/61 mutantes, 74 derivas + 22 de la reversa, reversa, LIFO y reversas ajenas VERDES, trinquetes idénticos, oráculos ajenos iguales sin y con (2.8 solo C6), espera 2 538 ms frente a 21 ms. SHA-256 de la migración resellada: `16637b752e1d115b0883052ad94253e57baf0d0b911c2784cf92fd262407a745`; de la reversa regenerada: `ab6d78ec86b9c7daa90c0534e47871c4c0049430b0dbdf4773d5b2eefd3d5844` (sustituyen a `feff83fc…` y `c6119859…`).
+
+**Reselle C2 (22/10/2026):** re-asentada contra producción del 22/10 (encargo C2-a, plan AVANCE-BACKEND-1310-C2): la puerta `crm.preparar_persona_lead_inversion_fn` (recorrido del 19/10: reanudación sin escribir y `private.recorrido_exigir`) antes `4eebf912…`/`df451bd3…` (era `d1c9358d…`/`b40dded8…`) y después `da360b19…`/`f921422d…` (era `eda40bbe…`/`f0e6a96b…`), con las tres anclas una vez y lo de producción conservado; seis dependencias con su huella de hoy (`acceso_inversion_fn` `b45c309f…`, `confirmar_inversion_revisada_fn` `33af606a…`, `inversionista_ficha_fn` `be113f3c…` —D-88 intacta—, `f4_comprobante_autorizado` `cdecad21…`, `f4_fuente_inmutable` `f4608368…`, `trg_cierres_externos_inmutables` `c9f55c70…`); censo de los 29 `assert_*` `29|60a08512…`; reversa regenerada (copia del generador con la puerta de antes re-asentada). SHA-256: `3d1c499aad10401063c8e9da733267cd3aaeb236963c3083298bfae2c507bcf1`.
+
+
+## 20261022170700 — El teléfono alternativo de un CLIENTE no puede ser el número de un lead que ya existe (pieza `private.juicio_lead_vivo_por_numero`; disparador `private.trg_leads_disponibilidad_atomica`)
+
+**INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170700_crm_alternativo_cliente_no_toma_lead.sql`** (bloque 2.13 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261009235800_crm_alternativo_cliente_no_toma_lead.sql`, copia `fase2`, sha256 del origen `e41ef86a2419…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
+
+**Nota de integración (22/10/2026, auditor C5 P3-3):** la cabecera da por hecho el 2.16; no está en esta tanda (ver 20261022170600). El oráculo del kit re-asentó su C4 al núcleo del alta que deja el 2.11, que ahora va delante (H-C3-3).
+
+**PENDIENTE DE BRANCH. Verificada solo en el laboratorio local (09–10/10/2026, laboratorio igual a producción con los siete bloques de
+la fase 2 aplicados, el 2.8 en su ronda 4); no aplicada en ninguna base real. La fecha definitiva del archivo se pone al integrar.** Plan
+de mantenibilidad del backend (AVANCE-BACKEND-0810-F2), fase 2, bloque 2.13 (decisión **D-49** de Miguel, 09/10/2026; plan corto
+aprobado **D-50**; **D-64** —solo leads vivos—, **D-65** —las otras dos vías se cuentan antes de publicar— y **D-67** —lo que revela el
+rechazo, extensión de D-29—; sobre la regla del 2.8: D-28, D-30, D-36). **Va DESPUÉS de `20261009150000` (bloque 2.8, en su ronda 4:
+archivo `9d135d4b…`)**, sobre su disparador de disponibilidad y su pieza `private.juicio_cliente_convertido`. Crea una pieza de solo
+lectura y cambia el disparador de disponibilidad (dos bloques por ancla única y su comentario). No toca la pieza del 2.8, el núcleo del
+alta, el alta, el verificador, la ficha (`crm.editar_lead_fn`, `crm.editar_lead_documento_fn`), los disparadores de tabla, tablas, grants,
+policies ni nada de `public`. **Ronda 2 (10/10/2026; auditor de permisos r1, PASS con cinco P3,
+`fase-2/bloque-2.13/revision/CONCILIACION.md`):** «es cliente» = la ficha ya era `convertido` o lo queda bajo la válvula privilegiada
+(P3-1); la pieza solo mira leads vivos cuyo teléfono principal ve el verificador y el conjunto real de veredictos queda declarado y
+probado (P3-3); D-67 asentada (P3-2); D-64, D-65 y el alternativo sin validar declarados (P3-4, P3-5); ver «Ronda 2» al final.
+
+**Qué pasa hoy (medido en ROJO):** la regla del 2.8 compara lo que pone un lead contra los teléfonos de los CLIENTES; la disponibilidad
+del teléfono PRINCIPAL rechaza el número de otro lead vivo («tomado»), pero el ALTERNATIVO no pasa por esa comprobación: si a un cliente
+(lead `convertido`) se le pone o cambia el alternativo al teléfono —o al alternativo— de un lead vivo que no es cliente, la edición se
+ACEPTA y quedan dos fichas con el mismo número. Se llega por la ficha (`crm.editar_lead_fn`) y por el UPDATE directo (el PATCH:
+`authenticated` tiene UPDATE de tabla sobre `crm.leads` y la policy `leads_update` no distingue convertidos). La pantalla de hoy no
+ofrece esa edición (la ficha oculta «Editar» en un convertido y el store la bloquea), así que la regla protege la API.
+
+**Qué hace:** (1) **Pieza** `private.juicio_lead_vivo_por_numero(p_numero, p_excluir_lead_id)`, de **solo lectura** (STABLE, INVOKER,
+dueño `postgres` fijado explícitamente, EXECUTE solo para `postgres`): el número en su **forma canónica** (`private.canonizar_contacto`,
+la del alta y del CHECK `leads_telefono_alternativo_formato`; la identidad sobre los valores que el CHECK admite) contra el teléfono y el
+alternativo de cada lead **vivo** —activo, ni convertido ni descartado, y cuyo teléfono principal está en la forma que ve el verificador
+(`private.normalizar_telefono(telefono) = telefono`): exactamente el dominio del «tomado» de la disponibilidad— salvo el excluido; el
+que lo tiene como teléfono antes que el que lo tiene como alternativo; después, el id. Si casa, el veredicto es **el que la
+disponibilidad da hoy al teléfono principal de ese lead**: la pieza llama al verificador sellado
+(`private.verificar_disponibilidad_lead_impl(<su teléfono>, null, <la ficha que se edita>)`), así que es el mismo byte a byte, siempre
+sobre ESE lead (nunca «libre» ni sobre otro) y sigue al verificador si cambia. **El conjunto real de veredictos** (ronda 2, P3-3), en el
+orden del verificador: `{"estado":"no_contactar"}` si el lead o su persona están vetados (sin asesor); `{"estado":"ya_es_cliente","asesor":…}`
+si un perfil ACTIVO del Portal con rol cliente tiene ese teléfono (el asesor del perfil); `{"estado":"en_bolsa"}` si el lead no tiene
+dueño; si no, `{"estado":"tomado","vendedor":…,"tenencia_desde":…,"ultima_conversacion_en":…}`. (2) **Disparador**, por ancla única,
+**con sesión** y **después** de todo lo que ya juzga hoy (rol, vetos propios, enfriamiento propio, verificador) y de la regla del 2.8 (el
+número de **otro cliente** ⇒ «ya es cliente», que manda): si la ficha **es de un cliente** —ya era `convertido`, o lo queda bajo la
+válvula privilegiada `crm.op_privilegiada`, la de la conversión real (ronda 2, P3-1: una conversión ILEGAL sin válvula no llega a la
+regla, la para después la guarda de la conversión de `private.leads_before_update` con P0001 y SIN veredicto, así que no sirve para
+sondear de quién es un número)— y su alternativo **cambia**, la pieza con el alternativo nuevo, nunca contra la propia ficha; si solo
+cambia el alternativo y hay veredicto, primero el rol (42501 «Acceso CRM revocado» a quien no puede registrar) y después el **mismo
+`P0481`** «Contacto no disponible» con el veredicto en el detalle; si cambia además el teléfono o el DNI, el mismo `P0481` (el rol ya se
+comprobó).
+Bajo la válvula privilegiada se juzga igual (como el alternativo en el 2.8, ronda 3). Corre **bajo el candado por número** de la ronda 4
+del 2.8 (el disparador toma `telefono:` + el alternativo viejo y el nuevo antes de juzgar: la misma clave que pide quien pone ese número
+como teléfono o como alternativo). (3) Al comentario del disparador (el del 2.8) se le AÑADE el del 2.13.
+
+**No cambia:** los leads que **no son clientes** (fuera de D-49; «el alternativo de un lead que no es cliente contra otro que tampoco lo
+es» queda fuera del plan); el alternativo **libre** y quitarlo; el número de un lead **retirado** (como el teléfono principal hoy: la
+rama «tomado» del verificador exige `activo = true`; medido) o **descartado** (no es «tomado»; el principal lo para con «enfriamiento»:
+medido; **D-64**: solo leads VIVOS —asignados, en la bolsa o vetados vivos—, y si alguien rescata ese descartado, el **bloque 2.16** lo
+frena con «ya es cliente de X»); lo que la edición **no toca** (D-25: el cliente que ya comparte su alternativo con un lead vivo sigue
+editándose; no se juzgan con esta regla su teléfono principal ni su DNI; **D-65**: las otras dos vías del mismo duplicado —el segundo
+teléfono puesto ANTES de convertir, que la conversión no cambia (medida H1), y el teléfono PRINCIPAL de un cliente que es el alternativo
+de un lead vivo (N13)— se dejan y se cuentan en producción antes de publicar el grupo C); el número de **otro cliente** (lo juzga el 2.8,
+igual que hoy);
+lo que corre **sin sesión** (el importador, escrituras internas); el **INSERT** (con sesión no nace un convertido); el verificador, la
+pieza del 2.8, el núcleo del alta, la ficha, los disparadores de tabla y el candado de contacto (los del 2.8, sin cambios). Lo que SÍ
+cambia de código, medido: un alternativo de cliente escrito sin forma canónica (sin `+51`, con espacios) que en su forma canónica es el
+número de un lead vivo pasa del `23514` del CHECK de formato al `P0481` del lead vivo; y una conversión bajo la válvula que pone a la vez
+el alternativo con el número de otro lead vivo recibe el `P0481` antes que la guarda del perfil del convertido (`P0001`).
+
+**Qué revela el rechazo (D-67, extensión de D-29; auditor r1, P3-2):** dice de quién es el lead también cuando coincide por su SEGUNDO
+teléfono —el asesor, desde cuándo lo tiene y su última conversación; o que está en la bolsa; o su veto, sin nombre; o el asesor del
+perfil del Portal—, aunque ese lead esté fuera de la cartera o del subárbol de quien edita, y el intento **no queda en el registro
+anti-pesca** (`crm.verificaciones_lead`: la transacción se deshace). Es la primera vía que revela el dueño de un lead por su número
+alternativo; aceptado como hoy con el principal (D-29) y como pide D-49. Ningún dato personal del lead sale en el detalle; lo ven solo
+quienes pueden editar un cliente (vendedor, supervisor y Gerencia activos; Coordinación, Directorio y los de baja reciben 42501 o 0
+filas); por P3-1 ya no lo ve quien solo tiene un lead vivo propio.
+
+**Pantalla:** sin cambios. El detalle del `P0481` es el veredicto del verificador; la edición de la ficha (`app/src/data/crm-api.ts`,
+`aErrorEditarLead`, D-36) presenta «tomado» («Este contacto ya está asignado a X.»), «en_bolsa» y «ya_es_cliente» con el texto del
+alta, y el veto con el texto fijo de hoy. Comprobado con el detalle EXACTO que emite el servidor en el VERDE contra el contrato estricto
+de la pantalla (`DisponibilidadLeadSchema`, con el valibot de la app), sin tocar la app. Hoy la pantalla no ofrece esta edición (la
+ficha oculta «Editar» en un convertido y el store la bloquea): la regla protege la API (PATCH y `crm.editar_lead_fn`).
+
+**Preflight fail-closed:** que no esté aplicada (ni la pieza —con cualquier firma— ni su llamada); el disparador que deja la ronda 4 del
+2.8 (**`50a6ff4365ffa6bedfd77d215ce31666` / `418b097675753ed9f81931a485b17c94`**; ficha: dueño `postgres`, DEFINER, `search_path` vacío y
+`lock_timeout` 5s y nada más, EXECUTE solo `postgres` sin opción de concesión; comentario `4a3fee01861a0fc10af38eb3fc338eb2`); la pieza del
+2.8 (`346f48a8648248b308628301d41bc4c0` / `a2b38faf42a875c7dffb7968b106e36f`, INVOKER de postgres, STABLE, `search_path` vacío, EXECUTE solo
+`postgres`, comentario `e23707e521c5878f056c0b99b02a9651`); los disparadores de tabla (`fd430e026c17ce4ca3ed0d74b48ba0e1` y
+`a585ac769d92cd1f2aba0c4cf49ca83a`, habilitados); por definición completa, dueño y ACL efectiva: `private.canonizar_contacto`
+`556d73d4…`, `private.bloquear_contactos_lead` `0d52f58c…`, `private.normalizar_telefono` `00c30277…`, `private.rol_crm` `99827f3f…`,
+`private.verificar_disponibilidad_lead_impl(text,text,uuid)` `cece9dd1…`, `crm.editar_lead_fn` `b8ed6e9a…`,
+`crm.editar_lead_documento_fn` `d0959691…`; el CHECK `leads_telefono_alternativo_formato` (`4ce894b3…`, validado); el inventario y las
+definiciones de los 30 `private.assert_*()` que se barren (`30|bc19c7701a1801fba7b51c0dd252bf82`). **Postflight:** la pieza EXACTA
+(**`2ade8f1b7f020b8aca16de0361f4d5c0` / `18d344cd251b79b3fcc851c2ac6114ce`**, comentario `cf8d4141b2e4d225796250c56b8ee498`) con su ficha y ACL; el disparador EXACTO (**`9bb6fb76c3715364c6adca8401ade0b6` / `d882780ca2449f7fbcadf4b0ce84cdf2`**, comentario
+`7ba4e553c1543c070ac1754f8e2dd6d0`; dos llamadas a la pieza y las tres de la del 2.8) con la misma ficha; los disparadores de tabla intactos (mismo
+oid); la pieza del 2.8, el núcleo, el alta y el verificador sin exclusión (definición, ACL y comentario), las dependencias y el CHECK
+intactos; la foto de los `private.assert_*()` sin los `*_mutantes` idéntica a la previa. Huellas medidas en el laboratorio el 10/10/2026
+(ronda 2; sustituyen a las de la ronda 1: pieza `0c3dd11e…/298d6320…`, disparador `69f280c9…/fe6f5899…`).
+
+**⚠️ Para quien integre:** (1) Se aplica en el **grupo C** de la fase 4, **después** del 2.8 en su ronda 4 (su preflight exige el
+disparador exacto del 2.8). **La reversa del 2.8 se negará después de esta migración** (su preflight exige el disparador del 2.8): para
+revertir el 2.8 hay que revertir antes el 2.13. (2) **Orden con el 2.16** (D-62, D-66; copia `fase2b`, después del 2.11): el 2.16
+completa D-64 —un descartado cuyo número ya es el alternativo de un cliente no vuelve a la cartera—, así que los dos se publican en el
+mismo grupo C; entre sí no dependen (objetos distintos), pero cualquier bloque aplicado antes que este que cambie una de las siete piezas
+fijadas o los 30 trinquetes hace abortar este preflight: re-medir, no saltarse. Cualquier otro bloque que parchee después el mismo
+disparador (por ancla) tiene que partir de las huellas de esta migración, no de las del 2.8. (3) Repetir en la branch las huellas de la
+pieza y del disparador; si difieren, re-auditar. (4) **Conteos de solo lectura en producción antes de publicar el grupo C** (D-65 los
+autoriza; sin nombres, teléfonos ni documentos; cada uno es un solo número):
+   - clientes cuyo alternativo ya es el número de un lead vivo (duplicados existentes, se dejan): `select count(*) from crm.leads c where c.etapa = 'convertido' and c.telefono_alternativo is not null and exists (select 1 from crm.leads l where l.id <> c.id and l.activo and l.etapa not in ('convertido','descartado') and (l.telefono = c.telefono_alternativo or l.telefono_alternativo = c.telefono_alternativo))`;
+   - clientes cuyo teléfono principal es el alternativo de un lead vivo (H-2 / N13): `select count(*) from crm.leads c where c.etapa = 'convertido' and exists (select 1 from crm.leads l where l.id <> c.id and l.activo and l.etapa not in ('convertido','descartado') and l.telefono_alternativo = c.telefono)`;
+   - leads vivos cuyo teléfono principal no está en la forma que ve el verificador (N12, la regla no los nombra): `select count(*) from crm.leads l where l.activo and l.etapa not in ('convertido','descartado') and private.normalizar_telefono(l.telefono) is distinct from l.telefono`;
+   - leads vivos con segundo número solo sin validar (P3-5, no se compara): `select count(*) from crm.leads l where l.activo and l.etapa not in ('convertido','descartado') and l.telefono_alternativo_crudo is not null`;
+   - leads vivos (no clientes) cuyo alternativo es el teléfono o el alternativo de otro lead vivo (H-1: el duplicado que nacería al convertir): `select count(*) from crm.leads a where a.activo and a.etapa not in ('convertido','descartado') and a.telefono_alternativo is not null and exists (select 1 from crm.leads l where l.id <> a.id and l.activo and l.etapa not in ('convertido','descartado') and (l.telefono = a.telefono_alternativo or l.telefono_alternativo = a.telefono_alternativo))`.
+(5) **Pruebas de la fase 4 (banco/HTTP, `test-rls.mjs`; la lista del auditor de permisos r1):** 1) vend1 por PATCH y por
+`crm.editar_lead_fn` sobre su cliente con alternativo = teléfono / alternativo de un lead vivo de vend3 ⇒ `P0481` con el `details`
+exacto, ficha sin cambios; 2) lead en la bolsa ⇒ `en_bolsa`; lead vetado ⇒ `no_contactar` sin asesor; 3) alternativo libre o quitarlo
+⇒ aceptado; lead que no es cliente sin cambio; 4) sup1 sobre un cliente de su subárbol ⇒ `P0481`; sup2 ⇒ 0 filas / `P0002` sin
+veredicto; 5) Gerencia ⇒ `P0481`; Coordinación y Directorio ⇒ 0 filas / `P0002`; 6) de baja, suspendido y anónimo ⇒ `401` / `42501`;
+7) cliente retirado por PATCH ⇒ 0 filas por RLS; 8) la pieza inalcanzable (`schema('private').rpc` falla; `has_function_privilege`
+falso para `authenticated`); 9) conversión ilegal sin válvula con el número de un lead vivo ⇒ `P0001` sin veredicto (P3-1); 10) sondeo
+«envenenado» con `origen` ⇒ `P0481`/`P0409` y ninguna fila nueva en `crm.verificaciones_lead`; 11) `ya_es_cliente` por un perfil del
+Portal (P3-3); concurrencia con dos conexiones: 12) alta de un lead con teléfono X mientras un cliente pone X como alternativo; 13) otro
+lead que pone X como alternativo; 14) edición del principal de otro lead a X — solo una de las dos escrituras se confirma. Más los
+conteos de (4).
+
+**Decidido y declarado (medido):** el alternativo de un cliente puede ser el número de un lead **descartado** o **retirado** (D-64: solo
+leads vivos; el 2.16 frena su rescate); el **teléfono principal** de un cliente puede ser el **alternativo** de un lead vivo (N13) y el
+**alta** de un lead que no es cliente no compara el alternativo tecleado con los leads vivos, así que el mismo duplicado nace si ese lead
+se convierte después (medida H1): D-65, se cuentan antes de publicar. **Límites declarados** (la regla no los nombra, como hoy la
+disponibilidad tampoco los ve; se cuentan, D-65): un lead vivo heredado cuyo teléfono principal no está en la forma canónica (N12; y no
+hace nombrar a otro lead por su número normalizado, N12b) y el segundo número que solo esté en `telefono_alternativo_crudo` (lo que el
+importador no pudo canonizar; no se compara, como en el 2.8: P3-5). La consulta de la pieza no tiene índice por el alternativo (recorre
+los leads vivos: ~5–7 ms por llamada con 50 030 leads vivos en el laboratorio; solo corre cuando un cliente cambia su alternativo).
+
+**Verificación (laboratorio, `supabase/scripts/alternativo-cliente-no-toma-lead/`, ronda 2, 10/10/2026):** ROJO sin la migración **20 fallos de 53** (los veinte casos T: 16 «se ACEPTÓ → dos fichas con el mismo número», T5a/T5b el `23514` del
+CHECK de formato, T15/T15b bajo la válvula la guarda del perfil del convertido; los 33 negativos, medidas y catálogo —incluidos N14a/N14b
+sin veredicto y N12b— ya pasan; sin errores de montaje); VERDE **0 fallos, 53 comprobaciones** (el primer intento abortó por un `40001` de
+otra sesión del laboratorio compartido con el preflight y el postflight ya pasados; repetido: VERDE); **35 mutantes** muertos cada uno por
+su fallo; **27 derivas** abortan en el preflight sin rastro, el control entra y el mutante del preflight (sin comparar la pieza del 2.8) deja
+colar la deriva; **derivas de la reversa**: control + 13 abortan sin rastro (incluidos el cambio de dueño como superusuario y los
+llamadores PL/pgSQL, en MAYÚSCULAS, vista, `cron.job` y un comentario), el límite medido (llamador dinámico) entra, RM1 se cuela y RM2
+aborta en el postflight; reversa VERDE (disparador `50a6ff43…`/`418b0976…`, comentario `4a3fee01…`, sin pieza, foto idéntica); los 36
+`assert_*` y el censo idénticos sin y con la migración (29 pasan y 7 caen en los dos lados: caídas previas del laboratorio); los oráculos
+del 2.4 (67), del 2.7 (54) y del 2.8 (124) VERDE sin y con esta migración, con las mismas respuestas. Pantalla: los seis detalles exactos
+del VERDE (`tomado`, `en_bolsa`, `no_contactar`, `ya_es_cliente`) cumplen el contrato estricto de la pantalla (sin tocar la app).
+Rendimiento: ~5–7 ms por llamada con 50 030 leads vivos (ronda 1, pieza sin el filtro; no repetido en la ronda 2). Concurrencia con dos
+conexiones: NO EJECUTADO (el candado es el del 2.8, sin cambios). Revisión de Codex r1 sobre el código final: pendiente.
+
+**Ronda 2 (10/10/2026) — qué cambió respecto de la ronda 1 (`b0c2c8f3…`):** (P3-1) en las dos anclas del disparador «es cliente» =
+`new.etapa = 'convertido' and (old.etapa = 'convertido' or v_priv)`; T15/T15b y N7b/N7c corren bajo `crm.op_privilegiada`; casos nuevos
+N14a/N14b (conversión ilegal sin válvula ⇒ P0001 sin veredicto) y mutantes MD12–MD17; (P3-3) la pieza filtra por
+`private.normalizar_telefono(l.telefono) = l.telefono` (solo leads cuyo principal ve el verificador) y pierde la guarda del «libre»
+(inalcanzable); casos nuevos T17 (`ya_es_cliente` por un perfil del Portal) y N12b (el heredado no hace nombrar a otro lead); mutante
+MP12 (sin el filtro); el juez exige que un error sin veredicto esperado no traiga detalle; (P3-2) D-67 en la cabecera y aquí; (P3-4,
+P3-5) D-64, D-65, el orden con el 2.16, el alternativo sin validar, los conteos y las pruebas de la fase 4. Huellas, reversa y esta
+sección regeneradas.
+
+**Reversa:** `supabase/scripts/alternativo-cliente-no-toma-lead/reversa.sql` (generada desde la migración: sus anclas y su comentario,
+byte a byte) — FALLA CERRADA (la pieza y el disparador exactamente como los dejó la migración, los disparadores de tabla, y que nadie más
+use la pieza: otros cuerpos de función sin distinguir mayúsculas, `cron.job`, dependencias registradas; búsqueda conservadora); repone el
+disparador del 2.8 y su comentario y borra la pieza sin CASCADE; su postflight exige las huellas del 2.8. No deshace datos. **Límite:**
+una llamada construida en tiempo de ejecución no se ve.
+
+**SHA-256 del archivo de la migración (ronda 2, 10/10/2026):** `031df882fb825cf260ee1d2a5816adbf1bf286beb4e6c7bebc53fa08bd0359c9` (sustituye al de la ronda 1, `b0c2c8f3…`).
+
+**Reselle C1 (13/10/2026):** el censo de `private.assert_*()` del preflight pasa a la forma del 2.10 —los 29 que ningún bloque toca, `29|a11bf250ba574535d3f4dc2f8d1f6a14`, y de `private.assert_gestion_diaria_resultado()` solo que exista— porque el 2.16 lo re-sella y, con el censo de 30 (`30|bc19c770…`), el preflight se negaba detrás del 2.16 (`30|d9437439…`); ahora entra sobre el laboratorio sin el 2.16 y detrás de 2.9 → 2.11 → 2.16. Nada más cambia (pieza, disparador, mensajes y demás huellas iguales; barrido y foto del postflight iguales). Cadena repetida con el laboratorio de `main` `4ec46ba3` + 2.1, 2.4, 2.7 y 2.8: ROJO 20/53, VERDE 0/53, 35/35 mutantes, 30 derivas + control + RS + MP, 13 de la reversa, reversa exacta, trinquetes 36/36 idénticos, oráculos 2.4/2.7/2.8 iguales sin y con. SHA-256 de la migración resellada: `0507b8cd7d3f480e0c4e7c5914a0e0b95b372a51414e40760c6697870b361625` (sustituye al de la ronda 2, `031df882…`).
+
+**Reselle C2 (22/10/2026):** el censo de los 29 `private.assert_*()` que ningún bloque toca pasa a `29|60a0851245859d8e1f0da6e2276a2594` (producción del 22/10; antes `29|a11bf250…`: 10 definiciones cambiadas por producción); la forma y el resto no cambian (encargo C2-a, plan AVANCE-BACKEND-1310-C2). SHA-256: `e41ef86a2419294a98d307e68026773cb355f5890b2ce74417a133d8cf190cf4`.
+
+
+## 20261022170600 — Reactivar una ficha retirada o un lead de la base también reconoce al cliente (pieza `private.juicio_cliente_conservado`; núcleos `private.alta_reactivar_retirado` y `private.base_gestion_reactivar_capital_core`)
+
+**INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170600_crm_reactivar_reconoce_cliente.sql`** (bloque 2.11 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261009235500_crm_reactivar_reconoce_cliente.sql`, copia `fase2b`, sha256 del origen `89603c6290ac…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
+
+**Nota de integración (22/10/2026, auditor C5 P3-3/P3-4):** la cabecera (l.77) cita el censo `30|bc19c770…` pero el código usa `3cefe40e…` (l.242); vale el código. El 2.16 (D-62) NO va en esta tanda: sin él, `reabrir_lead_fn`, `tomar_lead_libre`, `rescatar_descartes`, `deshacer_descarte` y el PATCH de `etapa` siguen sin la regla del cliente, y la pieza `private.juicio_cliente_conservado` queda a la espera de su reutilización.
+
+**PENDIENTE DE BRANCH. Verificada solo en el laboratorio local (09–10/10/2026, laboratorio igual a producción —`main` 0bac1e77— con los
+siete bloques de la fase 2 aplicados, 2.8 ronda 4 incluido); no aplicada en ninguna base real. La fecha definitiva del archivo se pone al
+integrar.** Plan de mantenibilidad del backend (AVANCE-BACKEND-0810-F2), fase 2, bloque 2.11 (decisiones **D-42**, **D-55**, **D-61** y
+**D-62** de Miguel, 09/10/2026; plan aprobado en D-45; la regla del cliente es la del 2.7 y el 2.8: D-22, D-25, D-27, D-30). Tres rondas:
+la 2 aplicó D-61/D-62 y la 3 (10/10) lo que pidió Codex r1 (el auditor de permisos dio PASS con cuatro P3, al 2.16 y a la integración).
+**Va después del 2.8 (`20261009150000`: usa su pieza `private.juicio_cliente_convertido` y parchea el núcleo del alta que deja) y, en el
+orden de integración, después del 2.9 (`20261009235000`), con el grupo C;** no depende del 2.9 (ensayado también con el 2.9 delante). Crea
+una pieza y cambia, por ancla única, el cuerpo y el comentario de dos núcleos. No toca tablas, grants, policies, las puertas, la pieza del
+2.8, el verificador, el disparador de disponibilidad ni nada de `public`.
+
+**Qué pasa hoy (medido en ROJO):** (1) el ALTA que encuentra una ficha RETIRADA la reactiva (regla del 2.4) pasando lo que la ficha
+conserva solo por `private.alta_reactivar_bloqueo_conservado` (el verificador, que excluye a los convertidos, y los leads activos): no
+mira el alternativo conservado ni a los convertidos retirados ⇒ la ficha vuelve activa con el contacto de un cliente (R2 y R3b del 2.8;
+también por la puerta del documento y en un reintento del 2.4). (2) La REACTIVACIÓN de un lead de la base para gestión
+(`crm.reactivar_lead_base_v2`, `crm.reactivar_lead_base` y el intento «agendó cita», las tres por
+`private.base_gestion_reactivar_capital_core`) no mira a los clientes ⇒ el lead vuelve a la cartera con el contacto de un cliente (H-1
+del 2.9).
+
+**Qué hace:** (1) pieza nueva `private.juicio_cliente_conservado(p_lead_id)` (INVOKER, volátil, dueño postgres, EXECUTE solo postgres):
+toma los candados de contacto de lo que el lead CONSERVA (teléfono, alternativo canónico y DNI; la misma clave que el disparador de
+disponibilidad) y lo juzga con `private.juicio_cliente_convertido` sin contar al propio lead: el veredicto del alta («ya es cliente de X»
+o «no contactar»; D-29) o NULL. Es **común** (nombre, firma y comentario sin nada de una puerta): el bloque 2.16 (D-62) la reutiliza en las
+demás puertas que devuelven un lead a la cartera; su contrato: quien la llama ya tiene la fila del lead FOR UPDATE y decide cómo responder.
+(2) Núcleo del alta, paso 7b (tras el veto de la persona, justo antes del UPDATE): si la pieza responde, el alta devuelve ese veredicto y no
+reactiva ni escribe nada; **también en un REINTENTO** del 2.4 (D-61: «al reactivar»; lo tecleado en el reintento sigue fuera de la regla
+1b). (3) Núcleo de la base: tras el ámbito (P0002), el estado (22023) y el No contactar (P0429), antes del capital y de la reapertura: si la
+pieza responde, `P0481` «Contacto no disponible» con el veredicto en el detalle (el mismo error con el que la edición y el INSERT responden
+la regla desde el 2.8); en «agendó cita» se rechaza la operación entera (ni el intento queda). (4) A los comentarios de los dos núcleos se
+les AÑADE una frase del 2.11.
+
+**No cambia:** las fichas y los leads sin coincidencia; el alternativo de un lead vivo que no es cliente (D-25/D-37); lo tecleado en el
+alta (también en un reintento: R1 del 2.8); R3a y los veredictos que ya bloquean (van antes); el ámbito, el estado, el No contactar y el
+replay de la base (van antes y sin veredicto en su detalle); los intentos que no reactivan; las otras puertas que devuelven un descartado a
+la cartera («Reabrir», «Tomar un lead libre», «rescatar descartes», `crm.deshacer_descarte` y las de deshacer: van al bloque 2.16, D-62;
+medidas HR y HT). **Pantalla (D-E2 del Director):** la de «Reactivar» y la de «agendó cita» tienen que decir «ya es cliente de X» como el
+alta; hoy enseñan el texto fijo de `aErrorApi` («Ese teléfono o DNI no está disponible para este lead.»): el cambio de app (presentar el
+veredicto del `P0481` como D-36 en la edición) es de otro bloque (descrito en el informe de la ronda 2 del 2.11).
+
+**Preflight** (falla cerrada): no aplicada (ni la pieza, con cualquier firma, ni su llamada); el núcleo del alta EXACTO del 2.8 ronda 4
+(`2fe5fdac50150d7429da2e422f43b92d` / `8d598eb4d0df994388337480e71e8005`; postgres, DEFINER, `search_path` vacío y `lock_timeout` 5s,
+EXECUTE solo postgres; comentario `8870de7f9d82c44b1a1f965f1e6d3ef0`); el núcleo de la base EXACTO de B10 (`479683a99720d554ff419752f3da7876`
+/ `7b7818427c6e526152027bdea95b5c51`; postgres, DEFINER, `search_path` vacío; comentario `21f3e2c424b4ec59502af01ad775896f`); la pieza
+del 2.8 EXACTA (`346f48a8…` / `a2b38faf…`, comentario `e23707e5…`); definición completa, dueño y ACL efectiva de las 22 funciones que
+llaman a los núcleos o deciden su efecto; nadie más llama a los núcleos **ni nombra ya la pieza nueva** (cuerpos de función sin distinguir
+mayúsculas, `pg_depend`, `cron.job`; ronda 3, Codex r1 P2); los CHECK `leads_telefono_alternativo_formato`, `_excluyentes` y
+`leads_dni_check`; el inventario de los 30 `assert_*` que barre (`30|bc19c770…`). **Postflight:** la pieza (`78208791362fa74fda4b67de6dd6d259`
+/ `f5206895fbbd995a52b27cf5c80167bb`, comentario `4aa74d7ea8a98da72df1ddb5c4e0176c`), el núcleo del alta (`9f26e7f962d21170b2c35e113442d026` /
+`9c09cca28fd81fa29f16133b2b57c328`, comentario `40cf4271eed96a9119cfeb8433aceac8`) y el de la base (`c7bad703b3fd9e4d0c13372fdf2ba579` /
+`4d0841a94d320a985e4e6ec48d28f90f`, comentario `38d94622c7a051548efb7cf3aa88fb06`), calculados en local desde las anclas y confirmados en
+el laboratorio; la misma ficha; la pieza del 2.8, las dependencias y los CHECK intactos; nadie más que los dos núcleos usa la pieza y los
+llamadores de los núcleos son los de antes (funciones, `pg_depend` y, ronda 3, `cron.job`); los 30 trinquetes idénticos. Sin DDL de
+tablas: al terminar solo retiene `AccessShareLock` (medido, ~2 s). **En la branch:** comprobar que `postgres` ve TODAS las filas de
+`cron.job` (una lectura filtrada por RLS devolvería cero sin error).
+
+**Reversa:** `supabase/scripts/reactivar-reconoce-cliente/reversa.sql`, SHA-256 `f5895f6e53a46e8f0bdd5c75b11276e9368feaa3cf9643a7d9a6a033d388b355` (generada desde las anclas; sin cambios
+desde la ronda 2; falla cerrada: exige la pieza y los dos núcleos exactos, que nadie más use la pieza —funciones, `pg_depend`, `cron.job`—
+y las dependencias intactas; repone los dos núcleos y sus comentarios y borra la pieza sin CASCADE). No deshace datos (la regla no escribe).
+
+**Verificación (laboratorio, ronda 3, 10/10/2026; todo con rollback, huella de la base IGUAL):** ROJO **22 fallos de 36** (8 fichas que el
+alta reactiva con el contacto de un cliente —una, en un reintento—, 9 reactivaciones de la base que se aceptan y 5 de la pieza y el
+catálogo); VERDE **0 de 36** (ronda 3: los rechazos de la base anteriores a la regla exigen el detalle vacío; los intentos y
+reactivaciones, su fila en `crm.actividades`; los rechazos, ninguna); **21 mutantes** del oráculo muertos cada uno por su fallo (los tres
+del encargo y 18 más, entre ellos M18, el rechazo del ámbito con el veredicto en el detalle); **51 derivas** abortan en el preflight sin
+rastro (entre ellas, ronda 3, un `cron.job` y una función que ya nombran la pieza nueva), el control entra (también como superusuario),
+MP1/MP3/MP3c mueren y MP2/MP2c abortan en el postflight (MP2c: el `cron.job` que nombra la pieza, segunda capa); reversa VERDE (los dos
+núcleos de antes, la pieza borrada, foto idéntica), 13 derivas de la reversa abortan, RM1 aborta en el borrado y RM2 muere; los 36
+`assert_*` y el censo idénticos sin y con; oráculo del 2.4 VERDE sin y con, **idéntico**; el del 2.7 VERDE sin y ROJO con, **solo en 8a y
+11i** (D-61: ver INTEGRACIÓN; con M9 encima, idéntico); el del 2.8 VERDE sin y con: cambian solo sus medidas R2 y R3b (ahora «ya es
+cliente»); el del 2.9, con su migración delante, VERDE sin y con: cambia solo su medida H1 (ahora `P0481`); la espera entre dos sesiones:
+la pieza, el alta y la base esperan al candado de contacto de otra sesión (~2,5 s) y sin el candado (M15) la pieza no espera; **el orden
+candado → juicio** (ronda 3, Codex r1 P3): con la pieza real, quien espera NO tiene `public.perfiles` (la relación que solo lee el juicio)
+mientras espera; con el mutante M17 (juzga antes y toma los candados después) SÍ la tiene: muere. Banco, RLS/HTTP, la carrera con COMMIT
+(guion `f46-contencion-con-commit.sql` para F4.6), branch: NO EJECUTADO.
+
+**INTEGRACIÓN (grupo C):**
+- **Orden de instalación:** 2.8 → 2.9 → **2.11** → 2.10 / 2.13 / 2.16. Si el 2.10 cambiara una de las 22 dependencias
+  (`juicio_persona`, `inversionista_canonica`, `persona_vetada`, `juicio_reapertura`) y se aplicara antes, el preflight del 2.11 se negaría
+  (H-7); el preflight del propio 2.10 se verifica contra ese estado.
+- **Orden de reversas:** retirar antes lo que añada llamadores de la pieza o cambie una de las 22 dependencias —el **2.16** y, si toca, el
+  **2.10**—; luego el **2.11 antes que el 2.8** (la reversa del 2.8 se niega mientras el 2.11 use su pieza). La reversa del 2.11 se niega
+  mientras algo use la pieza: es lo correcto.
+- **Oráculo del 2.7:** actualizar los esperados de **8a** y **11i** a «ya es cliente de X» (D-61; evidencia: con el 2.11 cambian solo esos
+  dos y su medida 8a; con el mutante M9 encima, idéntico). **Oráculo del 2.11:** su C3 (solo los dos núcleos usan la pieza) y su C4 (fija
+  `crm.reabrir_lead_fn`, que cambia el 2.16, y `private.trg_leads_disponibilidad_atomica`, que cambia el 2.13); y el C6 del oráculo del 2.8
+  fija también `crm.reabrir_lead_fn`: expectativas por estado de integración.
+- **PATCH directo (auditor r1):** un PATCH de `activo` false→true por PostgREST no es una vía (la policy `leads_update` solo deja actualizar
+  filas con `activo = true`); el PATCH directo de `etapa` sobre un descartado activo con la bandera `resolver_en_puertas` APAGADA sí lo sería
+  (encendida, como en producción, lo para `trg_leads_zz_reapertura_solo_rpc`): al 2.16 y a la lista de integración (exigir la configuración
+  que lo bloquea o cubrirla). `crm.deshacer_descarte(uuid)` también va al 2.16 (P3-2).
+- D-E2: el cambio de pantalla de la base (ronda 2, §3) antes de publicar, o aceptar el texto fijo hasta entonces. Fronteras sin caso del
+  auditor (P3-4: `no_contactar` de la pieza, H-4, reintento con la ficha aún activa, «agendó cita» por v1, la base como Gerencia) y la carrera
+  con COMMIT: casos del banco y de la branch.
+
+**SHA-256 del archivo de la migración (10/10/2026, ronda 3):** `89e89b81f9c156f0dc507e658a6bb12abcd89a1e29be4b5bc7d9cc6b07231b7f`.
+
+**Reselle C2 (22/10/2026):** el alta que deja el 2.4 re-asentado (`e06eca23…`, antes `94ec2bd7…`) en la lista de dependencias del preflight y del postflight, en la reversa (regenerada) y en el oráculo; el censo de los 30 `private.assert_*()` barridos `30|3cefe40e…` (antes `30|bc19c770…`) (encargo C2-a, plan AVANCE-BACKEND-1310-C2). SHA-256: `89603c6290ac122174c3bb1a7a87cf23f65b84793facb6eeb0e74732376868f9`.
+
+
+## 20261022170500 — La carga de bases también mira el teléfono alternativo de los clientes (envoltorio `private.bases_carga_contacto_existente`)
+
+**INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170500_crm_bases_alternativo_cliente.sql`** (bloque 2.9 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261009235000_crm_bases_alternativo_cliente.sql`, copia `fase2b`, sha256 del origen `42b769c2fc9e…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
+
+**Nota de integración (22/10/2026):** RESELLE C2 solo en el literal del censo de 30 `assert_*` (l.220: `30|bc19c770…` → `30|3cefe40e…`); el archivo no lleva línea de cabecera de reselle (auditor C5 P3-4).
+
+**PENDIENTE DE BRANCH. Verificada solo en el laboratorio local (09/10/2026, laboratorio igual a producción —`main` 0bac1e77— con los
+siete bloques de la fase 2 aplicados, 2.8 r4 incluido); no aplicada en ninguna base real. La fecha definitiva del archivo se pone al
+integrar.** Plan de mantenibilidad del backend (AVANCE-BACKEND-0810-F2), fase 2, bloque 2.9 (decisión **D-37** de Miguel, 09/10/2026;
+alcance «Solo si es cliente»: solo el alternativo de los leads **convertidos**; plan aprobado en D-45; la regla del cliente es la del
+2.7 y el 2.8: D-22, D-25, D-27, D-30). **Va sobre la carga de bases B8 (`20261004184501`) y después del 2.8 r4 (`20261009150000`), con
+el grupo C:** no usa la pieza del 2.8, pero su preflight exige el candado de contacto del 2.8 r4. Independiente del 2.11
+(`20261009235500`): ninguno toca ni consume lo del otro (la pieza del 2.11 llama a la del 2.8, no a este envoltorio). Cambia **solo**
+el cuerpo (su WHERE, por ancla única) y el comentario del envoltorio de identidad de la carga. No toca el núcleo de la carga, la puerta
+`crm.cargar_base_lote`, el verificador, la regla del ámbito, el alta, la edición, el importador, tablas, grants, policies ni nada de
+`public`. **Ronda 2 (09/10/2026; auditor de permisos r1 —PASS con cuatro P3— y Codex r1 —sin defectos del predicado—; las revisiones
+quedan agotadas; el predicado no cambia):** el comentario del cuerpo ya no nombra la pieza del 2.8; dependencias, candado del 2.8 r4 y
+consumidores en el preflight, el postflight y la reversa; casos y mutantes nuevos.
+
+**Qué pasa hoy (medido en ROJO):** el núcleo de la carga pregunta al verificador y, si dice «libre», al envoltorio, que solo compara
+`crm.leads.telefono` y `crm.leads.dni`; el verificador no mira el alternativo y excluye las fichas convertidas ⇒ una fila cuyo teléfono
+es el **alternativo de un cliente** se carga como contacto dormido (`cargada`). Con su teléfono principal sale `ya_existia` (motivo
+`convertido`; `retirado` si la ficha del cliente está retirada, medido).
+
+**Qué hace:** el WHERE del envoltorio añade `or (l.etapa = 'convertido' and l.telefono_alternativo = p_telefono)`: ese lead entra en el
+MISMO conjunto que las demás coincidencias. (1) Si el alternativo es la **única** coincidencia, la fila sale exactamente como con su
+teléfono principal (mismo motivo —**D-E1, aceptada**: el de un cliente retirado es `retirado`, sin id— y el mismo id si quien carga lo ve
+y sigue activo). (2) Con **varias**, **gana la más relevante** (vivo → descartado → convertido → retirado; a igual categoría, la creada
+más recientemente; después el id): el motivo o el id pueden cambiar respecto de hoy (R1: de `retirado` a `convertido`; E1: el cliente
+más reciente en vez del otro). (3) La **regla del ámbito** (`private.bases_carga_fuera_de_ambito`, que usa este envoltorio) mira TODAS:
+si alguna es de otro equipo, la fila solo dice `ya_existia`, sin motivo ni id, también si otra es un lead propio vivo o en No contactar
+(**F3/F3b, decisión del Director**: hoy `con_dueno` o `no_contactar`; ahora cuenta en `ya_existian` del lote y del acumulado de la base,
+no en `no_contactar`, medido). Comparación literal de formas canónicas, como la regla del 2.8: el alternativo se guarda en E.164 (CHECK
+`leads_telefono_alternativo_formato`) y el teléfono de la fila llega normalizado. Al comentario de B8 se le AÑADE una frase del 2.9.
+
+**No cambia:** el alternativo de un lead que no es cliente (D-37), las filas libres, la fila cuyo teléfono o DNI coincide con un lead y
+NO con el alternativo de un cliente (mismo veredicto, motivo e id), los veredictos del verificador (salvo el ocultamiento por ámbito de
+arriba), el respaldo fila a fila, la forma de la respuesta (sin nombres ni teléfonos), lo que no es carga de bases. **Candados:** sin DDL
+de tablas; la transacción retiene `AccessShareLock` sobre `crm.leads` (medido: ~1,9–2,1 s, sobre todo los barridos de trinquetes; una
+medición, no una cota), compatible con el DML ordinario. **Concurrencia:** el núcleo toma los candados de contacto de sus filas y,
+desde el 2.8 r4, el disparador toma la MISMA clave para el alternativo: una carga de X y quien pone X como alternativo de un cliente (o
+convierte un lead que lo tiene) no se juzgan a la vez sobre fotos viejas (uno de los dos órdenes); el orden «carga primero» es legítimo
+y lo cubren D-55 (2.11) y D-62 (2.16).
+
+**Preflight** (falla cerrada): no aplicada; el envoltorio de B8 exacto (cuerpo `cf6489ee72122a33fd9c1da9b5e9446c`, definición
+`563274f8186a7b8a186ec27322d69eb0`, ficha: postgres, INVOKER, STABLE, `search_path` vacío, EXECUTE solo postgres; comentario
+`1e1052db90104b21bef5b9a1c6267f38`); definición completa, dueño y ACL efectiva de **doce funciones**: `private.bases_carga_cargar_lote_core`
+(`e5f25344…`), `private.bases_carga_fuera_de_ambito` (`7341099…`), `crm.cargar_base_lote` (`b03d2e9d…`, `authenticated` y `postgres`),
+`private.verificar_disponibilidad_lead_impl(text,text)` (`742d44ff…`) y `(text,text,uuid)` (`cece9dd1…`, ronda 2), `private.normalizar_telefono`
+(`00c30277…`), `private.base_gestion_lead_visible` (`e80a4372…`), `private.vendedor_ids_visibles` (`85544c70…`, r2), `private.es_lector_global`
+(`c8be602f…`, r2), `private.rol_crm` (`99827f3f…`, r2; también el rol de quien carga), `private.bases_carga_lead_ref` (`db760dd5…`) y
+`private.bloquear_contactos_lead` (`0d52f58c…`, r2); el **candado del 2.8 r4** (r2): `private.trg_leads_disponibilidad_atomica` (postgres,
+DEFINER) lo toma con el alternativo en la UPDATE (viejo y nuevo) y en el INSERT, una vez cada uno, y sus dos disparadores de tabla están
+habilitados (el de la edición con teléfono, alternativo, DNI, etapa y `activo` en su lista); **nadie más consume** el envoltorio (salvo
+el núcleo y el ámbito), el ámbito (salvo el núcleo) ni el núcleo (salvo la puerta) (r2: antes solo el envoltorio); el CHECK
+`leads_telefono_alternativo_formato` (`4ce894b3…`, validado); el inventario de los 30 `assert_*` (`30|bc19c770…`, sin `*_mutantes`). **Qué
+detecta la búsqueda de consumidores:** referencias LITERALES en los cuerpos de función (sin distinguir mayúsculas), dependencias
+registradas en `pg_depend` (vistas, policies, defaults, funciones `BEGIN ATOMIC`…) y los comandos de `cron.job` que ve quien migra; es
+conservadora (un comentario con el nombre también bloquea) y **no ve el SQL dinámico** (un nombre armado en tiempo de ejecución): no
+prueba ausencia. Inventario revisado en el laboratorio (09/10): envoltorio ← núcleo y ámbito; ámbito ← núcleo; núcleo ← puerta;
+`pg_depend` vacío; ningún `cron.job`. Lo que esas doce funciones llaman a su vez no se fija aquí. **Postflight:** el envoltorio con cuerpo
+`bcb6a83abdd7225bc048bfa4713ed8cf`, definición `76773d711c6c317153833456c1ed6bdb` y comentario `bfe5c84dce3ec76d854e6edc72d13ef9`
+(ronda 2; calculados en local desde las anclas y confirmados en el laboratorio; los de la ronda 1 eran `cb8c9430…`/`ab0ac226…`/
+`8b167831…`), la misma ficha, las doce funciones, el candado, los consumidores y el CHECK intactos; los 30 trinquetes idénticos.
+
+**Reversa:** `supabase/scripts/bases-alternativo-cliente/reversa.sql`, SHA-256
+`06bc0f5d3d063b54bdb26343cc3453fd5efbab3a783833cd762115a463052800` (ronda 2; generada desde la migración; falla cerrada; exige además que
+nadie más consuma el envoltorio, el ámbito ni el núcleo —revertir le quitaría el alternativo en silencio—; repone el cuerpo y el
+comentario de B8 y exige sus huellas). No deshace datos. **Orden de reversas:** la del 2.8 ENTRA con el 2.9 aplicado (ensayado:
+compatibilidad mecánica, no concurrencia; con la ronda 1 se negaba, medido); se recomienda igual el orden inverso al de aplicación
+(LIFO): 2.11 y 2.9 son independientes entre sí; la del 2.8 se niega mientras el 2.11 la use.
+
+**Verificación de la ronda 2 (laboratorio, 09/10/2026 23:46–23:49; todo con rollback, huella de la base IGUAL, ningún 40001):** ROJO
+**18 fallos de 38** (14 «la fila ENTRÓ como contacto dormido»: A1–A5, F1, F2, F4, Z1–Z4, D1, L1; y los cambios R1, E1, F3, F3b); VERDE
+**0 de 38**; **21 mutantes** muertos cada uno por su fallo; **35 derivas** abortan en el preflight sin rastro, el control entra (también
+como superusuario), MP1/MP3/MP4 mueren y MP2 aborta en el postflight; reversa VERDE (B8 exacto, foto idéntica), 10 derivas de la reversa
+abortan (4 de ellas, consumidores nuevos), RM1 aborta en el postflight, RM2 y RM3 mueren; **reversa del 2.8 con el 2.9: entra**
+(pieza del 2.8 borrada, núcleo del 2.7 y disparador de B8 repuestos, envoltorio del 2.9 intacto; con la migración de la ronda 1, la del
+2.8 aborta por «posible llamador»); los 36 `assert_*` y el censo idénticos sin y con (29 pasan, 7 caen en los dos lados); oráculos del 2.4
+(67) y del 2.7 (54) VERDE sin y con, mismas respuestas; **oráculo del 2.8: 124/124 sin y 123/124 con: cae su B1** (D-E3). Ronda 1: ROJO
+14/31, VERDE 0/31, 14 mutantes, 23 derivas. **Rendimiento** (ronda 1; el predicado no cambió): ~3,4 → ~5,4–5,8 ms por llamada al envoltorio
+y ~1,4 → ~2,1 s por lote real de 100 filas (50 000 leads, 5 000 convertidos, como `postgres`, sin ANALYZE: no acredita el límite HTTP de
+8 s). Banco, oráculo B8 (`b8-cargar.sql`: su guarda exige la CLI de Supabase con `seed:demo`), RLS/HTTP, concurrencia, branch: NO EJECUTADO.
+
+**Decisiones:** **D-E1** (aceptada por el Director): el alternativo de un cliente retirado responde `retirado`, igual que su principal.
+**D-E2:** no se reutiliza `private.juicio_cliente_convertido` (veredicto de alta, no los leads que necesitan el ámbito y el id). **F3**
+(decisión del Director, ratificada por Codex): con alguna coincidencia de otro equipo manda la respuesta opaca. **D-E3** (a la
+integración): el esperado de B1 del oráculo del 2.8 se cambia en la copia de integración y el oráculo completo corre sobre el estado
+FINAL. **H-1 ⇒ D-55** (reactivar un contacto de base reconoce al cliente: bloque 2.11); las demás puertas que devuelven un lead a la
+cartera: **D-62** (bloque 2.16). H-2 (índice por `telefono_alternativo` de los convertidos): anotado, fuera de este bloque.
+
+**Pruebas para la integración (grupo C; listas del auditor r1 y de Codex r1):** **gates obligatorios:** (a) el candado del 2.8 r4 en la
+branch (lo exige el preflight) y la carrera con COMMIT en los DOS órdenes —carga de X frente a una conversión o una edición que pone X como
+alternativo—, distinguiendo el orden «carga primero» (legítimo; D-55/D-62); (b) **visibilidad ÍNTEGRA de `cron.job`** para quien migra
+(con RLS podría devolver menos filas sin error); (c) B1 del 2.8 con su esperado nuevo y el oráculo del 2.8 completo sobre el estado final;
+(d) orden LIFO de reversas en el runbook; (e) `b8-cargar.sql` en el banco de la CLI con el 2.9. **HTTP** (`test-rls.mjs` o banco, PostgREST
+con sesión real y 8 s): 1) sup1 carga el alternativo de un cliente activo de su equipo con persona ⇒ `ya_existia/convertido` con
+lead_id, sin lead nuevo, sin nombre/teléfonos/DNI; 2) igual sin persona; 3) cliente retirado de su equipo ⇒ `ya_existia/retirado` sin
+lead_id; 4) cliente de otro equipo (vend3, bajo sup2): sup1 ⇒ `ya_existia` sin motivo ni id; Gerencia ⇒ `convertido` con id; 5) cliente
+retirado de otro equipo ⇒ sup1 sin motivo ni id; 6) negativo D-37: alternativo de un lead vivo que no es cliente ⇒ `cargada`; 7) formas
+«9xx xxx xxx» y «+51 9xx-xxx-xxx»; 8) el ámbito mixto (F3/F3b) con los contadores; 9) repetir un lote cuyo recibo nombra a un cliente tras
+reasignarlo fuera del ámbito ⇒ P0002; 10) coordinador y supervisor con ficha inactiva ⇒ 42501; 11) un lote de 100 por HTTP con datos y
+estadísticas representativos (límite de 8 s). **Opcional (OK de Miguel, con F4.7):** conteos agregados en producción de alternativos
+`^\+9[0-9]{8}$` y crudos de clientes, y de contactos de base que ya coinciden con el alternativo de un cliente.
+
+**SHA-256 del archivo de la migración (ronda 2, 09/10/2026):** `29a40d54d707ba16415b0ff3d2cba2fa6cfec7e5eff0d7f27a1fe1a5165b38b9` (ronda 1:
+`651ce2ea…b040`).
+
+**Reselle C2 (22/10/2026):** ronda 2 del encargo C2-a (plan AVANCE-BACKEND-1310-C2): SOLO el literal del censo de los 30 `private.assert_*()` que se barren (l. 220), `30|bc19c770…` → `30|3cefe40e…` (producción del 22/10: mismos 30 nombres, 10 definiciones cambiadas por producción); nada más cambia (sin línea de cabecera, por indicación del Director). Su oráculo: el fixture `vence_en` pasa a hoy + 360 días (20261016195003). SHA-256 de la migración: `42b769c2fc9e7f2f2c1bc7c49689c563cbd1ed3d4c517ce253f1c1b79523ed31`.
+
+
+## 20261022170400 — El cliente ya convertido tampoco se duplica al editar un lead, por el INSERT con sesión ni por su teléfono alternativo (pieza `private.juicio_cliente_convertido`; núcleo `private.alta_reactivar_retirado`; disparador `private.trg_leads_disponibilidad_atomica`)
+
+**INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170400_crm_cliente_no_se_duplica_al_editar.sql`** (bloque 2.8 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261009150000_crm_cliente_no_se_duplica_al_editar.sql`, copia `fase2`, sha256 del origen `0ec338bb9090…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
+
+**PENDIENTE DE BRANCH. Verificada solo en el laboratorio local (09/10/2026, laboratorio igual a producción con los seis bloques de la
+fase 2 aplicados); no aplicada en ninguna base real. La fecha definitiva del archivo se pone al integrar.** Plan de mantenibilidad del
+backend (AVANCE-BACKEND-0810-F2), fase 2, bloque 2.8 (decisiones **D-28** y **D-30** de Miguel, 08/10/2026; la regla es la del bloque
+2.7: D-22, D-25, D-27; D-29 vale igual). **Va DESPUÉS de `20261008174055` (bloque 2.7, que va después del 2.4) y sobre el disparador
+de bases cargadas B8 (`20261004184501`).** Crea una pieza, cambia el núcleo del 2.4 + 2.7, el disparador de disponibilidad y la
+lista de columnas del disparador de tabla de la edición. No toca el alta, el verificador, la ficha (`crm.editar_lead_fn`,
+`crm.fijar_dni_lead_fn`), tablas, grants, policies ni nada de `public`. **Ronda 3 (09/10/2026):** cambia otra vez el disparador y su
+disparador de tabla (el alternativo sin validar, la válvula privilegiada, la salida de la corrección de documento), el preflight, el
+postflight y la reversa; la pieza y el núcleo no cambian (ver «Ronda 3» al final de la sección). **Ronda 4 (09/10/2026):** cambia solo el
+disparador (su candado de contacto incluye el teléfono alternativo) y, con él, el preflight, el postflight y la reversa (ver «Ronda 4» al
+final).
+
+**Qué pasa hoy (medido en ROJO):** la regla del 2.7 solo vive en el núcleo del ALTA. (1) La **edición** de la ficha
+(`crm.editar_lead_fn`; el DNI por su puerta `crm.fijar_dni_lead_fn` con la identidad encendida) cambia el teléfono o el DNI con un
+UPDATE que solo vigila `private.trg_leads_disponibilidad_atomica`, que pregunta al verificador sellado; el verificador excluye las
+fichas convertidas y solo reconoce un DNI por las identidades de persona ⇒ se acepta y queda un SEGUNDO lead del cliente. (2) Si solo
+cambia el **teléfono alternativo**, el disparador ni se dispara. (3) Un **INSERT con sesión** que no pasa por el alta solo pregunta al
+verificador (hoy `authenticated` NO tiene INSERT sobre `crm.leads` —ni de tabla ni de columna— y no hay policy permisiva de INSERT:
+`crm_actor_activo_gate` es restrictiva; medido en el laboratorio, igual a producción en ACL y policies). (4) En el **alta** el
+alternativo tecleado no se compara con nada y nadie compara con el alternativo de un cliente.
+
+**Qué hace:** (1) **Pieza común** `private.juicio_cliente_convertido(p_telefono, p_telefono_alternativo, p_dni, p_excluir_lead_id)`,
+de **solo lectura** (STABLE, INVOKER, dueño `postgres` fijado explícitamente, EXECUTE solo para `postgres`): la regla del 2.7 con el
+**alternativo en las dos direcciones** (D-30). Lo tecleado (principal y alternativo) contra los dos teléfonos de cada lead `convertido`
+(activo o retirado), por grados —lo tecleado como principal antes que el alternativo tecleado y, para cada uno, el principal del cliente
+antes que su alternativo; sin alternativos de por medio es exactamente la búsqueda del 2.7—; si no casa ningún teléfono, el DNI (D-27).
+Dentro de un grado, enlazado a persona → activo → más reciente (sin fecha, detrás) → id. Veredicto: enlazado ⇒ el juicio de identidad de
+su persona canónica (`ya_es_cliente` con su asesor y `via = identidad`, o `no_contactar`), o el respaldo de D-21; sin persona ⇒
+`ya_es_cliente` a nombre del dueño de esa ficha, sin `via`. Nunca contra el lead excluido. (2) **Núcleo del alta:** su regla 1b llama a
+la pieza (con `v_tecleado ->> 'telefono_alternativo'`, la copia local de `p_tecleado`, que el alta ya canoniza) en vez de llevar las dos búsquedas; mismo sitio, misma
+guarda del reintento, mismo veredicto; la variable conserva el nombre `v_convertido` (el caso 3d del oráculo del 2.4 la busca). (3)
+**Disparador**, por ancla única y DESPUÉS de todo lo que ya juzga hoy (vetos propios, enfriamiento propio, verificador), solo CON SESIÓN:
+UPDATE que cambia teléfono o DNI ⇒ la pieza con **lo que la edición pone** (el teléfono, el alternativo y el DNI que cambian; lo que el
+lead ya tenía no se juzga, D-23/D-25); bajo la válvula `crm.op_privilegiada` se juzgan igual el teléfono y el alternativo y **solo el
+DNI** queda fuera (ronda 3; hasta D-38); UPDATE que solo cambia el alternativo (también bajo la válvula, ronda 3) ⇒ la pieza con el
+alternativo nuevo y, si hay veredicto, primero el rol (42501 a quien no puede registrar); INSERT con sesión que no es
+el contacto dormido de la carga de bases ⇒ la pieza con todo lo tecleado. Si responde ⇒ el **mismo `P0481`** «Contacto no disponible»
+de hoy con el veredicto en el detalle. Ronda 3: con sesión —también bajo cualquier válvula— el alternativo **sin validar**
+(`telefono_alternativo_crudo`, que solo escribe la importación) no nace no nulo (INSERT) ni pasa a un valor no nulo (UPDATE, también
+de uno a otro) ⇒ `42501` «El alternativo sin validar solo lo pone la importación», antes que todo lo demás; conservarlo o borrarlo
+sigue igual; y la salida anticipada de la corrección de documento (F2.b, `crm.correccion_documento`) exige además que el alternativo y
+el alternativo sin validar no cambien. (4) `trg_leads_00_disponibilidad_update` mira además `telefono_alternativo` y, desde la ronda 3,
+`telefono_alternativo_crudo` (`create or replace trigger`: mismo nombre, mismo oid, mismo orden de disparo). (5) Comentarios: al del núcleo (2.7) y al del disparador (B8) se les AÑADE
+el del 2.8.
+
+**No cambia:** la **carga de bases** (con sesión, pero su contacto nace dormido bajo su válvula, que la regla excluye; su veredicto
+sigue siendo el de su envoltorio); lo que corre **sin sesión** (el importador `crm.importar_lead_fn`, cuyo contrato es no consultar la
+disponibilidad comercial; cualquier escritura sin usuario); el **DNI** que escriben las puertas privilegiadas (`crm.op_privilegiada`:
+preparación de la conversión, corrección de documento —que sale antes por su excepción solo si cambia únicamente el DNI—, documento
+CE/pasaporte; hasta D-38); los veredictos que el disparador ya daba (vetos, enfriamiento, verificador: van antes y mandan) —**no**
+«ningún veredicto de hoy cambia»: H-7 (abajo), con la identidad encendida la puerta del DNI decide a qué cliente se nombra (medida
+E7l) y un alternativo con espacios alrededor del teléfono de un cliente pasa del `23514` de formato al `P0481` (medida E8l)—; las
+ediciones que no tocan teléfono, alternativo ni DNI (o los reenvían iguales); el reintento del 2.4; los roles (42501 como hoy); el
+verificador; las otras puertas (tomar libre, reabrir, reactivar de base); los candados de contacto del teléfono y del DNI (desde la
+**ronda 4** el alternativo **también** se bloquea, con la misma clave que el teléfono principal: ver «Ronda 4»; la carrera con COMMIT se
+ensaya en F4.6 antes de aceptar la publicación). Un
+UPDATE **directo** del DNI con la identidad encendida sigue rechazado: hoy por `trg_leads_zz_enlaza_identidad` (P0409 «se fija por su
+puerta»); si el DNI es de un cliente, ahora antes por la regla (P0481). Los duplicados que ya existen se dejan (D-25).
+
+**Preflight fail-closed:** que no esté aplicada (ni la pieza —con cualquier firma— ni su llamada); el núcleo del 2.7
+(`f74838f274a8db971952eb9c09c7387e` / `c56e4abd191b947177a9179a7d558dbd`, ficha con `is_grantable`, comentario
+`31159d826a407c91173e3870b5711352`); el disparador de B8 (`5543c41f89dd49b8b267b7b274b12814` / `bfd4679b1d15bb2147ef78705a9d9aff`,
+`20261004184501:1459`; ficha; comentario `5d0717955781d7c48794d240b021a148`); los disparadores de tabla de disponibilidad (definición
+`fd430e026c17ce4ca3ed0d74b48ba0e1` y `5aef4753210080c9bcf5d7b16b2d4b54`, habilitados); el alta (`01ebf089…`/`94ec2bd7…`, ACL); el
+verificador (huellas compuestas de la carga de bases); `private.juicio_persona` `2570f6ea…`, `private.inversionista_canonica`
+`6c7ff600…`, `private.bases_carga_nace_dormido` `c3d86ac0…`, `private.rol_crm` `d2878a21…`, `private.alta_reactivar_bloqueo_conservado`
+`a9ac3a87…` y la ficha cuya edición protege: `crm.editar_lead_fn` `f2c1b766…`, `crm.fijar_dni_lead_fn` `3b929169…`,
+`crm.editar_lead_documento_fn` `8e495db5…`, `crm.fijar_documento_lead_fn` `ec9f0206…`. **Postflight:** la pieza EXACTA
+(**`346f48a8648248b308628301d41bc4c0` / `a2b38faf42a875c7dffb7968b106e36f`**), INVOKER de postgres, STABLE, `search_path` vacío, ACL
+`postgres:EXECUTE` sin opción de concesión, comentario; el núcleo EXACTO (**`2fe5fdac50150d7429da2e422f43b92d` /
+`8d598eb4d0df994388337480e71e8005`**, comentario `8870de7f9d82c44b1a1f965f1e6d3ef0`) con la misma ficha; el disparador EXACTO
+(**`edc56a8eeda2ea590fabe32753453ca0` / `7a20fd11830a07d232a26fd3dc144379`**, comentario `40c800a518e5d294a6bcd9037943f4b5`) con la
+misma ficha; `trg_leads_00_disponibilidad_update` con su lista nueva (**`e71ca134a03fc5b2bae13d12cc3ca296`**), el MISMO oid y
+habilitado; el del INSERT, el alta, el verificador, las piezas y la ficha intactos; la foto de los `private.assert_*()` sin los
+`*_mutantes` (30 de 36) idéntica a la previa. Huellas medidas en el laboratorio el 09/10/2026.
+
+**⚠️ Para quien integre:** (1) Se aplica en el **grupo C** de la fase 4 (D-26), **después** de `20261008174055` (su preflight exige el
+núcleo exacto del 2.7) y con B8 vigente; **la reversa del 2.7 se negará después de esta migración** (correcto: el 2.8 trae la suya).
+(2) **El oráculo del 2.4 sobre una base que ya tiene el 2.7** (y el 2.8) se arma SIN el fixture B7 (el laboratorio de la fase 4 ya
+tiene B7) y con el modo 2.7 «con»: `node supabase/scripts/cliente-no-se-duplica-al-editar/armar-ensayo.mjs --oraculo 24 --sin-migracion`
+(los armadores del 2.4 y del 2.7 añaden el fixture B7 y abortarían en ese laboratorio). (3) **Pantalla (hallazgo de la ronda 1, resuelto por D-36 en la
+ronda 2: ver «Pantalla» al final):** la edición rechazada mostraba el texto fijo de `aErrorApi` (`app/src/data/crm-api.ts:2524-2526`, «Ese teléfono o DNI no está disponible para
+este lead.»), no el «ya es cliente de X» que sí presenta el alta (`aErrorInsertarLead`, `:2590`): la edición queda bloqueada igual;
+mostrar el veredicto es un cambio de app aparte. (4) Banco (ronda del banco del 2.8): casos HTTP de la ficha —editar teléfono,
+alternativo y DNI hacia los de un cliente (con persona, sin persona, retirado), el duplicado heredado que sigue editándose, un rol sin
+permiso— y los de hoy sin regresiones. (5) `test-rls.mjs`: K1–K2 de los que el auditor del 2.7 dejó como «hueco conocido (D-28)» pasan a
+DENEGADO (P0481 con el veredicto; nada escrito); **K3 (INSERT directo) da `42501` en producción, no `P0481`**: `authenticated` no tiene
+grant de INSERT sobre `crm.leads` y PostgREST lo rechaza antes de llegar al disparador (la regla del INSERT con sesión es defensa en
+profundidad). En el repositorio, `leads_insert` y el grant de INSERT de `20260709000001_cimientos_crm.sql` (`:424`, `:537`) no se
+retiran en ninguna migración versionada: medir en la branch (F4.5) `has_table_privilege('authenticated','crm.leads','INSERT')` y la
+policy `leads_insert` antes del gate. (6) Repetir en la branch las huellas de la pieza, del núcleo, del
+disparador y de los disparadores de tabla; si difieren, re-auditar. (7) Repetir el conteo de leads que comparten teléfono o
+alternativo con un cliente antes de desplegar (D-23 midió solo el teléfono principal).
+
+**Abierto (D-30: no se amplía el alcance; se reporta):** las otras puertas no miran el alternativo de un cliente ni (algunas) la
+regla del 2.7: la **carga de bases** carga como dormido un contacto cuyo teléfono es el alternativo de un cliente (B1) y
+`crm.reactivar_lead_base` podría luego darlo a un analista; el **importador** sin sesión crea un lead con el teléfono de un cliente
+por contrato (S1); la **preparación de la conversión** (`crm.preparar_persona_lead_inversion_fn`, privilegiada) fija en otro lead el
+DNI de un cliente retirado sin persona (P2); tomar un lead libre y reabrir no cambian. La limpieza de duplicados existentes tampoco.
+
+**Verificación (laboratorio, `supabase/scripts/cliente-no-se-duplica-al-editar/`, 09/10/2026):** ROJO sin la migración **36 fallos de 73**
+(todos «la edición / el INSERT con sesión se ACEPTÓ → nació un SEGUNDO lead del cliente», «el alta creó un SEGUNDO lead» o A6 —el
+alternativo no cuenta—; los 37 negativos y de catálogo ya pasan; sin errores de montaje); VERDE **0 fallos, 73 comprobaciones**;
+**54 mutantes** muertos cada uno por su fallo; **22 derivas** abortan en el preflight sin rastro, el control entra y el mutante del
+preflight deja colar la deriva; **derivas de la reversa**: control + 9 abortan sin rastro (incluido el cambio de dueño como
+superusuario), RM1 aborta en el postflight y RM2 deja colar el GRANT; reversa VERDE (núcleo `f74838f2…`/`c56e4abd…`, disparador
+`5543c41f…`/`bfd4679b…`, lista de columnas de hoy, sin pieza, foto idéntica); los 36 `assert_*` y el censo idénticos sin y con la
+migración (29 pasan y 7 caen en los dos lados: caídas previas del laboratorio); los oráculos del 2.4 (67) y del 2.7 (54) VERDE sin y
+con esta migración, con las mismas respuestas. Concurrencia con dos conexiones: NO EJECUTADO. Revisiones de Codex y del auditor de
+permisos: pendientes.
+**Reversa:** `supabase/scripts/cliente-no-se-duplica-al-editar/reversa.sql` (generada desde la migración; SHA-256
+`d2ad1cf0afe67c35eb2678ba8d30da3016c7f980dc4d60b9e34e2dab60e18f85`) — FALLA CERRADA: exige la pieza, el núcleo, el disparador y los
+disparadores de tabla EXACTAMENTE como los deja esta migración (cuerpo, definición, ficha, ACL, comentario, estado); repone el núcleo
+del 2.7, el disparador de B8, la lista de columnas de hoy y los comentarios, y borra la pieza; su postflight exige todo lo de antes. No
+deshace datos (la regla no escribe).
+**SHA-256 del archivo de la migración (09/10/2026):** `ac5c3e46ca1f222c0e9da6edbcfeb97233ce466a90b0bb56b1453331ed84b3df`.
+**Pantalla (D-36, ronda 2 del 2.8):** la edición de la ficha presenta el veredicto como el alta (`app/src/data/crm-api.ts`: `editarLeadFn` → `aErrorEditarLead`, pieza común `presentacionDelP0481` con `aErrorInsertarLead`): «ya es cliente de X» y `tomado`, `en_bolsa`, `enfriamiento`; `no_contactar`, `reutilizable`, `error`, otro estado o un detalle roto conservan el texto fijo; mismo código `CONTACTO_NO_DISPONIBLE` y mismo registro `crm.leads.editar_fallido`; sustituye el aviso (3) «Pantalla» de arriba. La migración no cambia.
+
+**Ronda 3 (09/10/2026; revisiones del auditor de permisos y de Codex, CHANGES_REQUESTED sin P0/P1; conciliación del Director en
+`fase-2/bloque-2.8/revision/CONCILIACION.md`):** (a) **alternativo sin validar** (auditor F1 / Codex F1): lo de arriba; casos F1–F8 y
+mutantes de lógica y de lista de columnas por separado. (b) **Válvula** (auditor F3 / Codex F3): bajo `crm.op_privilegiada` se juzgan
+el teléfono y el alternativo; solo el DNI queda fuera; la salida F2.b solo vale si cambia únicamente el DNI; casos V1–V6 con una y con
+las dos válvulas; el mutante que reintroduce la exclusión completa muere. R1 (el reintento del 2.4) y los oráculos del 2.4 y del 2.7 no
+cambian (medido). (c) **Dependencias** (Codex F2): el preflight y el postflight fijan `md5(pg_get_functiondef)`, dueño `postgres` y ACL
+efectiva de `crm.editar_lead_fn` (`b8ed6e9a…`), `crm.fijar_dni_lead_fn` (`0a3d6462…`), `crm.editar_lead_documento_fn` (`d0959691…`),
+`crm.fijar_documento_lead_fn` (`f8df1697…`), `private.juicio_persona` (`69794e13…`), `private.inversionista_canonica` (`34702897…`),
+`private.bases_carga_nace_dormido` (`9f75aa5f…`), `private.rol_crm` (`99827f3f…`), `private.alta_reactivar_bloqueo_conservado`
+(`2186e7c4…`) y de los dos verificadores (`742d44ff…`, `cece9dd1…`), y los CHECK `leads_telefono_alternativo_formato` (`4ce894b3…`),
+`_excluyentes` (`adc22ae8…`), `_crudo_cordura` (`57365aa2…`) y `leads_dni_check` (`6dcca3c9…`), validados. **Esta lista (c) sustituye a
+las huellas de las dependencias del «Preflight fail-closed» de arriba** (las de la ronda 1 eran `md5(prosrc)` —`2570f6ea…`, `6c7ff600…`,
+`c3d86ac0…`, `d2878a21…`, `a9ac3a87…`, `f2c1b766…`, `3b929169…`, `8e495db5…`, `ec9f0206…`— y ya no se comprueban; auditor r2, P3-3).
+(d) **Trinquetes** (Codex
+F5): el inventario y las definiciones de los 30 `private.assert_*()` que se barren (`30|bc19c770…`) se comprueban ANTES del primer
+barrido; el comentario de la pieza, con su md5 EXACTO (`e23707e5…`) en el postflight. (e) **Reversa** (auditor F2 / Codex F4): su
+preflight se niega si otra función (búsqueda en los cuerpos) o un objeto registrado en `pg_depend` (vista, policy, default, CHECK,
+disparador, función `BEGIN ATOMIC`) usa la pieza; `DROP … RESTRICT`. **Límite declarado:** una llamada con el nombre construido en
+tiempo de ejecución o hecha desde fuera de la base no se ve (medido: la reversa entra). (f) **Huecos de prueba** (los dos): E8a–E8l,
+A7/A8, R1a y las medidas R2/R3 (abajo). (g) **Pantalla** (Codex F6): `aErrorInsertarLead` conserva el alcance del `try` de antes de
+D-36. (h) **Textos** (auditor F5, Codex): `v_tecleado`; K3 da 42501; sin «ningún veredicto de hoy cambia» ni «un cliente no nace en medio
+de una edición».
+**Huellas de la ronda 3:** el disparador **`ad60516838e1f090a9a52fa4ca2f7f1d` / `e7544c59de51882ca83413f592385c98`** (comentario
+`8bc8a3d207c645839bdd99707e918e09`); `trg_leads_00_disponibilidad_update` **`a585ac769d92cd1f2aba0c4cf49ca83a`** (mismo oid); la pieza y
+el núcleo, las de arriba. Sustituyen a las del disparador y del disparador de tabla del «Postflight» de arriba.
+**Medidas para Miguel (sin arreglar: D-25 deja los heredados):** un alta NUEVA que reactiva un retirado cuyo **alternativo** conservado
+es el teléfono de un cliente activo ⇒ `reutilizado` (la ficha vuelve activa con ese alternativo; R2); uno hallado por DNI que conserva
+el **teléfono** de un cliente activo ⇒ `ya_es_cliente` (lo para C-1 del 2.4; R3a); el mismo con el cliente **retirado** ⇒ `reutilizado`
+(la ficha vuelve activa con el teléfono del cliente; R3b).
+**Instalación y rendimiento (laboratorio; la medida de verdad es la de la branch, F4.6):** la transacción de la migración dura
+**~2–3 s** (seis corridas: 1,94–3,12 s; el preflight 1,0–1,5 s y el postflight 0,94–1,58 s, los dos barridos de los 30 trinquetes); el
+`SHARE ROW EXCLUSIVE` que toma `CREATE TRIGGER` sobre `crm.leads` se retiene **~0,9–1,6 s**, desde ahí hasta el COMMIT (el postflight
+entero corre con el candado puesto). Las dos consultas de la pieza: con el laboratorio tal cual (38 leads), recorrido secuencial,
+~0,02 ms; con 50 000 leads sintéticos y 5 000 convertidos (rollback, sin ANALYZE), el índice parcial `idx_leads_convertido_en` (solo
+convertidos; también el plan genérico), ~0,4–1,05 ms por consulta y ~0,73–1,11 ms por llamada a la pieza: crece con los convertidos,
+no con todos los leads.
+**Verificación de la ronda 3 (laboratorio = producción + los seis bloques, SIN el 2.8; 09/10/2026):** ROJO sin la migración **62
+fallos de 113** (los 36 de la ronda 1 y 26 nuevos, todos «se ACEPTÓ → nació un SEGUNDO lead del cliente» o «el alta creó un SEGUNDO
+lead»); VERDE **0 fallos, 113 comprobaciones**; el oráculo de la ronda 1 sobre la migración de la ronda 3, VERDE (73); **69 mutantes**
+muertos cada uno por su fallo; **34 derivas** abortan en el preflight sin rastro, el control entra y el mutante del preflight deja colar
+la deriva; **derivas de la reversa**: control y límite entran, 13 abortan sin rastro (4 de ellas, otro llamador de la pieza), RM1 aborta
+en el postflight, RM2 y RM3 mueren; reversa VERDE (núcleo del 2.7, disparador de B8, lista de columnas de hoy, sin pieza, foto
+idéntica); los 36 `assert_*` y el censo idénticos sin y con (29 pasan, 7 caen en los dos lados); oráculos del 2.4 (67) y del 2.7 (54)
+VERDE sin y con, mismas respuestas (normalizadas). App: lint, tipos y vitest completos (388 archivos, 6286 pruebas). Concurrencia con dos
+conexiones y RLS/HTTP: NO EJECUTADO (F4.6 y la ronda del banco). Revisión de la ronda 3: pendiente.
+**Reversa (ronda 3):** `supabase/scripts/cliente-no-se-duplica-al-editar/reversa.sql`, SHA-256
+`e0e8692f6564b486920a03640ea6e2197fea1165d3255bf0c656e91f1d90968d` (sustituye al de arriba).
+**SHA-256 del archivo de la migración (ronda 3, 09/10/2026):** `bd82d5a44367b3dc605b8dccd7e031e34fa396868419b8932b0af363d1a7b70d`
+(sustituye al de arriba).
+
+**Ronda 4 (09/10/2026; Codex r2 —CHANGES_REQUESTED sin P0/P1/P2— y auditor de permisos r2 —PASS—, las dos últimas revisiones;
+conciliación del Director en `fase-2/bloque-2.8/revision/CONCILIACION.md`):** (a) **Candado del alternativo** (auditor P3-4): el
+disparador pasa a `private.bloquear_contactos_lead` el alternativo viejo y el nuevo (UPDATE) y el alternativo (INSERT) en la lista de
+TELÉFONOS: la clave es `telefono:` + `private.normalizar_telefono(<número>)`, la MISMA que toma el teléfono principal para el mismo
+número, así que quien pone X como alternativo o como teléfono espera a quien está poniendo X como alternativo y la regla juzga después
+con lo que el otro confirmó. `normalizar_telefono` no devuelve NULL para ningún valor no vacío (los vacíos no se bloquean, como hoy) y es
+la identidad sobre las formas del CHECK `leads_telefono_alternativo_formato` (móvil y fijo peruanos, internacionales de 8 y de 10 a 15
+dígitos), salvo el internacional de 9 dígitos, que comparte clave con el móvil peruano «+51» + esos dígitos (una espera de más,
+conservadora; ningún veredicto cambia). Lo toman todos los escritores, también sin sesión (solo esperan; la carga de bases no escribe
+alternativo). Casos K1–K10 (las claves, leídas en `pg_locks`); mutantes MK1–MK4; **espera con dos sesiones** en el laboratorio
+(`espera.sh`, las dos con rollback): con la migración, B espera ~2,0 s poniendo X como alternativo y como teléfono mientras A (un cliente)
+retiene X como alternativo; con la migración de la ronda 3 y con MK1, B no espera (2–4 ms); con MK2 (el alternativo con la clave del DNI)
+solo espera alternativo contra alternativo. La carrera con COMMIT y los controles secuenciales (un cliente que pone como alternativo el
+teléfono de un lead ordinario no es «otro lead del cliente» para la regla): F4.6. (b) **Dependencias nuevas** en el preflight y el
+postflight (definición completa, dueño y ACL): `private.bloquear_contactos_lead(text[],text[])` (`0d52f58c…`, `postgres:EXECUTE`) y
+`private.normalizar_telefono(text)` (`00c30277…`, `authenticated:EXECUTE` y `postgres:EXECUTE`); derivas nuevas: el CHECK
+`_crudo_cordura` quitado y cambiado, `bloquear_contactos_lead` con otro cuerpo y con un GRANT, `normalizar_telefono` con otra regla. (c)
+**Reversa** (Codex R2-F1 + auditor P3-1): busca llamadores sin distinguir mayúsculas (`lower(prosrc)`: `PRIVATE.JUICIO_CLIENTE_CONVERTIDO(…)`
+llama a la misma función) y también en `cron.job.command` si la tabla existe (con pg_cron, solo los trabajos que ve el rol que revierte);
+el rechazo dice «posible llamador: inspeccionar antes de revertir»: es una búsqueda textual CONSERVADORA (un comentario, una cadena o
+otra función con esa subcadena también bloquean; se inspecciona, nunca se borra a ciegas lo señalado). Derivas: un llamador estático
+en MAYÚSCULAS, un `cron.job` y un comentario (falso positivo); RM4 (la búsqueda de la ronda 3) y RM5 (sin `cron.job`) dejan colar los
+suyos. (d) **Pruebas** (Codex r2): E8g2 comprueba lead ↔ persona ↔ identificador `PASAPORTE / E8G2X92408` (ME5, que enlaza a otra
+persona, sobrevive al oráculo de la ronda 3 y muere con este); E8l exige el `P0481` con la migración (MP29, la pieza sin recortar, igual);
+F2, F3a, F3b, F4 y F7u1–F7u4 con su propio lead y su estado inicial afirmado (en ROJO, cambios reales). (e) **Pantalla** (nota F6 de
+Codex): `presentacionDelP0481` no lanza (fuera de su `try` solo lee `error.code`, como antes de D-36): `crm-api.ts` no cambia; tres
+pruebas nuevas (si la presentación lanza, el alta y las dos rutas de la edición caen a su error genérico) mueren con un mutante que la
+saca del `try`.
+**Huellas de la ronda 4:** el disparador **`50a6ff4365ffa6bedfd77d215ce31666` / `418b097675753ed9f81931a485b17c94`** (comentario
+`4a3fee01861a0fc10af38eb3fc338eb2`); sustituyen a las del disparador de la «Ronda 3». La pieza, el núcleo y
+`trg_leads_00_disponibilidad_update` (`a585ac769d92cd1f2aba0c4cf49ca83a`) no cambian.
+**Recuentos (corregidos, Codex r2):** las derivas de instalación son RECHAZOS del preflight: 34 en la ronda 3 y **39** en la ronda 4
+(además, el control que entra y el mutante del preflight); los escenarios de la reversa: 15 en la ronda 3 = **1 control + 13 rechazos +
+1 límite que entra**, y **18** en la ronda 4 = 1 control + 16 rechazos + 1 límite; además, RM1–RM5.
+**Verificación de la ronda 4 (laboratorio = producción + los seis bloques, SIN el 2.8; 09/10/2026):** ROJO **72 fallos de 124** (los 62
+de la ronda 3, los mismos, y los 10 de K: «el disparador no pide las claves de candado esperadas»); VERDE **0 fallos, 124
+comprobaciones**; los oráculos de la ronda 1 (73) y de la ronda 3 (113) sobre la migración de la ronda 4, VERDE; **75 mutantes** muertos
+cada uno por su fallo; las 39 derivas abortan sin rastro, el control entra y el mutante del preflight muere; derivas de la reversa como
+arriba (control y límite entran, 16 abortan, RM1 aborta en el postflight, RM2–RM5 mueren); reversa VERDE (núcleo del 2.7, disparador de
+B8, lista de columnas de hoy, sin pieza, foto idéntica); los 36 `assert_*` y el censo idénticos sin y con (29 pasan, 7 caen en los dos
+lados); oráculos del 2.4 (67) y del 2.7 (54) VERDE sin y con, sin diferencias (normalizadas); espera con dos sesiones, 8 de 8; la
+transacción de la migración ~1,9 s y el candado de `CREATE TRIGGER` ~0,91–0,94 s (tres corridas). App: lint, tipos y vitest completos
+(389 archivos, 6 298 pruebas). RLS/HTTP, carrera con COMMIT, branch y banco: NO EJECUTADO.
+**Reversa (ronda 4):** `supabase/scripts/cliente-no-se-duplica-al-editar/reversa.sql`, SHA-256
+`0bcc1e0aa2ea84799e35e5615e34da2a56e79921f1be5e81ba34f065e80b0d9f` (sustituye al de arriba).
+**SHA-256 del archivo de la migración (ronda 4, 09/10/2026):** `9d135d4b6b5ca65fc36c7afe6a50a7ba89124842fd14a1897bf6c6930828a104`
+(sustituye al de arriba).
+
+**Reselle C2 (22/10/2026):** el alta que deja el 2.4 re-asentado (`30109c53…`/`e06eca23…`, antes `01ebf089…`/`94ec2bd7…`) en preflight, postflight y C4; el censo de los 30 `private.assert_*()` barridos `30|3cefe40e…` (antes `30|bc19c770…`: 10 definiciones cambiadas por producción); C6 del oráculo con `crm.importar_lead_fn` `5ba1ab45…` y la puerta de conversión `4eebf912…` de hoy (encargo C2-a, plan AVANCE-BACKEND-1310-C2). La copia de `fase2b` de esta migración queda idéntica. SHA-256: `0ec338bb9090faeb96cb0d801a3e7224eb8bfc81226826538375cc74b31eae3e`.
+
+
+## 20261022170300 — El cliente ya convertido también se reconoce por teléfono y por DNI (núcleo `private.alta_reactivar_retirado`; regla 1b)
+
+**INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170300_crm_cliente_por_telefono.sql`** (bloque 2.7 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261008174055_crm_cliente_por_telefono.sql`, copia `fase2`, sha256 del origen `ab9b2ae81e9d…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
+
+**PENDIENTE DE BRANCH. Verificada solo en el laboratorio local (08/10/2026, rondas 1 a 4); no aplicada en ninguna base real.**
+Plan de mantenibilidad del backend (AVANCE-BACKEND-0710-P3), fase 2, bloque 2.7 (decisiones D-22, D-25, **D-27**, **D-28** y
+**D-29** de Miguel, 08/10/2026; hallazgo H-28 de la ronda del banco, caso `L9f-tel`). Ronda 2 (08/10): la regla del DNI (D-27) y el
+caso 3d del oráculo del 2.4 válido con y sin esta migración. Ronda 3 (08/10): revisiones de Codex y del auditor de permisos
+(`fase-2/bloque-2.7/revision/CONCILIACION.md`): reversa con ficha y ACL exactas, prioridad entre varios convertidos probada, modo
+explícito en el caso 3d del 2.4, barrido de trinquetes de la migración sin los `*_mutantes`, huella de escritura por contenido. Ronda 4 (08/10): retoques de documentación (P3 de Codex y F5 del auditor, revisión 2) y
+desempates deterministas en el oráculo; **la migración no cambia**. **Va DESPUÉS de `20261007210152` (bloque 2.4): cambia solo su núcleo.** No toca el alta
+`crm.crear_lead_si_disponible` (ni cuerpo, ni ficha, ni comentario), el verificador, `public`, tablas, grants ni policies.
+
+**Qué hace:** hoy, si un asesor registra como lead nuevo a alguien que **ya es cliente** (su lead está `convertido`, activo o
+retirado) y escribe **solo el teléfono** —o el teléfono con **otro** DNI—, o **su DNI con otro teléfono** cuando el cliente no tiene
+persona (cliente antiguo sin identidad), el alta responde «creado» e inserta un SEGUNDO lead del cliente: el verificador dice
+«libre» (solo el documento vincula, y a través de las identidades de persona; su paso de lead vivo excluye `convertido`; la cuenta
+del Portal solo protege a quien tiene perfil `cliente` con ese teléfono) y la rama del 2.4 excluye convertidos (con el cliente
+retirado y otro retirado no convertido del mismo contacto, incluso REACTIVA ese otro). La migración añade al núcleo del 2.4, entre
+su filtro del veredicto (solo actúa con «libre» o «enfriamiento») y el candidato retirado, la **regla 1b**: en un alta **nueva**
+(no en el reintento con rastro previo del 2.4), si el **teléfono** tecleado —o, si con él no casa ninguno, el **DNI** tecleado
+(D-27)— es el de un lead `convertido` (activo o retirado), no se crea, no se reactiva y **no se escribe nada**, y se responde:
+enlazado a una persona ⇒ el mismo juicio de identidad que da el DNI, `private.juicio_persona(private.inversionista_canonica(<persona>), null)`
+(`ya_es_cliente` con su asesor y `via = identidad`, o `no_contactar` si la persona está vetada; si el juicio devuelve nulo, el
+respaldo de D-21: `ya_es_cliente`, `sin asesor asignado`, `via = identidad`); sin persona ⇒ `ya_es_cliente` a nombre del dueño de
+esa ficha (vendedor o bandeja; si no tiene, `sin asesor asignado`) **sin `via`** (como el 2.4 para un convertido sin persona).
+**Precedencia: teléfono → DNI → candidato retirado del 2.4** (D-25: el teléfono manda, también con otro DNI tecleado). El convertido
+gana al «enfriamiento» de un descartado del mismo teléfono (los dos bloquean). Con varios convertidos del teléfono (o del DNI): el
+enlazado, luego el activo, luego el más reciente. Con el DNI de un cliente CON persona y la identidad encendida, el verificador ya
+bloquea antes (camino de identidad); la regla del DNI actúa cuando no lo hizo (bandera apagada, documento sin identidad verificada
+o cliente sin persona). **No cambia:** el reintento del 2.4 (R2-1…R4-1), cualquier otro veredicto del verificador (lead activo vivo
+⇒ `tomado`/`en_bolsa`; cuenta del Portal ⇒ su `ya_es_cliente`; teléfono con el DNI del cliente ⇒ el camino de identidad; veto ⇒
+`no_contactar`), el DNI de quien no es cliente (retirado no convertido ⇒ se reactiva; persona sin lead ⇒ `creado`; lead activo ⇒
+`tomado`), los roles (42501 como hoy; D-17 no aplica), `crm.tomar_lead_libre`, `crm.reactivar_lead_base`, `crm.reabrir_lead_fn`,
+`crm.crear_lead_documento_fn` (con CE y el teléfono de un cliente devuelve el `ya_es_cliente` del alta sin fijar documento), la
+carga de bases, las otras puertas de alta y el aviso previo de la pantalla (el servidor manda al confirmar; la app ya pinta
+`ya_es_cliente`: `app/src/lib/store.tsx`, `presentarDisponibilidadLead`). Los duplicados existentes (D-23) se dejan como están (D-25).
+
+**Cómo:** parche por **ancla única** sobre el cuerpo vivo del núcleo (`pg_get_functiondef` + `replace`; dos anclas: la variable
+`v_convertido record` y la regla —búsqueda por teléfono y, si no casa ninguno y hay DNI, por DNI— antes de `<<rama>>`), que
+conserva firma, dueño `postgres`, DEFINER, `search_path` vacío, `lock_timeout 5s` y ACL (EXECUTE solo `postgres`); comentario del
+núcleo ampliado. **Preflight fail-closed:** núcleo `md5(prosrc)` `bf0a7531ea589a52ba75680b44ef348e` / `md5(pg_get_functiondef)`
+`65b400ec8f0607a3111ed03b851b3877`, su ficha (con `is_grantable`) y su comentario (`md5` `e744b3fd7628b9bafb2ab1647a607a58`), «ya
+está aplicada» si lleva la regla; alta `01ebf089b8428a02c6df387a9b4e899e` / `94ec2bd71eca8ab1663e75841723b6a5` y su ficha;
+verificador con las huellas compuestas de la carga de bases (`a78247a515be78b145fec439fc299458`, `e144f7d020269c61258b4d3980ac88c6`;
+`md5(prosrc)` `683c16fd…`/`48c51531…`); `private.juicio_persona` `2570f6ea…`, `private.inversionista_canonica` `6c7ff600…` y la
+pieza `private.alta_reactivar_bloqueo_conservado` `a9ac3a87…`. **Postflight:** la regla una sola vez (con sus dos búsquedas);
+núcleo nuevo EXACTO **`md5(prosrc)` = `f74838f274a8db971952eb9c09c7387e`, `md5(pg_get_functiondef)` = `c56e4abd191b947177a9179a7d558dbd`**
+(ronda 2, medidas en el laboratorio el 08/10/2026; ronda 1, solo teléfono: `0bfd14d0…`/`1d1d1e7f…`), misma ficha y EXECUTE solo
+`postgres`; comentario nuevo; alta, verificador y piezas intactos; la **foto de los `private.assert_*()`** sin argumentos —**30 de 36** en el laboratorio— idéntica
+a la previa. **Ronda 3 (auditor F2):** ese barrido EXCLUYE los `*_mutantes` (`p.proname !~ '_mutantes$'`, preflight y postflight;
+30 de 36 en el laboratorio): varios aplican sin guarda propia DDL de permisos sobre tablas calientes (revoke de SELECT en `crm.leads`,
+`disable row level security`, grants a anon, policies nuevas: `20260920045202`, `20260919185718`, `20260920014500`) y en la base real
+tomarían candados ACCESS EXCLUSIVE; el ensayo `--trinquetes` sigue barriendo los 36. **La migración del 2.2 (`20261007205643`)
+tiene el mismo barrido sin excluirlos: requisito de la fase 4** (no se toca aquí). Los 30 que conserva los inventarió el auditor en su
+revisión 2 (solo leen el catálogo, no llaman a mutantes, solo AccessShareLock); la conciliación final deja su verificación para la fase 4.
+
+**ABIERTO HASTA EL BLOQUE 2.8 (D-28; solo se declara):** la **edición** del teléfono o del DNI de un lead existente
+(`crm.editar_lead_fn` → `private.trg_leads_disponibilidad_atomica`, que juzga con el verificador sellado), el **INSERT directo** en
+`crm.leads` si sigue concedido a authenticated (hay una contradicción documental: `MIGRACIONES.md:6128` frente a `:6318-6319` y
+`test-rls.mjs:1446-1448`; medir en la branch `has_table_privilege('authenticated','crm.leads','INSERT')` y la policy `leads_insert`) y
+el **teléfono alternativo** de un cliente siguen juzgándose con el verificador, no con esta regla: pueden dejar un segundo lead de
+un cliente ya convertido. Se cierran en el bloque 2.8, con su plan corto.
+
+**ACEPTADO (D-29):** el alta responde «ya es cliente» y el nombre del asesor **sin asentar la consulta** (el pre-chequeo sí la
+asienta en `crm.verificaciones_lead`, «registro anti-pesca»); con el 2.7 también por teléfono y por el DNI de un cliente sin persona.
+Es la misma clase de dato que ya revelaban el camino del DNI y la cuenta del Portal, para los mismos roles (vendedor, supervisor y
+Gerencia activos; el resto recibe 42501). Ni registro de la consulta ni ocultar el asesor.
+
+**⚠️ Para quien integre:** (1) **el oráculo del 2.4** (`supabase/scripts/reactivar-lead-retirado/pruebas.sql`) se adaptó en las
+rondas 2 y 3 por orden del Director. Su caso 3d lee el **modo explícito** `ensayo.modo_2_7` (`con` | `sin`; **si nadie lo pone,
+`sin`**): espera `ya_es_cliente` con `con` y `creado` con `sin`, y FALLA si el modo no coincide con el cuerpo del núcleo (que
+declara `v_convertido` cuando lleva esta regla). El armador del 2.7 lo pone (`--oraculo-24`, según arme con o sin esta migración;
+`--modo-2-7` lo fuerza); el del 2.4 no, así que **en una base que ya tiene esta migración el oráculo del 2.4 se arma con
+`node supabase/scripts/cliente-por-telefono/armar-ensayo.mjs --oraculo-24 --sin-migracion --modo-2-7 con`** (con su propio
+armador, 3d cae a propósito: falla cerrada; lo dice una línea de su README). Ese comando genera lo mismo que `--oraculo-24` menos
+la migración (comprobado en la ronda 4). 3d suma un subcaso de reintento sobre una ficha que quedó convertida para que su mutante
+M4 («la rama reactiva convertidos», que nombra `3d-convertido-retirado:`) siga muriendo con y sin esta migración (ensayado:
+`supabase/scripts/cliente-por-telefono/m4-del-2.4.sh`). Pasa de 66 a 67 comprobaciones; la frase «un convertido ante un alta NUEVA
+(3d: como hoy)» de la sección del 2.4 de este ledger queda superada por D-22 cuando esta migración está aplicada. (2) Se aplica en
+el **grupo C** de la fase 4 (D-26), **después** de `20261007210152`; su preflight exige el núcleo exacto del 2.4. (3) Banco:
+`L9f-tel` (`laboratorio/paquete-paso08/41_fila1_lead.py:309`) debe pasar de FAIL a PASS; `L9f` no cambia. (4)
+`supabase/scripts/test-rls.mjs` no ejercita la regla: **su ampliación es requisito de la fase 4, con la matriz del auditor de
+permisos** (fixture: C1 convertido de vend1 con persona y sin cuenta del Portal —conversión real—, C2 = C1 retirado, C3 convertido
+sin persona y D3 su DNI): **PERMITIDO** (`ya_es_cliente` exacto, sin filas nuevas, ficha intacta): P1 vend2 solo teléfono de C1; P2
+vend3 y sup2 (entre ámbitos); P3 sup1 sin destino y Gerencia con `p_vendedor_id` = vend3; P4 vend1 (dueño); P5 teléfono de C2; P6
+teléfono de C1 + otro DNI (D-25); P7 teléfono de C3 (sin `via`); P8 D3 + teléfono nuevo (D-27); P9 teléfono de C1 + D3 (manda el
+teléfono); P10 `crear_lead_documento_fn` con CE + teléfono de C1. **DENEGADO** (42501, sin `asesor`, nada escrito): D1–D4
+coordinador, directorio, inactivo, perfil cliente; D5 anon; D6 núcleo y pieza no expuestos; D7 catálogo (ACL `{postgres=X/postgres}`,
+DEFINER, `proconfig`, dueño, sin EXECUTE para anon/authenticated/service_role). **SIN CAMBIO:** N1 pre-chequeo `libre` con su fila
+anti-pesca; N2 cliente con cuenta del Portal; N3 retirado no convertido ⇒ `reutilizado`; N4 lead activo con el teléfono de C1 ⇒
+`tomado`; N5 teléfono nuevo ⇒ `creado`. **HUECO CONOCIDO (D-28, bloque 2.8):** K1 `editar_lead_fn` con el teléfono de C1; K2 con D3;
+K3 INSERT directo (medir antes el grant). Además: dos sesiones (la regla solo lee, bajo los candados de contacto del alta). (5) Repetir en la branch las huellas del alta, del núcleo y del verificador; si difieren, re-auditar.
+
+**Verificación ronda 4 (laboratorio, 08/10/2026; la migración es la de la ronda 3, sin cambios):** ROJO previo del hueco de
+desempates, contra el oráculo de la ronda 3: el mutante «convertidos sin fecha primero» (`nulls first`, por teléfono y por DNI)
+sobrevivía (no había caso con fecha nula) y «sin el criterio de la fecha» dependía de los ids aleatorios (por teléfono sobrevivió
+3 de 3; por DNI murió 2 de 3). Tras la ronda 4 (12c/12f con ids fijos, el menor para el que debe perder; 12g/12h, un convertido sin
+fecha frente a uno con fecha): ROJO sin la migración **32 fallos** (12g/12h por «creó un SEGUNDO lead»); VERDE **0 fallos, 54
+comprobaciones**; **34 mutantes** muertos (los cuatro nuevos, cada uno por sus casos: `nulls first` por 12g o 12h, sin la fecha por
+12c+12g o 12f+12h); control con los ids al revés: el mutante sin la fecha sobrevive (lo que lo mata es la elección de ids); el
+oráculo del 2.4 VERDE sin y con esta migración (67) y su 3d cae con el modo forzado en desacuerdo; derivas (15 + control + mutante
+del preflight; de la reversa, con `EJECUTAR_SQL_ADMIN`: control, cinco derivas, RM1 y RM2), reversa, reversa con SET, trinquetes
+(los 36 del ensayo y el censo, iguales a la foto del 2.6; la migración barre 30) y M4 del 2.4: como en la ronda 3. La huella de
+escritura compara por contenido `crm.leads`, `crm.actividades` y `crm.lead_asignaciones`, y por número de filas `crm.tareas`,
+`crm.inversionistas`, `crm.inversionista_identificadores` y `crm.lead_sla_ciclos`.
+**Verificación ronda 3 (laboratorio, 08/10/2026):** ROJO previo: contra la reversa de la ronda 2, un `GRANT EXECUTE … TO
+authenticated` posterior a la migración se colaba («revirtió pese a la deriva»), y el mutante «la regla escribe en otra ficha»
+sobrevivía al oráculo de la ronda 2 (su huella solo contaba filas). Tras la ronda 3: ROJO sin la migración **30 fallos**; VERDE **0
+fallos, 52 comprobaciones**; **30 mutantes** muertos (nuevos: los seis de prioridad —enlazado, activo y más reciente invertidos, por
+teléfono y por DNI— y el de escritura en otra ficha, que solo ve la huella por contenido); 15 derivas de la migración + control +
+mutante del preflight; **derivas de la reversa**: control (entra), `SET`, GRANT a authenticated, GRANT a service_role, cambio de
+dueño (como superusuario) y comentario cambiado abortan sin rastro; sin su comprobación del preflight la reversa aborta en el
+postflight y sin ninguna de las dos el GRANT se cuela (mutantes de la reversa); reversa y reversa con SET verdes; los 36 `assert_*`
+del ensayo y el censo idénticos (la migración barre 30); el oráculo del 2.4 VERDE sin y con esta migración (67) y su 3d cae si el
+modo que pasa el armador no coincide con el núcleo; su M4 muere en los dos casos.
+**Verificación (laboratorio, `supabase/scripts/cliente-por-telefono/`, 08/10/2026, ronda 2):** ROJO previo del oráculo de la ronda 2
+contra la migración de la ronda 1 (5 fallos: el hueco de D-27 —11a–11d «creó un SEGUNDO lead», 2 leads con el DNI del cliente— y
+11h `reutilizado`); ROJO sin la migración (24 fallos; los positivos por «creó un SEGUNDO lead del cliente» o `reutilizado`; los
+negativos ya pasaban; sin errores de montaje) y VERDE con ella (0 fallos, **46** comprobaciones; clientes con persona por la
+**conversión real** del formulario compartido); **23 mutantes** muertos cada uno por su fallo (nuevos: regla del DNI quitada, solo
+sin persona, solo activos, después del candidato retirado, el DNI antes que el teléfono); **15 derivas** abortan en el preflight sin
+rastro, el control entra y el mutante del preflight sin `is_grantable` deja colar la deriva; reversa VERDE (núcleo de vuelta a
+`bf0a7531…`/`65b400ec…`, ficha y comentario idénticos, alta intacta); reversa tras un `SET` añadido ABORTA sin rastro; los 36
+`assert_*` y el censo idénticos sin y con la migración (y a `bloque-2.6/fotografia/trinquetes-antes.txt`); el oráculo del 2.4
+adaptado VERDE sin y con esta migración (67) y su M4 muere en los dos casos. Concurrencia con dos conexiones: NO EJECUTADO.
+**Revisiones:** ronda 2 revisada por Codex (CHANGES_REQUESTED: 1 P1 —la reversa— y 1 P2 —la prioridad—) y por el auditor de
+permisos (CHANGES_REQUESTED sin P0 ni P1: F1 → D-28, F2 → barrido sin mutantes, F3 → D-29, F4 = la reversa); todo lo aceptado se
+aplicó en la ronda 3 (`fase-2/bloque-2.7/revision/CONCILIACION.md`). Ronda 3 revisada por Codex (revisión 2: P1, P2 y el 3d
+resueltos; un P3 del README) y por el auditor de permisos (revisión 2: PASS, sin P0, P1 ni P2; un P3 documental, F5, y un hueco de
+desempates); los dos se aplicaron en la ronda 4 (documentación y pruebas aditivas), que verifica el Director sin nueva revisión.
+**Reversa:** `supabase/scripts/cliente-por-telefono/reversa.sql` — FALLA CERRADA: exige `f74838f2…`/`c56e4abd…` y, desde la ronda 3,
+la ficha exacta (dueño `postgres`, DEFINER, `proconfig` `{search_path="", lock_timeout=5s}`, ACL `postgres:EXECUTE` sin opción de
+concesión, ningún EXECUTE para anon, authenticated ni service_role) y el comentario de la 2.7 (`md5` `31159d826a407c91173e3870b5711352`);
+quita los dos bloques, repone el comentario del 2.4 y su postflight exige las huellas, el comentario y la ficha y ACL exactas del 2.4.
+No deshace datos (la regla no escribe).
+**SHA-256 del archivo de la migración (08/10/2026, ronda 3; la ronda 4 no lo cambia):** `0e2dda4aa0da2765a36254bf47f875486e03e1ae25adb8facc28d97341a2ab87` (ronda 2:
+`5ceda5a71218a8a661871761010cbaa6ec967f084966e173f80ec0110d0d97c2`; ronda 1: `2f60fd9390940a58d77b49bb2bce52e5da743f3d1065a0ad226d155876bcffb0`;
+sustituidas). La huella del núcleo no cambió en las rondas 3 y 4 (`f74838f2…`/`c56e4abd…`).
+
+**Reselle C2 (22/10/2026):** el alta que deja el 2.4 re-asentado es `30109c53…`/`e06eca23…` (antes `01ebf089…`/`94ec2bd7…`) en el preflight, el postflight y el caso 10a del oráculo (encargo C2-a, plan AVANCE-BACKEND-1310-C2); nada más cambia. La copia de `fase2b` de esta migración queda idéntica. SHA-256: `ab9b2ae81e9d8b520db52e257f69feda4122706ee302d86835d49cd000dbd305`.
+
+
+## 20261022170200 — Registrar a una persona con lead retirado reactiva su ficha (`crm.crear_lead_si_disponible`, núcleo `private.alta_reactivar_retirado` + pieza `private.alta_reactivar_bloqueo_conservado`)
+
+**INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170200_crm_alta_reactiva_lead_retirado.sql`** (bloque 2.4 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261007210152_crm_alta_reactiva_lead_retirado.sql`, copia `fase2`, sha256 del origen `3dfa47efc4d3…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
+
+**Nota de integración (22/10/2026, auditor C5 P3-1/P3-4):** la cabecera del archivo (l.92–99) todavía habla del «laboratorio en corte B6» y de fijar dos disparadores; no se editó para no mover un archivo ya ensayado: los disparadores los fija el 2.8 justo detrás, y la cadena C2 corrió sobre producción del 22/10. El comentario vivo del alta conserva «Referido conserva restriccion de vendedor a su propio nombre» (desactualizado desde `20261016183308`, H-12): es el texto que producción tiene hoy y se respeta a propósito.
+
+**PENDIENTE DE BRANCH. Verificada solo en el laboratorio local (07/10/2026, rondas 1, 2, 3, 4 y 5); no aplicada en ninguna base real.** Plan de
+mantenibilidad del backend, fase 2, bloque 2.4 (decisiones D-11/Q1, D-15, D-17 y D-21 de Miguel, 06-07/10/2026; caso L9a del
+banco). Ronda 2 (07/10): enmiendas de la revisión de Codex (C-1…C-5) y del auditor de permisos (A-1…A-8),
+`fase-2/bloque-2.4/revision/CONCILIACION.md`. Ronda 3 (07/10): identidad de la ficha en el reintento (R2-1), `check_violation`
+acotada (R2-2) y el otro retirado enlazado por el DNI tecleado (AR2-1), `fase-2/bloque-2.4/revision/CONCILIACION-R2.md`. Ronda 4
+(07/10): **un reintento con rastro previo nunca llega al INSERT** (R3-1), `fase-2/bloque-2.4/revision/CONCILIACION-R3.md`. Ronda 5
+(07/10): **el paso 3a del núcleo (otro lead activo coincide con lo tecleado) nunca devuelve nulo en un reintento** (R4-1),
+`fase-2/bloque-2.4/revision/CONCILIACION-R4.md`. No toca `public`, tablas, grants, policies ni el verificador.
+
+**Qué hace:** hoy un lead **retirado** (`crm.leads.activo = false`, borrado lógico que solo hacen supervisor y Gerencia por API)
+cae a «libre» en `private.verificar_disponibilidad_lead_impl` y el alta manual inserta un SEGUNDO lead de la misma persona
+(rompe «un solo lead total por persona», D-F05-09). Esta migración añade una rama a `crm.crear_lead_si_disponible` DESPUÉS del
+verificador y ANTES del INSERT: si el veredicto es «libre» o «enfriamiento» y existe un retirado no convertido y sin veto con ese
+teléfono (manda) o, si no, con ese DNI, el alta REACTIVA esa ficha: `activo = true`, dueño = el destino que el alta ya calculó
+(el vendedor que se autoasigna, la bandeja del supervisor, el analista elegido por Gerencia, o la cola global si Gerencia no
+elige); si estaba `descartado` pasa a `nuevo` con ciclo +1 (lo hace el guard de tenencia, como en «tomar»); en otra etapa queda
+igual (también `reunion_agendada`). Se conservan los datos de la ficha; un retirado de **base cargada sin capital** toma el
+capital tecleado (A-2: el CHECK `leads_monto_estimado_valido` de B7 no deja salir del descarte sin capital). Lo tecleado va a la
+actividad de rastro (`nota`, `evento = 'reactivacion_alta'`, con `propietario_anterior`, `etapa_anterior`,
+**`activo_anterior = false`**, `ciclo`, `via`, y de lo tecleado SOLO capital, moneda, origen y tipo de documento —A-7: ni
+nombre, ni correo, ni teléfonos, ni documento, ni género, ni fecha—; `otro_retirado` booleano sin id ajeno —A-8—); su `id` es el
+`p_id` del alta: un reintento con el mismo id, el mismo actor y la misma **huella** repite la misma respuesta (aviso incluido,
+C-3) sin segunda actividad ni segundo cambio mientras la ficha siga activa (A-6: si volvió a retirarse, el reintento reactiva
+otra vez **esa misma ficha** —**R2-1**: el candidato queda fijado al `lead_id` del primer rastro aunque haya otro retirado más
+reciente del mismo contacto— y su rastro lleva otro id con `alta_id = p_id`). **Un reintento con rastro previo nunca crea otra
+ficha (R3-1):** si la ficha del primer rastro ya no se puede reactivar, el núcleo responde un veredicto bloqueante y nunca nulo,
+en el orden del verificador: ya no existe ⇒ `22023` «el alta original ya no existe: registra de nuevo con un identificador
+nuevo»; vetada ⇒ `no_contactar`; enlazada a persona ⇒ el juicio de identidad (`ya_es_cliente`, `via = identidad`); convertida ⇒
+`ya_es_cliente` a nombre de su tenedor (formato exacto del verificador); y si la reactivación no pudo completarse, el veredicto
+fresco, que en un reintento tampoco puede ser nulo (`22023`). **Y si otro lead ACTIVO coincide con lo tecleado sin que el
+verificador lo calificara (R4-1)** —dijo «libre» ante un descartado activo de 0 días dentro de sus 24 h, o ante un convertido
+activo sin identidad reconocida—, el reintento recibe el veredicto que el verificador daría para ese lead activo (`tomado` con su
+tenedor / `en_bolsa`, formato exacto) o `22023` «el alta original ya no se puede repetir: hay otro lead activo con ese contacto;
+registra de nuevo con un identificador nuevo»; si el verificador ya había bloqueado (`enfriamiento`), ese veredicto. Fuera del
+reintento ese paso sigue como hoy (nulo: manda el veredicto del alta). **Garantía completa: un reintento con rastro previo nunca
+llega al INSERT; ficha original, dato conservado, lead activo por lo tecleado y veredicto fresco nulo quedan cubiertos.** Otro
+actor u otra huella reciben 22023. La huella (`tecleado_md5`) se calcula sobre lo tecleado **sin** dni, género ni fecha de
+nacimiento (A-1: nada recuperable por fuerza bruta desde `public.audit_log`) y **con** el teléfono normalizado y el tipo de
+documento (C-2: el mismo `p_id` con otro teléfono, o sin el DNI que llevaba, es otro alta ⇒ 22023; con otro DNI es el mismo alta
+y no altera datos). Responde `{estado:'reutilizado', lead_id}` (y `aviso` si había dos retirados: manda el del teléfono, el otro
+queda y el rastro lo anota como booleano). **D-15:** se reactiva TAMBIÉN con la espera de enfriamiento sin vencer y sin la
+carencia de 24 h (el veredicto «enfriamiento» se intercepta solo cuando su único causante es un retirado). **Bloquea, nunca
+«libre», nunca llega al INSERT:** (C-1) cuando un lead ACTIVO, un veto o una identidad coinciden con el teléfono o el DNI que
+**conserva** la ficha retirada aunque no coincidan con lo tecleado —el veredicto es el que daría el verificador para esos datos
+(`tomado`, `en_bolsa`, `no_contactar`, `ya_es_cliente`, `enfriamiento`/`reutilizable` de un descartado activo; también
+`ya_es_cliente` sintetizado para un convertido ACTIVO y `tomado`/`en_bolsa` para un descartado activo de 0 días en sus 24 h,
+bordes B1/B2 ensayados en la ronda 3) en su formato exacto, porque el contrato de la app (`disponibilidad-lead.ts`,
+`strictObject`) rechazaría una clave extra—; (D-21) cuando la ficha retirada que casa está **enlazada a una persona** conocida,
+también si solo se tecleó el teléfono (`ya_es_cliente`, `via = identidad`); (**AR2-1**, D-21 por la letra) cuando el candidato
+casó por el teléfono pero OTRO retirado enlazado a una persona casa por el DNI tecleado (mismo juicio de identidad, también con
+la bandera `resolver_en_puertas` apagada, cuando el verificador no lo ve: nunca se reactiva el no enlazado dejando retirada la
+ficha de la persona); con un lead activo que coincide con lo tecleado manda el veredicto de hoy (y en un reintento, R4-1, nunca
+nulo). (A-5) el núcleo exige `p_actor = auth.uid()`. (C-5) en la carrera tardía solo `uq_leads_telefono_vivo` y
+`uq_leads_dni_vivo` se tratan como «el contacto se ocupó» (veredicto fresco); cualquier otro 23505 del UPDATE o de sus
+disparadores se propaga. (**R2-2**) del mismo modo, solo el CHECK `leads_monto_estimado_valido` es veredicto fresco; cualquier
+otro 23514 del UPDATE o de sus disparadores se propaga (el alta falla y no inserta nada). Con la identidad unificada encendida se
+juzga a la persona (`private.juicio_reapertura`) y la ficha queda enlazada (`private.enlazar_lead_reabierto`), como al tomar.
+**El ledger** abre el episodio `reactivado`, o **`reabierto`** si el retirado venía de `descartado` (prioridad del `case` de
+`private.trg_leads_asignaciones`, que no se toca): el rastro contractual de D-15 es la actividad `reactivacion_alta`
+(`etapa_anterior`, `activo_anterior = false`) + el episodio. **Interbloqueo (A-3):** dos altas de la misma persona con datos
+cruzados pueden abrazarse (orden alta: contacto tecleado → fila; núcleo: documento de la ficha → fila → contactos de la ficha
+vía trigger); Postgres lo detecta (40P01), una aborta sin dejar nada a medias y la app lo traduce: resultado esperado; prueba de
+dos sesiones en la fase 4. **No cambia:** un lead activo del mismo contacto tecleado ante un alta NUEVA (tomado, en bolsa,
+enfriamiento de un descartado ACTIVO), un convertido ante un alta NUEVA (3d: como hoy), «no contactar», los roles (D-17: no hay
+excepción que eximir; 42501 como hoy), `tomar_lead_libre`, `reabrir_lead_fn`, `reactivar_lead_base` y `crear_lead_documento_fn`
+(con CE/pasaporte responde «reutilizado» antes de fijar el documento: la ficha conserva sus datos; el tipo y el número tecleados
+NO llegan al alta, por eso no entran en la huella ni en el rastro: declarado, cambio mínimo propuesto para la fase 4). La ficha
+reactivada conserva `creado_por`, `alta_manual` y `origen` (inmutables): el origen tecleado no cambia la ficha ni los informes
+(A-10); el nuevo dueño ve todo el historial de la ficha ajena (A-11, inherente a D-11(b)/D-15).
+
+**Cómo:** dos piezas nuevas en `private` (DEFINER de `postgres`, `search_path` vacío, EXECUTE **solo** para `postgres`: las
+llama únicamente el alta, que ya validó rol, ámbito y destino y tomó los candados de id, documento, persona y contactos):
+`private.alta_reactivar_bloqueo_conservado(uuid)` (STABLE: el veredicto por lo que conserva la ficha, sin contarla a ella) y el
+núcleo `private.alta_reactivar_retirado(uuid,uuid,text,text,uuid,uuid,jsonb,jsonb)` (`lock_timeout 5s`); y parche por **ancla
+única** sobre el cuerpo vivo del alta (`pg_get_functiondef` + `replace`, dos anclas que tienen que aparecer una sola vez;
+conserva firma, dueño, DEFINER, `search_path`, `lock_timeout` y ACL). Dentro del núcleo: gate `p_actor = auth.uid()` → huella →
+reintento por `p_id` (actor + huella; ficha activa ⇒ misma respuesta; retirada ⇒ **candidato fijado a esa ficha**) → filtro del
+veredicto → candidato (en un alta nueva: teléfono manda; retirado, no convertido, sin veto; el enlazado primero) → D-21 →
+**AR2-1** (otro retirado enlazado por el DNI tecleado ⇒ `juicio_persona`) → otro retirado por DNI tecleado (aviso) → lead
+activo por lo tecleado (alta nueva: nulo, manda el veredicto de hoy; **reintento, R4-1:** `enfriamiento` si el verificador ya
+bloqueó, `tomado`/`en_bolsa` sintetizados para ese lead activo si dijo «libre», `22023` si es un convertido activo) → bloqueo por
+lo conservado (pieza) → `private.bloquear_personas_de_leads` → `FOR UPDATE` y recomprobación → `lead_dentro_de_bloqueo` y
+`juicio_reapertura` → `persona_vetada` → UPDATE bajo las válvulas `crm.toma_directa` y `crm.reapertura_identidad` (solo alrededor
+del UPDATE; `unique_violation` de los dos índices vivos y `check_violation` de `leads_monto_estimado_valido` → veredicto fresco;
+cualquier otro 23505 o 23514 se propaga, ambos por `constraint_name`) → enlace → rastro; todo «veredicto fresco» sale por un
+único sitio (primero lo tecleado, si «libre» lo conservado, si tampoco nulo) **salvo en un reintento con rastro previo (R3-1):**
+antes del veredicto fresco, el veredicto de la ficha del primer rastro (inexistente ⇒ 22023; vetada ⇒ `no_contactar`; enlazada ⇒
+`juicio_persona`; convertida ⇒ `ya_es_cliente` a nombre de su tenedor) y, si aun así el veredicto fresco fuera nulo, 22023: nunca
+el INSERT. **Preflight fail-closed:** `md5(prosrc)` = `54fc34f7357d4d5688f210df6c521045` y `md5(pg_get_functiondef)` =
+`d1daa1c65f18b4b41a6c9ffa99372bcf` del alta (`fase-2/bloque-2.4/revision/cuerpos-antes.txt`; si una de las dos piezas existe o el
+alta ya llama al núcleo, «ya está aplicada»), su ficha (dueño, DEFINER, `search_path=""`, `lock_timeout=5s`, ACL exacta **con
+`is_grantable`**) y su comentario; el verificador con las MISMAS huellas compuestas que fija la carga de bases
+(`20261004184501:178-183`: `a78247a515be78b145fec439fc299458` y `e144f7d020269c61258b4d3980ac88c6`; `md5(prosrc)`
+`683c16fd…`/`48c51531…`); las huellas de las **quince** piezas de las que depende la rama (guard de tenencia, reapertura solo por
+RPC, bloqueo de reasignación, ledger de asignaciones, `juicio_reapertura`, `juicio_persona`, `inversionista_canonica`,
+`enlazar_lead_reabierto`, `bloquear_personas_de_leads`, `lead_persona_reabrir`, `lead_dentro_de_bloqueo`, `persona_vetada`,
+`es_destino_crm_activo`, actividades «solo núcleo» de la base, gestión serializada) y sus disparadores habilitados. **Lo que el
+preflight NO fija (AR2-3, requisito de la fase 4):** el laboratorio está en el corte B6 y producción tiene B7–B10;
+`private.trg_leads_disponibilidad_atomica()` vive en el laboratorio en su versión anterior (`md5(prosrc)`
+`ba0fd3ef2e9a16181fb6b944ac002450`) y B8 (`20261004184501:1055`) la redefine; `private.trg_leads_base_cargada_solo_puerta()`
+(B7, `20261004160034`) no existe en el laboratorio (el ensayo la instala como fixture). **Antes del branch:** medir las dos en la
+branch y añadirlas al preflight como las otras quince, o declarar que el gate del branch (`test-rls.mjs`) cubre que B7/B8 no
+alteran la reactivación (leído, no ensayado: B8 solo juzga el UPDATE si cambian teléfono o DNI y el sello B7 deja salir del
+descarte con capital). **Postflight:** rama presente una sola vez, cuerpo nuevo exacto `md5(prosrc)` =
+`01ebf089b8428a02c6df387a9b4e899e` (`md5(pg_get_functiondef)` = `94ec2bd71eca8ab1663e75841723b6a5`; sin cambio en las rondas 3, 4
+y 5: el parche del alta no se tocó), ficha del alta idéntica a la previa, verificador intacto, las dos piezas con su ficha y ACL
+(núcleo **`bf0a7531ea589a52ba75680b44ef348e`/`65b400ec8f0607a3111ed03b851b3877`** —ronda 5; ronda 4 `f25296ef…`/`2c170c22…`;
+ronda 3 `acd72470…`/`b96993a4…`; ronda 2 `6d418a1c…`/`1f838a56…`—; pieza `a9ac3a87a7707e98c7cc8afbf9c663c3`/
+`2186e7c4b4e3ac4bcf23636cb951d9ba`, sin cambio), y `private.assert_analista_vigencia()`, `assert_f7_piezas_cerradas()`,
+`assert_actividades_de_lead()` y `assert_gestion_diaria_registro()` con EXACTAMENTE el mismo resultado que antes.
+
+**⚠️ Para quien integre:** (1) la huella del alta CAMBIA; la registra el preflight histórico de
+`20260930193325_crm_documentos_lead.sql:11` (`54fc34f7…`, ya aplicado: se negaría a re-correr después de ésta; **no se cambia
+aquí**) y el PREFLIGHT F de `20260811210049` (huella anterior, histórico); los JSON de `supabase/scripts/f4/base-funciones.json`,
+`multiempresa-f8/instalacion/*` y `multiempresa-f9/apertura-2026-09-15/*` son capturas históricas. (2) Banco: L9a
+(`laboratorio/paquete-paso08/41_fila1_lead.py:154-163`) pasa de FAIL a PASS (`reutilizado`, n=1): quitar su marca
+`conflicto_para_padre`; L9c (`:176-182`) pierde su fixture (dependía del duplicado); casos nuevos: retirado con enfriamiento
+vigente reactiva, retirado enlazado bloquea también por teléfono (D-21), otro enlazado por el DNI tecleado bloquea con la
+bandera apagada (AR2-1), par retirado+activo ⇒ tomado, activo por dato conservado ⇒ bloquea, dos retirados del mismo teléfono +
+reintento ⇒ mismo `lead_id`, reintento sobre la ficha convertida ⇒ `ya_es_cliente` y sobre la ficha borrada ⇒ 22023 (R3-1),
+reintento con un descartado activo de 0 días por lo tecleado ⇒ `tomado` (R4-1) (fase 4, otra ronda). (3)
+`supabase/scripts/test-rls.mjs` usa el alta (`:1448-1453`, `:3014`, `:9149-9154`, `:14066`) sin retirados: no cambia; su
+ampliación (camino «reutilizado», ACL del núcleo y de la pieza, dos sesiones/40P01, bandera apagada) es de la fase 4. (4) La app
+cambia en `app/src/lib/store.tsx` (`reutilizado` pasa de error fail-closed a éxito: quita el optimista, resincroniza y confirma
+el `lead_id` real y el `aviso`) y `app/src/components/app/lead-nuevo.tsx` (refresca y abre ESA ficha; toast «Lead retomado», con
+el aviso de la otra ficha retirada si lo hubo); las rondas 3, 4 y 5 no tocan la app (el contrato de respuesta no cambia: los
+22023 de R3-1 y R4-1 llegan por el mismo camino que el 22023 de «identificador ya usado»; `tomado`/`en_bolsa` ya son veredictos
+del esquema estricto); `store.tsx` tiene trabajo ajeno sin commitear en el repo compartido: reconciliar en la fase 4. (5) El
+documento CE/pasaporte tecleado sobre una ficha reactivada no se persiste ni entra en la huella: cambio mínimo propuesto para la
+fase 4 (`crear_lead_documento_fn` deja el tipo y el md5 del número en un GUC de transacción antes de llamar al alta y el núcleo lo
+suma a la huella; el md5 del número solo en la huella, nunca en el rastro, AR2-4). (6) El laboratorio está en el corte B6: el
+ensayo instala B7 como fixture; B8–B10 (en producción) no se ensayan. (7) **AR2-3:** antes del branch, las huellas de
+`trg_leads_disponibilidad_atomica` (B8) y `trg_leads_base_cargada_solo_puerta` (B7) al preflight, o la declaración de cobertura
+por el gate del branch (ver arriba).
+
+**Verificación (laboratorio, `supabase/scripts/reactivar-lead-retirado/`; rondas 1, 2, 3, 4 y 5, 07/10/2026):** ROJO previo de
+la ronda 5 (oráculo nuevo contra la migración de la ronda 4, SHA `b453cffd…`, `fase-2/bloque-2.4/salidas/ronda5/previo/`): 1
+fallo, el defecto R4-1 («R4-1-activo-por-lo-tecleado: estado creado, se esperaba tomado; 3 leads con el teléfono 44 (había 2
+antes del reintento: la ficha retirada y el descartado activo): el reintento con rastro previo llegó al INSERT y creó OTRA ficha
+con el mismo p_id», con el verificador diciendo `libre`). ROJO previo de la ronda 4 (`salidas/ronda4/previo/`): 2 fallos (R3-1a,
+R3-1b). ROJO previo de la ronda 3 (`salidas/ronda3/previo/`): 4 fallos (R2-1, AR2-1, R2-2). ROJO previo de la ronda 2
+(`salidas/ronda2/previo/`): 27 fallos. Oráculo ROJO sin la migración (45 fallos; el primero «1-reactiva: … creó un SEGUNDO lead
+…»; los negativos ya pasaban; sin errores de montaje) y VERDE con ella (0 fallos, **66** comprobaciones): mismo `lead_id`,
+`activo`, dueño VEND2 / bandeja de SUP1 / VEND3 por Gerencia / cola global sin destino, etapa y ciclo iguales (o `nuevo`/ciclo 2
+desde `descartado`; `reunion_agendada` conservada), un solo lead por teléfono y por DNI, rastro con `propietario_anterior`,
+`activo_anterior=false` y solo capital/moneda/origen/tipo de documento tecleados, episodio `reactivado`, ficha conservada,
+idempotencia (mismo p_id; otro payload, otro teléfono, sin DNI, otro vendedor y otro supervisor ⇒ 22023; otro DNI ⇒ mismo alta;
+reintento tras un segundo retiro reactiva de nuevo la misma ficha aunque haya otro retirado más reciente del mismo teléfono;
+tercer reintento repite), reintento con rastro previo sobre la ficha retirada y convertida con el verificador en `libre` ⇒
+`ya_es_cliente` a nombre de VEND2, 1 lead, sin segundo rastro; sobre la ficha borrada ⇒ 22023 «el alta original ya no existe», 0
+leads; sobre la ficha vetada ⇒ `no_contactar`, intacta (R3-1), **reintento con rastro previo sobre la ficha retirada otra vez
+junto a un descartado ACTIVO de 0 días en sus 24 h con el mismo teléfono y DNI tecleados, verificador `libre` ⇒ `tomado`
+nombrando a VEND1 (formato exacto del verificador), ficha y descartado intactos, 2 leads con el teléfono (los mismos que antes),
+sin segundo rastro (R4-1)**, enfriamiento vigente y 0 días (D-15), negativos intactos (activo tomado, descartado activo en
+enfriamiento, enlazado ⇒ ya_es_cliente con DNI y con solo teléfono, otro enlazado por el DNI tecleado con la bandera apagada ⇒
+ya_es_cliente, convertido ante un alta nueva, no_contactar, veto de otro lead del mismo número, veto por DNI conservado, veto por
+DNI tecleado de otro lead), activo por DNI conservado ⇒ en_bolsa, activo por teléfono conservado ⇒ tomado, convertido activo por
+DNI conservado ⇒ ya_es_cliente, descartado activo de 0 días por DNI conservado ⇒ tomado, dos retirados (teléfono manda + aviso +
+replay con aviso), 42501 para coordinador/inactivo/admin sin CRM, documento CE y DNI por `crear_lead_documento_fn`, 23505 ajeno
+propagado, 23514 ajeno propagado (CHECK `ens_23514_ajeno` sembrado en el rollback), base cargada sin capital reactivada con el
+tecleado, gate interno, catálogo y huellas. **36 mutantes** (28 de cuerpo + 8 de catálogo) muertos cada uno por su fallo (nuevo:
+«el paso 3a devuelve nulo en un reintento y llega al INSERT» → R4-1; ver `mutantes.resumen.txt`); 13 derivas previas abortan en
+el preflight sin dejar rastro, el control entra y el mutante del preflight sin `is_grantable` deja colar la deriva; la reversa
+devuelve `54fc34f7…`/`d1daa1c6…`, borra el núcleo y la pieza y la ficha es idéntica; la reversa tras un `ALTER FUNCTION … SET
+statement_timeout` ABORTA sin dejar rastro; los 36 `assert_*` y el censo analítico, idénticos antes y después
+(`bloque-2.6/fotografia/trinquetes-antes.txt`). Concurrencia con dos conexiones: **NO EJECUTADO** (una sola sesión; se mide el
+`for update;` en el cuerpo). App (ronda 2): lint 0 errores, typecheck OK, vitest 6 archivos / 354 pruebas OK; las rondas 3, 4 y 5
+no la tocan. `npm run check:scripts`: FAIL ajeno (3 tests de `reconciliar-claves-crm.test.mjs` por `@supabase/supabase-js`
+ausente, como en 2.3 y en las rondas 1, 2, 3 y 4).
+**Revisiones:** ronda 1: Codex CHANGES_REQUESTED (2 P1, 3 P2) y auditor-rls CHANGES_REQUESTED (4 P2, P3): aplicados en la ronda
+2 (D-21 elevada a Miguel y decidida); ronda 2: Codex CHANGES_REQUESTED sin P0/P1 (P2 R2-1, hipótesis R2-2) y auditor PASS (4 P3:
+AR2-1…AR2-4): aplicados en la ronda 3 (AR2-3 como requisito de la fase 4; AR2-4 anotado); ronda 3: Codex CHANGES_REQUESTED sin
+P0/P1 (P2 R3-1): aplicado en la ronda 4; ronda 4: Codex CHANGES_REQUESTED sin P0/P1 (P2 R4-1): aplicado en la ronda 5; ronda 5:
+pendiente de la validación corta de Codex (D-20).
+**Reversa:** `supabase/scripts/reactivar-lead-retirado/reversa.sql` — FALLA CERRADA: exige `md5(prosrc)` `01ebf089…` y
+`md5(pg_get_functiondef)` `94ec2bd7…` y las dos piezas presentes; quita los dos bloques, repone el comentario y borra el
+núcleo y la pieza. No deshace datos (las fichas ya reactivadas siguen activas con su rastro).
+**SHA-256 del archivo de la migración (07/10/2026, ronda 5):** `c9f5443abcad4ff8f5f5fe837156bd4628547a3ba6dca266baf08dc4c1b7f950`
+(ronda 4: `b453cffdb56eab568f06e3424b7334d3a85cdac5d98006c3cfd17b0e68f7efba`; ronda 3: `f5cf4d20977424fad500703f1b23ed9922f16483d2b15193b7105fe2e44b0a9a`;
+ronda 2: `bf94eb55c234885e33b8436b44f884dd2e7c1d9aceee4a850fe6defcbe65d366`; ronda 1: `7d713be59c56d940b2bf9557ea00d4d11de686aceae65877bd78ac920d4a1637`; sustituidas).
+
+**Reselle C2 (22/10/2026):** re-asentada contra producción del 22/10 (encargo C2-a del plan AVANCE-BACKEND-1310-C2): el alta cambió por `20261015171407` (Formulario 3) y `20261016183308` (referidos de Supervisión) y su comentario ganó la frase «F3 (15/10/2026)…». Las dos anclas aplican una vez y el cuerpo parcheado conserva lo de producción (diff idéntico). Huellas: antes `145b30a3…`/`068d4d88…` (eran `54fc34f7…`/`d1daa1c6…`), después `30109c53…`/`e06eca23…` (eran `01ebf089…`/`94ec2bd7…`); el comentario exigido, el que deja la migración y el que repone la reversa conservan la frase F3. Reversa y `armar-ensayo.mjs` re-asentados (sin generador). SHA-256 de la migración: `3dfa47efc4d34daa80ad452b0ce067a4019575a5f8957870988e8ac088146620`.
+
+
+## 20261022170100 — «No asistió» espera a la hora de la cita (`private.trg_tareas_before_update`)
+
+**INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170100_crm_no_asistio_espera_hora.sql`** (bloque 2.1 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261006152203_crm_no_asistio_espera_hora.sql`, copia `fase2`, sha256 del origen `9a3d096c099c…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
+
+**PENDIENTE DE BRANCH. Verificada solo en el laboratorio local (06/10/2026); no aplicada en ninguna base real.** Plan de
+mantenibilidad del backend, fase 2, bloque 2.1 (decisión D-04 de Miguel, 06/10/2026). Regla de Miguel del 05/10/2026: «una
+reunión realizada antes de la hora pactada puede marcarse realizada inmediatamente y debe ser evaluable. Solo "No asistió" debe
+esperar a que haya pasado la hora pactada».
+
+**Qué hace:** el candado BEFORE UPDATE de `crm.tareas` rechaza pasar una REUNIÓN a `no_show` mientras `vence_en` sea posterior a
+`clock_timestamp()`: errcode `22023`, mensaje «Aún no llega la hora de la cita: «No asistió» se registra cuando pase la hora
+pactada». Se acepta desde el instante de la hora (`vence_en <= reloj`, el mismo borde que `private.citas_episodios`). Va en el
+candado y no en los writers porque `crm.cerrar_reunion` y `crm.cerrar_tarea` están sellados por md5 y porque el candado corre en
+todo UPDATE de `crm.tareas`, que hoy es por donde entran las seis entradas (`cerrar_reunion_v3`, `_v2` y v1; `cerrar_tarea_v2` y
+v1; `postventa_tarea_fn`). `create or replace` con la misma firma, dueño, `security definer`, `search_path` y ACL; el resto del
+cuerpo, byte a byte el vigente. Comentario de la función nuevo (antes no tenía).
+
+**Precondiciones (fail-closed):** el preflight exige, antes de reemplazar: `md5(prosrc)` = `ded27e36f21f4cf34263ce10c8731f5d`;
+la ficha del candado —dueño `postgres`, `security definer`, `proconfig` = solo `search_path=""` y ningún rol con EXECUTE salvo el
+dueño (el criterio del caso 9a del oráculo)—; `crm.tareas.vence_en` NOT NULL; y el trigger colgado con la forma auditada (`tgtype`
+19 —BEFORE UPDATE por fila—, `tgenabled = 'O'`, sin WHEN y sin lista de columnas). Se exige identidad con lo auditado: una
+configuración distinta, aunque fuera más estricta, aborta. El postflight vuelve a exigir todo eso, compara la ficha con la previa,
+comprueba `md5(prosrc)` = `4a0a6b0048cdb6d8f2ac1d3b7ecc2852` y llama a `private.assert_sla_comandos()` y
+`private.assert_entrevista_al_asistir()`.
+
+**Qué NO cambia:** «Se realizó», cancelar y reprogramar antes de la hora; las tareas que no son reunión; ningún writer, ni
+`crm.postventa_tarea_fn`, ni los `assert_*`, ni tablas, grants, policies u objetos de `public`. No corrige datos pasados.
+
+**Límites conocidos (lo que NO garantiza):**
+1. La regla compara contra la hora guardada; no impide que esa hora nazca o se mueva al pasado. Medido en el laboratorio el
+   06/10, igual con y sin la migración: el dueño reprograma una cita futura a «hace un minuto» por `crm.reprogramar_reunion_v2`
+   (responde `ok`; la cita nueva nace `pendiente` con su hora 60 s atrás) y «No asistió» sobre la cita nueva por
+   `crm.cerrar_reunion_v3` responde `ok`; crear directamente una reunión de lead con la hora ya pasada y marcarla también entra.
+   Postventa sí exige hora futura. **Fuera de este cambio. Decisión de Miguel del 06/10/2026 (D-05): se deja como está**; deja
+   rastro (la cita original figura como reprogramada) y lo vigila Gerencia.
+2. La regla vive en BEFORE UPDATE: un INSERT con `crm.op_tarea = on` no pasa por ella. Hoy ninguna función inserta una tarea en
+   `no_show` (censo por catálogo del 06/10: insertan en `crm.tareas` solo `private.crear_siguiente_tarea`,
+   `private.registrar_solicitud_cliente_fn`, `crm.reprogramar_reunion` y `private.postventa_insertar_tarea`, y ninguna menciona
+   `no_show`).
+
+**Verificación en el laboratorio (corte B5 + B6, `20261003162500`):** `supabase/scripts/no-asistio-espera-hora/`, todo en
+transacciones con rollback.
+- Oráculo ROJO sin la migración, con 9 fallos y todos «el servidor ACEPTÓ «No asistió» antes de la hora»: las seis entradas, v3
+  con supervisor, v3 con gerencia y la frontera `5-antes`. VERDE con ella.
+- Mismo identificador (lead por `cerrar_reunion_v3` y postventa por `postventa_tarea_fn`, con su clave y su revisión 1): el envío
+  rechazado justo antes de la hora, repetido idéntico con la hora cumplida, entra; un tercer envío idéntico devuelve la misma
+  respuesta sin duplicar actividad, tarea siguiente, recibo, gestión ni operación.
+- Las restricciones diferidas se fuerzan antes del veredicto (`set constraints all immediate`): pasan.
+- `mutantes.sh`: 13/13 muertos (10 de cuerpo y 3 de catálogo), y cada uno solo cuenta si el ensayo sale ROJO nombrando los fallos
+  que le corresponden.
+- `derivas.sh`: 7/7 derivas de catálogo instaladas ANTES de la migración la hacen abortar en su preflight, con su mensaje, y
+  dejan la huella original (EXECUTE previo a `authenticated`, sin `security definer`, otro `SET`, `vence_en` anulable, trigger con
+  WHEN, con lista de columnas y deshabilitado); el control sin deriva entra.
+- Reversa → huella y ficha originales. Foto de los 36 `private.assert_*()` idéntica con la migración definitiva puesta (29
+  pasan, 7 caían desde antes).
+- **Verificación del Director del plan, con el cuerpo `4a0a6b00…` aplicado de verdad en el laboratorio** (antes de las
+  correcciones de pre y postflight, que no tocan el cuerpo): banco comercial, 271 casos —R2 y R4a pasan de FAIL a PASS y el resto
+  queda idéntico a la línea base—; después, `reversa.sql` aplicada de verdad y comprobada.
+- NO ejecutados: branch de Supabase, `test-rls.mjs`, advisors, concurrencia con dos conexiones.
+
+**Revisiones:** `auditor-rls` → CHANGES_REQUESTED sin P0 ni P1 (06/10/2026). Codex → CHANGES_REQUESTED sin P0 ni P1 (06/10/2026).
+Ambos dictámenes conciliados por el Director del plan. **Las correcciones posteriores a Codex no tienen tercera revisión:** las
+sostienen el ensayo y la verificación del Director.
+
+**Requisitos antes del gate de la branch y de la integración:**
+- **Orden de despliegue: la migración antes que la pantalla** (recomendación de Codex): con la migración puesta, los clientes
+  viejos reciben el rechazo del servidor; al revés, las demás entradas quedarían sin la defensa central.
+- Build y e2e en Docker del cambio de pantalla: no ejecutados.
+- Prueba de espera real por candado (mantener un bloqueo hasta pasada la hora y ver qué responde al liberarlo): no ejecutada. Lo
+  probado es que el reloj es el real y no el de la transacción.
+- La matriz `supabase/scripts/test-rls.mjs` **no se amplió**: no tiene ningún caso de la regla con sesiones reales por PostgREST.
+  Los casos a añadir están en el dictamen de `auditor-rls` (P2-3; plan de backend, `fase-2/bloque-2.1/revision/auditor-rls.md`).
+- `supabase/scripts/gestion-diaria-resultado/test-gestion-diaria-resultado.sql:420-424` (regresión W: cierra como `no_show` una
+  cita de pasado mañana sin capturar el error) queda por ajustar: con la regla revienta ahí y su sección de RLS ya no corre. No es
+  ejecutable en este laboratorio.
+- `supabase/scripts/entrevista-al-asistir/pruebas.sql`: **modificado** (solo la hora de una cita: la del caso 5 nace ahora con la
+  hora pasada) y **NO EJECUTADO en su forma del repo**, porque ya no corre desde antes de este cambio (siembra su lead con origen
+  `otro`, que el servidor rechaza desde `20260928192822`); el ajuste se verificó sobre una copia temporal con el origen cambiado.
+- Repetir en la branch, antes de aplicar, la huella y la ficha del candado y el censo de quién escribe `estado` en `crm.tareas`:
+  el laboratorio está en un corte anterior a `main`. Si algo difiere, el preflight aborta.
+
+**Pantalla:** `app/src/components/app/cerrar-tarea.tsx` deja «No asistió» inerte, con el motivo a la vista, hasta la hora de la
+cita (`app/src/lib/no-asistio-espera.ts`). El efecto y su temporizador leen siempre el reloj: si la hora llega entre el render y
+el efecto la opción se activa sin esperar al siguiente tick, y si al despertar todavía no llegó (reloj del dispositivo atrasado)
+sigue inerte y se reprograma. El formulario de postventa (`postventa-tarea.tsx`) no se tocó: sigue ofreciendo «El cliente no
+asistió» y el servidor lo rechaza con el mismo mensaje.
+
+**Reversa:** `supabase/scripts/no-asistio-espera-hora/reversa.sql`. Comprueba SOLO la huella del cuerpo (se niega si no es
+`4a0a6b00…`); restaura el cuerpo `ded27e36…` con `security definer` y `search_path` vacío y deja la función sin comentario;
+conserva firma, dueño y ACL. Si alguien cambió algo después de la migración sin tocar el cuerpo, **sobrescribe** los `SET`
+añadidos con `ALTER FUNCTION` y el comentario (ensayado). No añade más candados a propósito: una reversa no debe negarse por una
+deriva ajena cuando hace falta revertir. No hay datos que deshacer.
+
 ## 20261020214445 — Gestión Diaria: los pendientes, de lo más reciente a lo más antiguo
 
 **APLICADA EN PRODUCCIÓN EL 20/10/2026 (19:40–19:45 Lima, `!` de Miguel, `supabase db query --linked --file`, un solo mensaje) Y REGISTRADA (`migration repair --status applied`).** Verificado tras aplicar (solo lectura): las cinco huellas vivas = las ensayadas (núcleo de 6 `b55e6776…`, envoltorio `681d76d9…`, v3 `454617dc…`, cola `4dc88038…`, gate `81c4ce51…`), v1 `d69dd41d…` y v2 `01a0d2a2…` intactas, ACL `{postgres=X,authenticated=X}` (gate `{postgres=X}`), atributos y COMMENT como en el ensayo. `npm run gen:types` desde producción: sin diferencias con los tipos escritos a mano. Advisors de seguridad tras instalar: 403 hallazgos en 5 grupos, ninguno nuevo de esta migración (el único que nombra sus objetos es el `authenticated_security_definer_function_executable` de `crm.gestion_diaria_cola_trabajo_fn`, DEFINER desde `20260930190028`, la puerta intencionada). Front publicado después con `/release-crm` (PR #349, squash `67aa76c0`). Historial previo de la entrada: **PENDIENTE: instalar Miguel con `!`** (ensayada en el banco Docker propio el 20/10/2026, 17:10–17:50 Lima; SIN APLICAR en producción). Desde `/Users/usuario/dev/avancecorp-crm-orden-pendientes-20261020/CRM-Avance-Corp`, un solo mensaje: `supabase db query --linked --file supabase/migrations/20261020214445_crm_gestion_diaria_pendientes_recientes_primero.sql` y luego `supabase migration repair --status applied 20261020214445 --linked`. Después, `npm run gen:types` en `app/` (la firma de la v3 ya está escrita a mano en `database.types.ts`: la regeneración no debe cambiarla). **Orden de publicación: PRIMERO la base, DESPUÉS el front** con `/release-crm` (el front nuevo llama a la v3; sin ella, PGRST202). Reversa: `supabase/scripts/pendientes-recientes-20261020/reversa.sql` (si el front nuevo ya está publicado, revertir primero el front). Aviso a la tarea GUARDIANES-1610: `supabase/scripts/pendientes-recientes-20261020/AVISO-GUARDIANES-1610.md`.
