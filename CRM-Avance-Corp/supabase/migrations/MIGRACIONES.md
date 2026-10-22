@@ -2532,6 +2532,8 @@ nueve contratos cotejados. Revisión Claude y agentes propios evaluada en
 
 ## 20261015150731 — Eliminar lead: también con ficha de inversionista sin dinero (r2)
 
+**REGISTRADA EN EL ÍNDICE EL 22/10/2026 (18:35 Lima, Miguel con `!`, `supabase migration repair --status applied 20261015150731 --linked`; H-C2-1 del grupo C):** se había aplicado con `db query --linked`, que no registra. Antes: puerta `a83f9db0…`, `trg_sla_recibo_guard` `f111fdd9…`, candado de tasa `9d5d0a1a…`, índice 529 filas. Después: fila con 20 statements, índice 531, última versión sin cambio.
+
 **APLICADA EN PRODUCCIÓN 15/10/2026 ~11:50 Lima** (Miguel, `supabase db query --linked --file`; PR #288 fusionada
 `b12aaee2`). Verificado en producción, solo lectura: puerta `15ce9327e21306ec9682552815936e71`, candado de tasa
 `9d5d0a1a82675f2b5ae8ec7e93e5e5d1` y las 11 funciones intactas con la huella de r1; ACL igual (puerta: `authenticated`
@@ -2556,6 +2558,8 @@ pertenencia y bloqueo, cerrados; 1 P2 de ficha preexistente, cerrado); todo acep
 (preflight PASS; contra base NOT RUN). Sin cambios de pantalla. Reversa: `../scripts/eliminar-lead-error-carga/reversa-r2.sql`.
 
 ## 20261015044917 — Eliminar lead por error de carga
+
+**REGISTRADA EN EL ÍNDICE EL 22/10/2026 (18:35 Lima, Miguel con `!`, `supabase migration repair --status applied 20261015044917 --linked`; H-C2-1 del grupo C):** se había aplicado con `db query --linked`, que no registra. Antes: puerta `a83f9db0…`, `trg_sla_recibo_guard` `f111fdd9…`, candado de tasa `9d5d0a1a…`, índice 529 filas. Después: fila con 53 statements, índice 531, última versión sin cambio.
 
 **APLICADA EN PRODUCCIÓN 15/10/2026 ~00:55 Lima** (Miguel, `supabase db query --linked --file`; PR #283 fusionada
 `abd04f61`). Verificado en producción, solo lectura: las 12 funciones (4 nuevas + 8 candados) con la misma huella
