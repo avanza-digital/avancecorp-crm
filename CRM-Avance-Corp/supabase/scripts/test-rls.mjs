@@ -21055,7 +21055,7 @@ async function testGrupoAFase4(sessions, seed) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
-// FASE 4 · GRUPO C — bloques 2.1, 2.4, 2.7, 2.8, 2.9, 2.11, 2.13, 2.10, 2.12 y 2.15 (migraciones 20261022170100…20261022171000,
+// FASE 4 · GRUPO C — bloques 2.1, 2.4, 2.7, 2.8, 2.9, 2.11, 2.13, 2.10, 2.12 y 2.15 (migraciones 20261022170100…20261022171001,
 // integradas el 22/10/2026 en C2 del plan AVANCE-BACKEND-1310-C2). Casos que pidieron los auditores de permisos de cada bloque
 // (fase-2/bloque-2.X/revision/auditor-rls.md y respuesta-auditor*.md; C5, auditor-rls r1, P2-2) y P2-3 (teléfonos de la corrida).
 // Cada bloque se SALTA en voz alta si su migración no está en la base (detección por catálogo); con CRM_RLS_EXIGE_GRUPO_C=1 el
@@ -21877,9 +21877,9 @@ async function gcClienteReal(sessions, seed, ctx, clave) {
   return ok ? lead : null;
 }
 
-// ── 2.10 · convertir a un cliente antiguo usa su misma ficha (20261022170800; auditor 2.10 r1 (g) y r2) ─────────────────────────
+// ── 2.10 · convertir a un cliente antiguo usa su misma ficha (20261022170801; auditor 2.10 r1 (g) y r2) ─────────────────────────
 async function gcConversionClienteAntiguo(sessions, seed, ctx) {
-  console.log('\n— 2.10 · convertir a un cliente antiguo sin ficha usa su misma ficha (20261022170800) —');
+  console.log('\n— 2.10 · convertir a un cliente antiguo sin ficha usa su misma ficha (20261022170801) —');
   const ID = (k) => seed.profileIdByKey[k];
   const crm = (k) => sessions[k].client.schema('crm');
   const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-grupo-c-210'));
@@ -22093,9 +22093,9 @@ async function gcReunionesDesgloseConBajas(sessions, seed, ctx) {
   }
 }
 
-// ── 2.15 · el CRM cancela solo las solicitudes que ya no corresponden (20261022171000; auditor 2.15 TEST GAPS) ────────────────────
+// ── 2.15 · el CRM cancela solo las solicitudes que ya no corresponden (20261022171001; auditor 2.15 TEST GAPS) ────────────────────
 async function gcSolicitudesDesechadasSolas(sessions, seed, _ctx) {
-  console.log('\n— 2.15 · el CRM cancela solo las solicitudes de inversión que ya no corresponden (20261022171000) —');
+  console.log('\n— 2.15 · el CRM cancela solo las solicitudes de inversión que ya no corresponden (20261022171001) —');
   const ID = (k) => seed.profileIdByKey[k];
   const crm = (k) => sessions[k].client.schema('crm');
   const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-grupo-c-215'));
@@ -22187,11 +22187,11 @@ async function testGrupoCFase4(sessions, seed) {
     ['2.9', '20261022170500 (bases y alternativo del cliente)', gcBasesAlternativoCliente, false],
     ['2.11', '20261022170600 (reactivar reconoce al cliente)', gcReactivarReconoceCliente, false],
     ['2.13', '20261022170700 (el alternativo del cliente no toma un lead)', gcAlternativoClienteNoTomaLead, false],
-    ['2.10', '20261022170800 (conversión del cliente antiguo)', gcConversionClienteAntiguo, true],
+    ['2.10', '20261022170801 (conversión del cliente antiguo)', gcConversionClienteAntiguo, true],
     ['2.12', '20261022170900 (reuniones y agenda con bajas)', gcReunionesDesgloseConBajas, false],
     // Ronda 2: la consulta de la solicitud exige el registro multiempresa; un bloque anterior deja las banderas apagadas (en producción
     // están en true): se guardan, se encienden y se restauran (conInversionesVigentes, l.190).
-    ['2.15', '20261022171000 (solicitudes desechadas solas)', gcSolicitudesDesechadasSolas, true],
+    ['2.15', '20261022171001 (solicitudes desechadas solas)', gcSolicitudesDesechadasSolas, true],
   ];
   const pendientes = BLOQUES.filter(([bloque, migracion]) => {
     if (hay[bloque] === true) return true;

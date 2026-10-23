@@ -1,6 +1,6 @@
 # Ensayo de «Convertir a un cliente antiguo sin ficha de persona usa su misma ficha» (bloque 2.10)
 
-Verifica la migración `20261022170800_crm_conversion_cliente_antiguo_misma_ficha.sql` (la fecha definitiva se pone al integrar) **en el
+Verifica la migración `20261022170801_crm_conversion_cliente_antiguo_misma_ficha.sql` (la fecha definitiva se pone al integrar) **en el
 banco Docker local (el laboratorio) y sin escribir nada**. Este ensayo **no se corre contra producción**: registra leads por la puerta
 real, siembra clientes antiguos sin persona (conversión sembrada con su cierre externo inicial: el estado real de un cliente de
 cooperativa cuya identidad no se resolvió), convierte clientes de verdad por el formulario compartido (preparar → solicitud →

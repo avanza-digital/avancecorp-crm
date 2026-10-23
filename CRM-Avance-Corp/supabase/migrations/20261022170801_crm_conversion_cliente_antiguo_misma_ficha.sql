@@ -1,4 +1,5 @@
--- 20261022170800_crm_conversion_cliente_antiguo_misma_ficha.sql — bloque 2.10 del plan «Mantenibilidad y consistencia del backend CRM» (fecha de trabajo 20261009235900_crm_conversion_cliente_antiguo_misma_ficha.sql; integrado el 2026/10/22, C2 del grupo C)
+-- 20261022170801_crm_conversion_cliente_antiguo_misma_ficha.sql — bloque 2.10 del plan «Mantenibilidad y consistencia del backend CRM» (fecha de trabajo 20261009235900_crm_conversion_cliente_antiguo_misma_ficha.sql; integrado el 2026/10/22, C2 del grupo C)
+-- RESELLE C2b (22/10/2026): sustituye a 20261022170800 (nunca aplicada: su preflight exigía relacl NULL en crm.inversionista_leads y crm.inversionista_operaciones; producción tiene la ACL del dueño materializada, {postgres=arwdDxtm/postgres}, sin permisos a nadie más). Ahora se exige «ningún permiso a nadie que no sea el dueño» (aclexplode sobre coalesce(relacl, acldefault)), en el preflight y en el postflight. Nada más cambia.
 -- Convertir a un cliente antiguo sin ficha de persona usa su misma ficha (plan AVANCE-BACKEND-0810-F2, fase 2, bloque 2.10;
 -- decisiones D-38, D-81, D-83, D-84, D-85, D-86, D-87, D-88, D-89, D-90, D-91, D-92, D-93 y D-94 de Miguel, 09 al 12/10/2026, plan aprobado en D-45; la regla del
 -- cliente y lo que revela «ya es cliente de X» son las del 2.7 y el 2.8: D-22, D-25, D-27, D-29). Orden de instalación fijado por el Director: 2.8 → 2.9 → 2.11 → 2.16 →
@@ -413,7 +414,8 @@ begin
     raise exception 'PREFLIGHT conversion_cliente_antiguo: cambió o falta un índice único del que depende la regla (%)', v_mal;
   end if;
   if exists (select 1 from pg_class c where c.oid in ('crm.inversionista_leads'::regclass, 'crm.inversionista_operaciones'::regclass)
-               and (not c.relrowsecurity or c.relacl is not null or c.relowner <> 'postgres'::regrole::oid)) then
+               and (not c.relrowsecurity or c.relowner <> 'postgres'::regrole::oid
+                    or exists (select 1 from aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) acl where acl.grantee <> c.relowner))) then
     raise exception 'PREFLIGHT conversion_cliente_antiguo: el puente persona-lead o el libro de operaciones ya no es como se auditó (RLS activa, sin grants, dueño postgres)';
   end if;
   -- Las premisas de D-83/D-85 (el cierre) y de D-86/D-87 (el perfil), fijadas (auditor r2): a lo sumo un cierre inicial por lead; el
@@ -1193,7 +1195,8 @@ begin
      or not exists (select 1 from pg_indexes i where i.schemaname = 'crm' and i.indexname = 'inversionista_leads_lead_uidx')
      or not exists (select 1 from pg_indexes i where i.schemaname = 'crm' and i.indexname = 'inversionista_leads_canonico_uidx')
      or exists (select 1 from pg_class c where c.oid in ('crm.inversionista_leads'::regclass, 'crm.inversionista_operaciones'::regclass)
-                  and (not c.relrowsecurity or c.relacl is not null or c.relowner <> 'postgres'::regrole::oid)) then
+                  and (not c.relrowsecurity or c.relowner <> 'postgres'::regrole::oid
+                    or exists (select 1 from aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) acl where acl.grantee <> c.relowner))) then
     raise exception 'POSTFLIGHT conversion_cliente_antiguo: cambió un índice único, la RLS o los grants de los que depende la regla';
   end if;
   -- Las premisas de D-83/D-85 y de D-86/D-87, intactas: a lo sumo un cierre inicial por lead; el

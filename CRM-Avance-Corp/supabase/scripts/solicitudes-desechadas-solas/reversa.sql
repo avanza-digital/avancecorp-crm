@@ -1,4 +1,4 @@
--- REVERSA de 20261022171000_crm_solicitudes_desechadas_solas.sql (bloque 2.15: D-58, D-59, D-63, D-66).
+-- REVERSA de 20261022171001_crm_solicitudes_desechadas_solas.sql (bloque 2.15: D-58, D-59, D-63, D-66).
 --
 -- FALLA CERRADA. Antes de revertir exige que las dos puertas re-emitidas (`crm.crear_contrato_con_cuenta_pdf_v2` y
 -- `crm.solicitud_inversion_fn`) tengan EXACTAMENTE la definición que dejó la migración (md5 de `prosrc` y de
