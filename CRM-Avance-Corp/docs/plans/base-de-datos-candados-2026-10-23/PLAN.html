@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan: la base cuida sola los datos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#111e3d; --azul:#2563eb; --azul-suave:#e8efff; --azul-borde:#c7d7fb;
+    --tinta:#1f2937; --gris:#5f6b7a; --gris-claro:#eef1f6; --linea:#dfe4ec; --fondo:#f5f7fa; --blanco:#fff;
+    --ambar:#b45309; --ambar-suave:#fff4dc; --rojo:#b91c1c; --rojo-suave:#fde8e8; --pizarra:#475569;
+    --sombra:0 1px 2px rgba(17,30,61,.06), 0 8px 24px rgba(17,30,61,.06);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--fondo);color:var(--tinta);font-family:"Plus Jakarta Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.55}
+  a{color:var(--azul);text-decoration:none}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 24px 80px}
+
+  header.cab{background:var(--blanco);border:1px solid var(--linea);border-radius:16px;padding:24px 28px;box-shadow:var(--sombra);animation:aparece .5s ease both}
+  .cab h1{margin:0 0 6px;font-size:26px;font-weight:800;color:var(--navy);letter-spacing:-.01em}
+  .cab .sub{color:var(--gris);font-size:15px;margin:0 0 14px}
+  .cab .meta{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;font-size:13px;color:var(--gris)}
+  .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 11px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase}
+  .pill.borrador{background:var(--ambar-suave);color:var(--ambar);border:1px solid #f3d9a4}
+  .pill.pendiente{background:var(--gris-claro);color:var(--pizarra);border:1px solid var(--linea)}
+  .pill.curso{background:var(--azul-suave);color:var(--azul);border:1px solid var(--azul-borde)}
+  .pill.hecho{background:#e6f0ff;color:var(--navy);border:1px solid var(--azul-borde)}
+  .pill.p1{background:var(--rojo-suave);color:var(--rojo);border:1px solid #f5c2c2}
+  .pill.p2{background:var(--ambar-suave);color:var(--ambar);border:1px solid #f3d9a4}
+  .pill.p3{background:var(--gris-claro);color:var(--pizarra);border:1px solid var(--linea)}
+
+  .objetivo{margin:18px 0 0;padding:16px 18px;background:var(--azul-suave);border:1px solid var(--azul-borde);border-radius:12px;color:var(--navy);font-weight:500}
+  .objetivo b{font-weight:800}
+
+  /* barra de avance */
+  .avance{margin-top:18px}
+  .avance .fila{display:flex;justify-content:space-between;font-size:13px;color:var(--gris);margin-bottom:6px}
+  .barra{height:10px;background:var(--gris-claro);border-radius:999px;overflow:hidden;border:1px solid var(--linea)}
+  .barra > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--azul),#60a5fa);border-radius:999px;transition:width 1.2s cubic-bezier(.2,.8,.2,1)}
+
+  /* stepper horizontal fijo */
+  nav.pasos{position:sticky;top:0;z-index:5;margin:18px 0 10px;background:rgba(245,247,250,.92);backdrop-filter:blur(8px);padding:10px 0}
+  .pasos ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+  .pasos li a{display:flex;flex-direction:column;gap:4px;background:var(--blanco);border:1px solid var(--linea);border-radius:12px;padding:10px 12px;color:var(--tinta);transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease}
+  .pasos li a:hover{transform:translateY(-2px);box-shadow:var(--sombra);border-color:var(--azul-borde)}
+  .pasos li a .n{font-size:11px;font-weight:800;color:var(--azul);letter-spacing:.06em;text-transform:uppercase}
+  .pasos li a .t{font-size:13px;font-weight:700;color:var(--navy);line-height:1.25}
+  .pasos li a .e{font-size:11px;color:var(--gris)}
+
+  /* tarjetas de fase */
+  section.fase{background:var(--blanco);border:1px solid var(--linea);border-radius:16px;padding:24px 28px;margin-top:18px;box-shadow:var(--sombra);opacity:0;transform:translateY(14px);transition:opacity .5s ease, transform .5s ease}
+  section.fase.visible{opacity:1;transform:none}
+  .fase .cabf{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--linea);padding-bottom:14px;margin-bottom:16px}
+  .fase .cabf h2{margin:0;font-size:21px;font-weight:800;color:var(--navy)}
+  .fase .cabf .num{display:inline-block;background:var(--navy);color:#fff;border-radius:8px;padding:2px 9px;font-size:13px;font-weight:800;margin-right:10px;vertical-align:middle}
+  .fase .cabf .dr{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .grid3{display:grid;grid-template-columns:1.1fr 1fr 1.4fr;gap:16px}
+  .bloque h3{margin:0 0 6px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--azul)}
+  .bloque p{margin:0 0 8px}
+  .bloque.problema{background:#fbfcfe;border:1px solid var(--linea);border-radius:12px;padding:14px 16px}
+  .bloque.meta{background:var(--azul-suave);border:1px solid var(--azul-borde);border-radius:12px;padding:14px 16px}
+  .bloque.como{padding:0 2px}
+  .sub{border:1px solid var(--linea);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--blanco);transition:border-color .18s ease, box-shadow .18s ease}
+  .sub:hover{border-color:var(--azul-borde);box-shadow:var(--sombra)}
+  .sub h4{margin:0 0 6px;font-size:14px;font-weight:800;color:var(--navy)}
+  .sub h4 .pr{margin-left:8px;font-size:11px}
+  .check{list-style:none;margin:0;padding:0}
+  .check li{display:flex;gap:9px;align-items:flex-start;padding:4px 0;font-size:14px}
+  .check li .c{flex:0 0 18px;height:18px;border:2px solid #c3cbd8;border-radius:5px;margin-top:3px;position:relative;transition:background .2s, border-color .2s}
+  .check li.ok .c{background:var(--azul);border-color:var(--azul)}
+  .check li.ok .c::after{content:"";position:absolute;left:5px;top:1px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .check li.tuya{background:var(--ambar-suave);border-radius:8px;padding:6px 8px;margin:3px 0}
+  .check li.tuya .c{border-color:var(--ambar)}
+  .etq{display:inline-block;font-size:11px;font-weight:800;color:var(--ambar);letter-spacing:.06em;text-transform:uppercase;margin-right:6px}
+  .pie{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:16px;padding-top:14px;border-top:1px dashed var(--linea)}
+  .pie div h3{margin:0 0 4px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--gris)}
+  .pie div p{margin:0;font-size:14px}
+  .num-abre{font-weight:800;color:var(--navy);border-bottom:2px dotted var(--azul-borde);cursor:help}
+
+  /* tablas */
+  table{width:100%;border-collapse:collapse;font-size:14px;background:var(--blanco)}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--linea);vertical-align:top}
+  th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--gris);background:#fbfcfe}
+  tr:hover td{background:#fbfcfe}
+
+  section.plano{background:var(--blanco);border:1px solid var(--linea);border-radius:16px;padding:22px 28px;margin-top:18px;box-shadow:var(--sombra)}
+  section.plano h2{margin:0 0 12px;font-size:19px;font-weight:800;color:var(--navy)}
+  section.plano ul{margin:0;padding-left:20px}
+  section.plano li{margin:4px 0}
+  details{margin-top:18px;border:1px dashed var(--linea);border-radius:12px;padding:10px 16px;background:#fbfcfe;color:var(--gris);font-size:13px}
+  details summary{cursor:pointer;font-weight:700;color:var(--pizarra)}
+  details ul{padding-left:18px}
+  .bitacora li{font-size:14px}
+  .bitacora time{font-weight:700;color:var(--navy);margin-right:8px}
+
+  @keyframes aparece{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  @media (max-width:900px){
+    .grid3{grid-template-columns:1fr}
+    .pasos ol{grid-template-columns:repeat(4,1fr)}
+    .pie{grid-template-columns:1fr}
+    .wrap{padding:16px 16px 60px}
+    section.fase,header.cab,section.plano{padding:18px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="cab">
+  <h1>Que la base de datos del CRM cuide sola los datos</h1>
+  <p class="sub">Plan por fases a partir de la auditoría de las 151 tablas del 22/10/2026. Fase 0: listas verificadas el 23/10; decisiones y correcciones pendientes.</p>
+  <div class="meta">
+    <span class="pill curso">Preparación de fase 0 verificada</span>
+    <span>Datos comprobados: <b>23/10/2026 10:57–11:13 Lima</b></span>
+    <span>Fases: <b>7</b> (0 a 6)</span>
+    <span>Decisiones tuyas: <b>6</b></span>
+  </div>
+  <div class="objetivo">
+    <b>Objetivo.</b> Que ninguna venta se pierda entre la conversión y la cartera; que los datos personales solo los vea y toque quien debe; y que la base rechace por sí sola los cambios que el negocio prohíbe, sin depender de que el código no se equivoque.
+  </div>
+  <div class="avance">
+    <div class="fila"><span>Avance del plan</span><span id="avance-txt">0 de 7 fases hechas</span></div>
+    <div class="barra"><i id="avance-barra"></i></div>
+  </div>
+</header>
+
+<nav class="pasos" aria-label="Fases">
+  <ol>
+    <li><a href="#f0"><span class="n">Fase 0</span><span class="t">Datos de hoy y tus decisiones</span><span class="e">Listas preparadas</span></a></li>
+    <li><a href="#f1"><span class="n">Fase 1</span><span class="t">Candado a la venta acreditada</span><span class="e">Pendiente</span></a></li>
+    <li><a href="#f2"><span class="n">Fase 2</span><span class="t">Datos personales protegidos</span><span class="e">Pendiente</span></a></li>
+    <li><a href="#f3"><span class="n">Fase 3</span><span class="t">Convertido = venta viva</span><span class="e">Pendiente</span></a></li>
+    <li><a href="#f4"><span class="n">Fase 4</span><span class="t">Bitácoras intocables</span><span class="e">Pendiente</span></a></li>
+    <li><a href="#f5"><span class="n">Fase 5</span><span class="t">Reglas de valores</span><span class="e">Pendiente</span></a></li>
+    <li><a href="#f6"><span class="n">Fase 6</span><span class="t">Limpieza y documentación</span><span class="e">Pendiente</span></a></li>
+  </ol>
+</nav>
+
+<section class="plano">
+  <h2>Cómo se ejecuta cada fase (igual para todas)</h2>
+  <ul>
+    <li>Una fase = una PR (a veces dos). Nada se aplica directo en producción.</li>
+    <li>Camino de cada cambio en la base: banco Docker con el esquema de producción → migración → auditor de permisos → gate de seguridad → revisión de Codex → rama de Supabase → aplicar en producción → vuelta a <b>main</b> el mismo día.</li>
+    <li>Al cerrar cada fase te digo dos cosas: <b>¿apta para producción?</b> y <b>qué arregla comercialmente</b>.</li>
+    <li>Este HTML es el tablero: cada casilla se marca al hacerse y la bitácora de abajo se actualiza el mismo día.</li>
+  </ul>
+</section>
+
+<!-- FASE 0 -->
+<section class="fase" id="f0">
+  <div class="cabf">
+    <h2><span class="num">0</span>Los datos comprobados y tus decisiones</h2>
+    <div class="dr"><span class="pill curso">Listas preparadas · falta decidir</span></div>
+  </div>
+  <div class="grid3">
+    <div class="bloque problema">
+      <h3>Problema</h3>
+      <p>La comprobación actual corrige tres conclusiones de la auditoría. El detalle y las consultas están en <a href="FASE-0.md">la verificación de fase 0</a>.</p>
+      <p><b>39 ventas de septiembre</b> acreditadas y con contrato activo no tienen inversión en cartera. Hay <b>2 contratos antiguos</b> fuera de plazo y <b>4 fuentes eliminadas</b> que deben tratarse aparte. De los <b>2 leads sin acreditación</b>, uno sí tiene contrato e inversión y el otro presenta datos de prueba. Los <b>11 borrados sí tienen rastro</b> en la bitácora del portal.</p>
+    </div>
+    <div class="bloque meta">
+      <h3>Meta</h3>
+      <p>Conciliar cartera y conversión por su fuente, conservando el sello de septiembre mientras se define cada corrección. Queda decidido quién ve el DNI. El rastro de los 11 borrados ya se localizó.</p>
+    </div>
+    <div class="bloque como">
+      <h3>Cómo lo haremos</h3>
+      <div class="sub">
+        <h4>0.1 Ventas que la cartera no ve</h4>
+        <ul class="check">
+          <li class="ok"><span class="c"></span><span>Lista local preparada: cliente, analista acreditado, fecha, contrato e importe. 39 de septiembre, con 3 titulares que tienen otras inversiones marcados para revisión; 2 antiguas y 4 eliminadas separadas.</span></li>
+          <li class="tuya"><span class="c"></span><span><span class="etq">Decides</span>¿Los 39 contratos de septiembre deben incorporarse a la cartera? Las 2 antiguas requieren una decisión separada; las 4 eliminadas no se cargan como ventas faltantes.</span></li>
+          <li><span class="c"></span><span>Si sí: se cargan en lote con la misma puerta que hoy crea la ficha al convertir. Primero en el banco, comparando antes y después; luego en producción.</span></li>
+          <li><span class="c"></span><span>Comprobación tras una corrección autorizada: 0 casos del lote aprobado sin inversión, sin duplicar fuentes ni alterar acreditaciones selladas.</span></li>
+        </ul>
+      </div>
+      <div class="sub">
+        <h4>0.2 Dos leads convertidos en septiembre sin acreditación</h4>
+        <ul class="check">
+          <li class="ok"><span class="c"></span><span>Los dos casos tienen historial preparado. Uno posee contrato activo e inversión vigente; el otro tiene perfil con nombre DEMO y ninguna venta vinculada.</span></li>
+          <li class="tuya"><span class="c"></span><span><span class="etq">Decides</span>Confirmar la atribución de la venta existente y si el otro registro es prueba. Se preparará el tratamiento compatible con el mes sellado; no crear otra venta para el primer caso.</span></li>
+        </ul>
+      </div>
+      <div class="sub">
+        <h4>0.3 Quién ve el DNI, la fecha de nacimiento y el género del lead</h4>
+        <ul class="check">
+          <li class="tuya"><span class="c"></span><span><span class="etq">Decides</span>Hoy los ve todo el que ve el lead, incluida Coordinación desde el 15/10 (antes los recibía tapados). <b>(a)</b> solo vendedor, supervisor y Gerencia · <b>(b)</b> también Coordinación · <b>(c)</b> todos, como hoy. Recomiendo <b>(a)</b>. Esto decide si se hace la 2.3.</span></li>
+        </ul>
+      </div>
+      <div class="sub">
+        <h4>0.4 Rastro recuperado de 11 contratos borrados</h4>
+        <ul class="check">
+          <li class="ok"><span class="c"></span><span>11 de 11 eventos de borrado encontrados en la bitácora del portal, entre el 07/09 y el 14/09, anteriores a la copia CRM instalada el 15/09 a las 21:44 Lima. No hizo falta recurrir a respaldos.</span></li>
+          <li class="ok"><span class="c"></span><span>Constancia escrita en el informe local. Las 12 filas del registro de rentabilidad se conservan. El motivo comercial no se infiere del evento.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="pie">
+    <div><h3>Qué ves tú</h3><p>Tres listas cortas para decidir y, al final, la cartera con las ventas que faltaban.</p></div>
+    <div><h3>Apta cuando</h3><p>Las decisiones están tomadas y el lote autorizado está conciliado y probado. Preparar las listas no cierra esta fase.</p></div>
+    <div><h3>Qué arregla comercialmente</h3><p>Los 39 contratos de septiembre se concilian con la cartera sin volver a registrar la venta; cada excepción recibe su tratamiento.</p></div>
+  </div>
+</section>
+
+<!-- FASE 1 -->
+<section class="fase" id="f1">
+  <div class="cabf">
+    <h2><span class="num">1</span>Candado a la venta acreditada</h2>
+    <div class="dr"><span class="pill p1">P1</span><span class="pill pendiente">Pendiente</span></div>
+  </div>
+  <div class="grid3">
+    <div class="bloque problema">
+      <h3>Problema</h3>
+      <p>La tabla que decide <b>qué venta cuenta y para quién</b> (la que alimenta la conversión y el cierre de mes) se puede editar o borrar sin que la base diga nada. Sus vecinas (episodios, cierres de mes) sí tienen candado.</p>
+      <p>Hoy no hay ninguna fila mal, pero nada lo impide: un SQL a mano o una función nueva con un error movería el crédito de una venta en silencio.</p>
+    </div>
+    <div class="bloque meta">
+      <h3>Meta</h3>
+      <p>Una acreditación sellada no cambia. Nadie borra una acreditación. El analista acreditado es siempre el del episodio que convirtió, y el episodio es siempre del mismo lead.</p>
+    </div>
+    <div class="bloque como">
+      <h3>Cómo lo haremos</h3>
+      <div class="sub">
+        <h4>1.1 Trigger de inmutabilidad</h4>
+        <ul class="check">
+          <li><span class="c"></span><span>Igual al que ya usan los cierres de mes: congela identidad (lead, episodio, analista, fecha de alta), rechaza borrar y solo deja cambiar lo que la reapertura de mes necesita.</span></li>
+          <li><span class="c"></span><span>Migración → banco → auditor → gate → Codex → aplicar → vuelta a main.</span></li>
+        </ul>
+      </div>
+      <div class="sub">
+        <h4>1.2 Llave que ata acreditación ↔ episodio ↔ lead ↔ analista</h4>
+        <ul class="check">
+          <li><span class="c"></span><span>Llave compuesta sobre el episodio. Misma PR que 1.1.</span></li>
+        </ul>
+      </div>
+      <div class="sub">
+        <h4>1.3 Prueba en negativo en el banco</h4>
+        <ul class="check">
+          <li><span class="c"></span><span>Intentar editar una sellada, borrar una y cruzar un episodio de otro lead. Las tres deben fallar con mensaje claro.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="pie">
+    <div><h3>Qué ves tú</h3><p>Nada cambia en pantalla. Verás el informe: «intenté romperlo de 3 formas, la base dijo que no».</p></div>
+    <div><h3>Apta cuando</h3><p>Gate verde, Codex sin P0/P1 abiertos y las tres pruebas en negativo fallan como deben.</p></div>
+    <div><h3>Qué arregla comercialmente</h3><p>La conversión mensual y el ranking de analistas no pueden cambiar por detrás.</p></div>
+  </div>
+</section>
+
+<!-- FASE 2 -->
+<section class="fase" id="f2">
+  <div class="cabf">
+    <h2><span class="num">2</span>Datos personales: solo quien debe los ve y los toca</h2>
+    <div class="dr"><span class="pill p1">P1</span><span class="pill pendiente">Pendiente</span></div>
+  </div>
+  <div class="grid3">
+    <div class="bloque problema">
+      <h3>Problema</h3>
+      <p>Tres huecos: (1) el DNI del lead va <b>sin tapar</b> a la bitácora en 4 tablas (la ficha del lead sí lo tapa, pero la verificación del mismo lead no); (2) un analista puede <b>reescribir el consentimiento</b> INDECOPI de sus leads con un cambio directo (<span class="num-abre" title="3 937 leads tienen fecha de consentimiento">3 937</span> leads con consentimiento); (3) el DNI, la fecha de nacimiento y el género se leen por el permiso de la tabla entera: el recorte por columna que creíamos tener no recorta nada.</p>
+    </div>
+    <div class="bloque meta">
+      <h3>Meta</h3>
+      <p>Ningún DNI en claro en la bitácora. El consentimiento solo lo escribe el sistema. Los datos sensibles del lead los ve solo quien decidiste en 0.3.</p>
+    </div>
+    <div class="bloque como">
+      <h3>Cómo lo haremos</h3>
+      <div class="sub">
+        <h4>2.1 DNI tapado en la bitácora (4 tablas) <span class="pill p1 pr">P1</span></h4>
+        <ul class="check">
+          <li><span class="c"></span><span>Cambiar los 4 registradores a la versión que tapa (la misma que ya usa la ficha del lead).</span></li>
+          <li class="tuya"><span class="c"></span><span><span class="etq">Decides</span>Lo ya escrito (1 621 verificaciones con DNI): ¿se tapa también lo histórico? Recomiendo <b>sí</b>, con una limpieza puntual y auditada.</span></li>
+          <li><span class="c"></span><span>Comprobación: 0 filas nuevas con DNI en claro; histórico según lo decidido.</span></li>
+        </ul>
+      </div>
+      <div class="sub">
+        <h4>2.2 Consentimiento solo por la puerta <span class="pill p1 pr">P1</span></h4>
+        <ul class="check">
+          <li><span class="c"></span><span>Quitar el permiso de edición directa y hacer que la base restaure el valor original si alguien lo intenta.</span></li>
+          <li><span class="c"></span><span>Comprobación en banco: un analista intenta cambiarlo → no cambia.</span></li>
+        </ul>
+      </div>
+      <div class="sub">
+        <h4>2.3 Datos sensibles por columna <span class="pill p1 pr">P1</span> <small>(solo si en 0.3 elegiste (a) o (b); la más delicada del plan)</small></h4>
+        <ul class="check">
+          <li><span class="c"></span><span>Pasar la ficha del lead de «lectura de tabla» a «lectura columna por columna» (42 columnas; 5 hoy no tienen permiso propio y hay que reponerlas, si no desaparecen de la pantalla en silencio).</span></li>
+          <li><span class="c"></span><span>Servir DNI, fecha de nacimiento y género solo a los roles elegidos.</span></li>
+          <li><span class="c"></span><span>Prueba obligatoria: comparar qué columnas ve cada rol antes y después; e2e completo en Docker.</span></li>
+          <li><span class="c"></span><span>Pantalla: sin cambios de código; se publica solo si el e2e lo exige.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="pie">
+    <div><h3>Qué ves tú</h3><p>En 2.3, Coordinación (si elegiste (a)) deja de ver el DNI en la consulta global; el resto, igual.</p></div>
+    <div><h3>Apta cuando</h3><p>Cada PR pasa gate + Codex; en 2.3 además e2e en Docker verde y la comparación de columnas sin pérdidas.</p></div>
+    <div><h3>Qué arregla comercialmente</h3><p>Cumplimiento con datos personales (INDECOPI / protección de datos) sin depender de que nadie se equivoque; menos exposición si una cuenta del equipo se filtra.</p></div>
+  </div>
+</section>
+
+<!-- FASE 3 -->
+<section class="fase" id="f3">
+  <div class="cabf">
+    <h2><span class="num">3</span>Un lead convertido siempre tiene su venta viva</h2>
+    <div class="dr"><span class="pill p2">P2</span><span class="pill pendiente">Pendiente</span></div>
+  </div>
+  <div class="grid3">
+    <div class="bloque problema">
+      <h3>Problema</h3>
+      <p>Cuando se borra y recrea un contrato, el lead se queda apuntando a nada (ya pasó: <span class="num-abre" title="6 leads con contrato_id a un contrato borrado; los 6 constan en la auditoría de eliminación">6 leads</span> colgantes desde el 06/10, pendientes de ti). La base no exige que un lead convertido tenga venta.</p>
+      <p>Si el portal borrara el perfil de un cliente, se llevaría en cascada sus cuentas bancarias y su historial postventa, sin candado.</p>
+    </div>
+    <div class="bloque meta">
+      <h3>Meta</h3>
+      <p>Borrar un contrato obliga a decidir qué pasa con el lead (anular o reemplazar). Borrar un perfil con historial en el CRM se rechaza.</p>
+    </div>
+    <div class="bloque como">
+      <h3>Cómo lo haremos</h3>
+      <div class="sub">
+        <h4>3.1 Los 6 leads colgantes de hoy</h4>
+        <ul class="check">
+          <li class="tuya"><span class="c"></span><span><span class="etq">Decides</span>Te paso la lista; caso a caso: re-enlazar al contrato nuevo o anular la conversión. Se aplica por las puertas existentes.</span></li>
+        </ul>
+      </div>
+      <div class="sub">
+        <h4>3.2 Regla «convertido ⇒ venta viva»</h4>
+        <ul class="check">
+          <li><span class="c"></span><span>El vínculo lead → contrato deja de ponerse en blanco solo: la puerta de eliminar contrato tiene que anular o reemplazar la venta antes de borrar.</span></li>
+          <li><span class="c"></span><span>Comprobación en banco: borrar un contrato con lead convertido sin decidir → rechazado.</span></li>
+        </ul>
+      </div>
+      <div class="sub">
+        <h4>3.3 Candado anti-cascada desde el perfil</h4>
+        <ul class="check">
+          <li><span class="c"></span><span>Tres tablas (cuentas bancarias, historial postventa, tareas del cliente) dejan de borrarse en cascada: se rechaza, como ya hace la tabla del equipo.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="pie">
+    <div><h3>Qué ves tú</h3><p>Al eliminar un contrato con lead convertido, el sistema pide qué hacer con la venta.</p></div>
+    <div><h3>Apta cuando</h3><p>Gate + Codex verdes y las dos pruebas en negativo fallan como deben.</p></div>
+    <div><h3>Qué arregla comercialmente</h3><p>No vuelve a haber leads «convertidos» sin venta; el embudo y «Mis ventas» cuadran con los contratos reales.</p></div>
+  </div>
+</section>
+
+<!-- FASE 4 -->
+<section class="fase" id="f4">
+  <div class="cabf">
+    <h2><span class="num">4</span>Bitácoras e historiales que no se pueden retocar</h2>
+    <div class="dr"><span class="pill p2">P2</span><span class="pill pendiente">Pendiente</span></div>
+  </div>
+  <div class="grid3">
+    <div class="bloque problema">
+      <h3>Problema</h3>
+      <p><span class="num-abre" title="verificaciones de leads, gestiones postventa, lecturas de cartera, cambios de reparto, eventos de usuario, correcciones de correo, orígenes de solicitud, trabajos de tipo de cambio, membresías purgadas">10 registros</span> que deberían ser «solo añadir» y <span class="num-abre" title="responsable del inversionista, documento de identidad, puente lead↔inversionista">3 historiales</span> de vigencia se pueden editar o borrar.</p>
+      <p>Varias tablas de configuración y permisos (pesos de conversión, política de valoración, pares de autoridad, reparto de la agenda, exenciones de los vigías) no tienen bitácora o no auditan el borrado. Dos respaldos de cierre están sin clave y uno sin RLS.</p>
+    </div>
+    <div class="bloque meta">
+      <h3>Meta</h3>
+      <p>Lo que es registro, solo crece. Lo que es historial, solo se cierra. Lo que es configuración, deja rastro. Los respaldos están cerrados como todo lo demás.</p>
+    </div>
+    <div class="bloque como">
+      <h3>Cómo lo haremos (dos PR)</h3>
+      <div class="sub">
+        <h4>4.1 Candados «solo añadir» y «solo cerrar tramo»</h4>
+        <ul class="check">
+          <li><span class="c"></span><span>10 tablas con trigger que rechaza editar/borrar (con la misma excepción que ya usa el borrado de lead por error de carga).</span></li>
+          <li><span class="c"></span><span>3 historiales con trigger «solo se puede poner la fecha de fin, nada más».</span></li>
+        </ul>
+      </div>
+      <div class="sub">
+        <h4>4.2 Configuración y permisos con rastro</h4>
+        <ul class="check">
+          <li><span class="c"></span><span>Pesos de conversión: versionados e inmutables, como las metas.</span></li>
+          <li><span class="c"></span><span>Política de valoración: auditar también el borrado y prohibirlo.</span></li>
+          <li><span class="c"></span><span>Pares de autoridad, reparto de agenda y exenciones de vigías: bitácora completa; clave primaria donde falta.</span></li>
+          <li><span class="c"></span><span>Respaldos de cierre: RLS en el de agosto (tiene 17 filas), clave y campos obligatorios en los dos.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="pie">
+    <div><h3>Qué ves tú</h3><p>Nada en pantalla. Informe de cierre con «qué quedó blindado».</p></div>
+    <div><h3>Apta cuando</h3><p>Gate + Codex verdes; prueba en negativo por grupo.</p></div>
+    <div><h3>Qué arregla comercialmente</h3><p>El historial del cliente y del equipo es prueba fiable: nadie puede reescribir quién hizo qué.</p></div>
+  </div>
+</section>
+
+<!-- FASE 5 -->
+<section class="fase" id="f5">
+  <div class="cabf">
+    <h2><span class="num">5</span>Reglas de valores escritas en la base</h2>
+    <div class="dr"><span class="pill p2">P2</span><span class="pill pendiente">Pendiente</span></div>
+  </div>
+  <div class="grid3">
+    <div class="bloque problema">
+      <h3>Problema</h3>
+      <p>Varios campos de estado y código son texto libre sin lista de valores permitidos (estado del cierre de mes, veredicto de verificación, comando postventa, origen copiado en episodios y acreditaciones, roles en pares de autoridad). El teléfono del lead solo se valida al editar, no al crear.</p>
+      <p>«Una sola primera conversión por persona» y «vigencias sin solapes» solo existen en el código. Y el candado anti-duplicado no cruza el teléfono principal con el alternativo (<span class="num-abre" title="15 pares de leads vivos donde el teléfono de uno es el alternativo del otro">15 pares</span> hoy).</p>
+    </div>
+    <div class="bloque meta">
+      <h3>Meta</h3>
+      <p>La base rechaza un valor fuera de lista, un teléfono mal formado, una segunda «primera conversión» y un tramo solapado. Hoy no hay ninguna fila que viole estas reglas: entran sin dolor.</p>
+    </div>
+    <div class="bloque como">
+      <h3>Cómo lo haremos (tres PR)</h3>
+      <div class="sub">
+        <h4>5.1 Listas de valores y contadores</h4>
+        <ul class="check">
+          <li><span class="c"></span><span>Estados y códigos con lista cerrada (igual que ya tiene el origen del lead); contadores del cierre de mes nunca negativos; coherencia «medible ⇔ hay divisor».</span></li>
+        </ul>
+      </div>
+      <div class="sub">
+        <h4>5.2 Teléfono y duplicados</h4>
+        <ul class="check">
+          <li><span class="c"></span><span>Formato del teléfono también al crear (misma regla que al editar).</span></li>
+          <li class="tuya"><span class="c"></span><span><span class="etq">Decides</span>Los 15 pares de hoy: unirlos a mano o dejarlos y que la regla aplique solo a altas nuevas. Recomiendo <b>dejar</b>.</span></li>
+          <li><span class="c"></span><span>Teléfono alternativo dentro del candado anti-duplicado.</span></li>
+        </ul>
+      </div>
+      <div class="sub">
+        <h4>5.3 Únicos y rangos</h4>
+        <ul class="check">
+          <li><span class="c"></span><span>Una sola primera conversión vigente por persona.</span></li>
+          <li><span class="c"></span><span>Vigencias con fin ≥ inicio y sin solapes (responsables, documentos, puente lead↔inversionista).</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="pie">
+    <div><h3>Qué ves tú</h3><p>Al crear un lead con teléfono raro, o cuyo alternativo ya es de otro lead vivo, el sistema avisa «duplicado» igual que hoy con el principal.</p></div>
+    <div><h3>Apta cuando</h3><p>Cada PR pasa gate + Codex, y antes de aplicar se vuelve a comprobar en producción que sigue habiendo 0 filas que la regla rechazaría.</p></div>
+    <div><h3>Qué arregla comercialmente</h3><p>Menos leads duplicados y ningún número de conversión torcido por un valor mal escrito.</p></div>
+  </div>
+</section>
+
+<!-- FASE 6 -->
+<section class="fase" id="f6">
+  <div class="cabf">
+    <h2><span class="num">6</span>Limpieza y documentación</h2>
+    <div class="dr"><span class="pill p3">P3</span><span class="pill pendiente">Pendiente</span></div>
+  </div>
+  <div class="grid3">
+    <div class="bloque problema">
+      <h3>Problema</h3>
+      <p>35 tablas sin descripción, solo el 27 % de las columnas documentadas, columnas con datos personales sin la marca que permite encontrarlas; tres tablas vacías de trabajos antiguos; una tabla de solicitudes de tasa sin el filtro de «usuario activo»; 33 inversiones sin la protección indirecta contra borrado; escrituras directas desde la pantalla en 8 tablas (ya en el plan de cierre de saltos).</p>
+    </div>
+    <div class="bloque meta">
+      <h3>Meta</h3>
+      <p>Cualquiera que abra la base entiende qué es cada cosa. Los datos personales se encuentran con una consulta. Nada sobra.</p>
+    </div>
+    <div class="bloque como">
+      <h3>Cómo lo haremos</h3>
+      <div class="sub">
+        <h4>6.1 Comentarios</h4>
+        <ul class="check">
+          <li><span class="c"></span><span>Una migración solo de descripciones: tablas vivas primero, marca «DATO PERSONAL» en todas las columnas sensibles.</span></li>
+        </ul>
+      </div>
+      <div class="sub">
+        <h4>6.2 Pequeños candados</h4>
+        <ul class="check">
+          <li><span class="c"></span><span>Filtro de usuario activo en solicitudes de tasa.</span></li>
+          <li><span class="c"></span><span>Rechazo de borrado en inversiones (como ya hacen los cierres externos).</span></li>
+        </ul>
+      </div>
+      <div class="sub">
+        <h4>6.3 Tablas residuales</h4>
+        <ul class="check">
+          <li class="tuya"><span class="c"></span><span><span class="etq">Decides</span>Las 3 vacías de verdad: CERRAR → OBSERVAR → DERRIBAR, con tu OK en cada paso. Las que tienen datos (mapas de backfill, piloto) se quedan.</span></li>
+        </ul>
+      </div>
+      <div class="sub">
+        <h4>6.4 Escrituras desde la pantalla</h4>
+        <ul class="check">
+          <li><span class="c"></span><span>Se cierran por el plan de saltos ya existente, un paso por PR. Aquí solo se anota que dos políticas (enfriamiento, abandono) se sobrescriben sin versión y conviene versionarlas.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="pie">
+    <div><h3>Qué ves tú</h3><p>Nada visible.</p></div>
+    <div><h3>Apta cuando</h3><p>Gate verde; Codex solo en 6.2.</p></div>
+    <div><h3>Qué arregla comercialmente</h3><p>Baja el costo de cada cambio futuro y evita que un dato personal se cuele donde no debe.</p></div>
+  </div>
+</section>
+
+<section class="plano">
+  <h2>Decisiones que te pido</h2>
+  <table>
+    <thead><tr><th>Dónde</th><th>Decisión</th><th>Mi recomendación</th><th>Tu respuesta</th></tr></thead>
+    <tbody>
+      <tr><td>0.1</td><td>¿Los 39 contratos de septiembre van a la cartera? ¿Qué tratamiento dar a los 2 antiguos?</td><td>Decidir por lote; separar fuentes eliminadas</td><td>⬜ Lista preparada</td></tr>
+      <tr><td>0.2</td><td>¿Acreditar la venta ya existente al analista del episodio? ¿El otro caso es prueba?</td><td>Caso a caso, con el historial</td><td>⬜ Historial preparado</td></tr>
+      <tr><td>0.3</td><td>¿Quién ve DNI / fecha de nacimiento / género?</td><td>(a) vendedor, supervisor, Gerencia</td><td>⬜</td></tr>
+      <tr><td>2.1</td><td>¿Tapar también los DNI ya escritos en la bitácora?</td><td>Sí</td><td>⬜</td></tr>
+      <tr><td>3.1</td><td>Los 6 leads colgantes: ¿re-enlazar o anular?</td><td>Caso a caso, con la lista</td><td>⬜</td></tr>
+      <tr><td>5.2</td><td>Los 15 pares teléfono/alternativo: ¿unir o dejar?</td><td>Dejar; la regla aplica a altas nuevas</td><td>⬜</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="plano">
+  <h2>Qué NO cambia</h2>
+  <ul>
+    <li>Las pantallas del vendedor, supervisor y Gerencia: ninguna fase les cambia el flujo (solo 2.3 quita el DNI a quien decidas).</li>
+    <li>El portal: no se toca ninguna tabla del portal. Fase 3 solo cambia cómo reacciona el CRM.</li>
+    <li>Los meses ya sellados (agosto, septiembre): no se reabren por este plan. Lo de 0.2 entra como ajuste.</li>
+    <li>n8n y los formularios: igual.</li>
+  </ul>
+  <h2 style="margin-top:18px">Diferidos (fuera de este plan)</h2>
+  <ul>
+    <li>Renombrar tablas y columnas fuera de la regla (singular, booleanos sin «es_»): solo en tablas nuevas.</li>
+    <li>Índices en llaves foráneas sin índice: ninguno duele hoy.</li>
+    <li>Dinero con escala declarada en 7 columnas: hoy 0 con más de 2 decimales; se hace cuando se toque cada tabla.</li>
+  </ul>
+</section>
+
+<section class="plano">
+  <h2>Bitácora</h2>
+  <ul class="bitacora">
+    <li><time>23/10 11:13</time>Contraste tras revisión: 36 titulares sin otras inversiones y 3 con otras operaciones; cero solicitudes por lead y cero eliminaciones de las 41 fuentes existentes. Los criterios de conversión por lead y episodio coinciden. RLS activa; permisos anónimos ausentes; prueba de sesiones por rol pendiente.</li>
+    <li><time>23/10 10:59</time>Fase 0 preparada en solo lectura: 39 contratos de septiembre, 2 antiguos y 4 fuentes retiradas; dos leads con historial; los 11 borrados encontrados en el portal. Se corrige la interpretación de la auditoría. Decisiones y SQL de corrección pendientes.</li>
+    <li><time>23/10 10:12</time>Plan en HTML entregado para revisión. Nada aplicado. Fase 0 sin empezar.</li>
+    <li><time>22/10 21:05</time>Auditoría de las 151 tablas entregada (3 agentes + verificación en producción + agrupación). Sin P0.</li>
+  </ul>
+  <details>
+    <summary>Dónde está el detalle técnico (para quien implemente)</summary>
+    <ul>
+      <li>Nota del vault: «Auditoria de tablas - reglas basicas de Postgres en crm y private (2026-10-22)».</li>
+      <li>Evidencia: <code>CRM-Avance-Corp/docs/auditorias/tablas-postgres-2026-10-22/</code> (informes A/B/C, verificaciones con SQL, catálogo).</li>
+      <li>Plan con anclas técnicas: <code>~/.claude/plans/con-todo-lo-que-peppy-crab.md</code> (anexo al final).</li>
+    </ul>
+  </details>
+</section>
+
+</div>
+<script>
+  // Aparición suave de las fases al hacer scroll
+  const obs = new IntersectionObserver((es) => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } }), { threshold: .08 });
+  document.querySelectorAll('section.fase').forEach(s => obs.observe(s));
+  // Avance: cuenta fases con píldora "Hecho"
+  const hechas = document.querySelectorAll('section.fase .pill.hecho').length;
+  const total = document.querySelectorAll('section.fase').length;
+  document.getElementById('avance-txt').textContent = `${hechas} de ${total} fases hechas`;
+  requestAnimationFrame(() => { document.getElementById('avance-barra').style.width = (hechas / total * 100) + '%'; });
+</script>
+</body>
+</html>
