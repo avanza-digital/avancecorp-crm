@@ -111,10 +111,10 @@
 
 <header class="cab">
   <h1>Que la base de datos del CRM cuide sola los datos</h1>
-  <p class="sub">Plan por fases a partir de la auditoría de las 151 tablas del 22/10/2026. Nada aplicado todavía.</p>
+  <p class="sub">Plan por fases a partir de la auditoría de las 151 tablas del 22/10/2026. Fase 0: listas verificadas el 23/10; decisiones y correcciones pendientes.</p>
   <div class="meta">
-    <span class="pill borrador">Borrador · pendiente de tu aprobación</span>
-    <span>Actualizado: <b>23/10/2026 10:12 Lima</b></span>
+    <span class="pill curso">Preparación de fase 0 verificada</span>
+    <span>Datos comprobados: <b>23/10/2026 10:57–11:13 Lima</b></span>
     <span>Fases: <b>7</b> (0 a 6)</span>
     <span>Decisiones tuyas: <b>6</b></span>
   </div>
@@ -129,7 +129,7 @@
 
 <nav class="pasos" aria-label="Fases">
   <ol>
-    <li><a href="#f0"><span class="n">Fase 0</span><span class="t">Datos de hoy y tus decisiones</span><span class="e">Pendiente</span></a></li>
+    <li><a href="#f0"><span class="n">Fase 0</span><span class="t">Datos de hoy y tus decisiones</span><span class="e">Listas preparadas</span></a></li>
     <li><a href="#f1"><span class="n">Fase 1</span><span class="t">Candado a la venta acreditada</span><span class="e">Pendiente</span></a></li>
     <li><a href="#f2"><span class="n">Fase 2</span><span class="t">Datos personales protegidos</span><span class="e">Pendiente</span></a></li>
     <li><a href="#f3"><span class="n">Fase 3</span><span class="t">Convertido = venta viva</span><span class="e">Pendiente</span></a></li>
@@ -152,35 +152,35 @@
 <!-- FASE 0 -->
 <section class="fase" id="f0">
   <div class="cabf">
-    <h2><span class="num">0</span>Los datos de hoy y tus tres decisiones</h2>
-    <div class="dr"><span class="pill pendiente">Pendiente</span></div>
+    <h2><span class="num">0</span>Los datos comprobados y tus decisiones</h2>
+    <div class="dr"><span class="pill curso">Listas preparadas · falta decidir</span></div>
   </div>
   <div class="grid3">
     <div class="bloque problema">
       <h3>Problema</h3>
-      <p>Hay tres cosas que ya están mal en los datos y tres decisiones que solo tú puedes tomar. Si blindamos la base antes, blindaríamos un estado equivocado.</p>
-      <p><span class="num-abre" title="45 acreditaciones con fuente contrato cuyo contrato está activo en el portal y no tiene ficha en cartera: 39 de septiembre, 4 de octubre, 1 de marzo, 1 de mayo">45 ventas</span> acreditadas en la conversión que la cartera no ve. <span class="num-abre" title="Convertidos el 16/09 y el 18/09, sin acreditación, sin contrato y sin cierre externo vivo">2 leads</span> convertidos en septiembre sin venta. <span class="num-abre" title="12 filas del ledger de rentabilidad apuntan a 11 contratos que ya no existen y no constan en ninguna auditoría de eliminación">11 contratos</span> borrados sin rastro.</p>
+      <p>La comprobación actual corrige tres conclusiones de la auditoría. El detalle y las consultas están en <a href="FASE-0.md">la verificación de fase 0</a>.</p>
+      <p><b>39 ventas de septiembre</b> acreditadas y con contrato activo no tienen inversión en cartera. Hay <b>2 contratos antiguos</b> fuera de plazo y <b>4 fuentes eliminadas</b> que deben tratarse aparte. De los <b>2 leads sin acreditación</b>, uno sí tiene contrato e inversión y el otro presenta datos de prueba. Los <b>11 borrados sí tienen rastro</b> en la bitácora del portal.</p>
     </div>
     <div class="bloque meta">
       <h3>Meta</h3>
-      <p>Cartera y conversión cuentan las mismas ventas. Septiembre queda cerrado con todas sus ventas. Sabemos qué pasó con los contratos que desaparecieron. Queda decidido quién ve el DNI.</p>
+      <p>Conciliar cartera y conversión por su fuente, conservando el sello de septiembre mientras se define cada corrección. Queda decidido quién ve el DNI. El rastro de los 11 borrados ya se localizó.</p>
     </div>
     <div class="bloque como">
       <h3>Cómo lo haremos</h3>
       <div class="sub">
         <h4>0.1 Ventas que la cartera no ve</h4>
         <ul class="check">
-          <li><span class="c"></span><span>Te paso la lista: cliente, analista, mes y contrato.</span></li>
-          <li class="tuya"><span class="c"></span><span><span class="etq">Decides</span>¿Esas ventas deben estar en la cartera (ficha, postventa, capital)? Recomiendo <b>sí</b>: la conversión ya las cuenta y la cartera no.</span></li>
+          <li class="ok"><span class="c"></span><span>Lista local preparada: cliente, analista acreditado, fecha, contrato e importe. 39 de septiembre, con 3 titulares que tienen otras inversiones marcados para revisión; 2 antiguas y 4 eliminadas separadas.</span></li>
+          <li class="tuya"><span class="c"></span><span><span class="etq">Decides</span>¿Los 39 contratos de septiembre deben incorporarse a la cartera? Las 2 antiguas requieren una decisión separada; las 4 eliminadas no se cargan como ventas faltantes.</span></li>
           <li><span class="c"></span><span>Si sí: se cargan en lote con la misma puerta que hoy crea la ficha al convertir. Primero en el banco, comparando antes y después; luego en producción.</span></li>
-          <li><span class="c"></span><span>Comprobación: 0 ventas acreditadas por contrato sin ficha en cartera.</span></li>
+          <li><span class="c"></span><span>Comprobación tras una corrección autorizada: 0 casos del lote aprobado sin inversión, sin duplicar fuentes ni alterar acreditaciones selladas.</span></li>
         </ul>
       </div>
       <div class="sub">
-        <h4>0.2 Dos leads convertidos en septiembre sin venta</h4>
+        <h4>0.2 Dos leads convertidos en septiembre sin acreditación</h4>
         <ul class="check">
-          <li><span class="c"></span><span>Te paso los dos casos con su historial.</span></li>
-          <li class="tuya"><span class="c"></span><span><span class="etq">Decides</span>Por cada uno: <b>venta real</b> sin registrar → se registra el cierre y entra como ajuste del mes ya sellado · <b>error</b> → se anula por la puerta de anulación (la única que existe).</span></li>
+          <li class="ok"><span class="c"></span><span>Los dos casos tienen historial preparado. Uno posee contrato activo e inversión vigente; el otro tiene perfil con nombre DEMO y ninguna venta vinculada.</span></li>
+          <li class="tuya"><span class="c"></span><span><span class="etq">Decides</span>Confirmar la atribución de la venta existente y si el otro registro es prueba. Se preparará el tratamiento compatible con el mes sellado; no crear otra venta para el primer caso.</span></li>
         </ul>
       </div>
       <div class="sub">
@@ -190,18 +190,18 @@
         </ul>
       </div>
       <div class="sub">
-        <h4>0.4 Rastro perdido de 11 contratos borrados</h4>
+        <h4>0.4 Rastro recuperado de 11 contratos borrados</h4>
         <ul class="check">
-          <li><span class="c"></span><span>Buscamos en la bitácora del portal y en los respaldos quién los borró y cuándo.</span></li>
-          <li><span class="c"></span><span>Queda constancia escrita. El ledger no se toca: es inmutable a propósito.</span></li>
+          <li class="ok"><span class="c"></span><span>11 de 11 eventos de borrado encontrados en la bitácora del portal, entre el 07/09 y el 14/09, anteriores a la copia CRM instalada el 15/09 a las 21:44 Lima. No hizo falta recurrir a respaldos.</span></li>
+          <li class="ok"><span class="c"></span><span>Constancia escrita en el informe local. Las 12 filas del registro de rentabilidad se conservan. El motivo comercial no se infiere del evento.</span></li>
         </ul>
       </div>
     </div>
   </div>
   <div class="pie">
     <div><h3>Qué ves tú</h3><p>Tres listas cortas para decidir y, al final, la cartera con las ventas que faltaban.</p></div>
-    <div><h3>Apta cuando</h3><p>Las tres decisiones están tomadas y la 0.1 muestra 0 ventas sin ficha.</p></div>
-    <div><h3>Qué arregla comercialmente</h3><p>Las 43 ventas de septiembre y octubre aparecen en la cartera de sus analistas; septiembre queda cerrado sin ventas fantasma.</p></div>
+    <div><h3>Apta cuando</h3><p>Las decisiones están tomadas y el lote autorizado está conciliado y probado. Preparar las listas no cierra esta fase.</p></div>
+    <div><h3>Qué arregla comercialmente</h3><p>Los 39 contratos de septiembre se concilian con la cartera sin volver a registrar la venta; cada excepción recibe su tratamiento.</p></div>
   </div>
 </section>
 
@@ -494,8 +494,8 @@
   <table>
     <thead><tr><th>Dónde</th><th>Decisión</th><th>Mi recomendación</th><th>Tu respuesta</th></tr></thead>
     <tbody>
-      <tr><td>0.1</td><td>¿Las 43 ventas de septiembre y octubre van a la cartera?</td><td>Sí</td><td>⬜</td></tr>
-      <tr><td>0.2</td><td>Los 2 leads del 16/09 y 18/09: ¿venta real o error?</td><td>Caso a caso, con la lista</td><td>⬜</td></tr>
+      <tr><td>0.1</td><td>¿Los 39 contratos de septiembre van a la cartera? ¿Qué tratamiento dar a los 2 antiguos?</td><td>Decidir por lote; separar fuentes eliminadas</td><td>⬜ Lista preparada</td></tr>
+      <tr><td>0.2</td><td>¿Acreditar la venta ya existente al analista del episodio? ¿El otro caso es prueba?</td><td>Caso a caso, con el historial</td><td>⬜ Historial preparado</td></tr>
       <tr><td>0.3</td><td>¿Quién ve DNI / fecha de nacimiento / género?</td><td>(a) vendedor, supervisor, Gerencia</td><td>⬜</td></tr>
       <tr><td>2.1</td><td>¿Tapar también los DNI ya escritos en la bitácora?</td><td>Sí</td><td>⬜</td></tr>
       <tr><td>3.1</td><td>Los 6 leads colgantes: ¿re-enlazar o anular?</td><td>Caso a caso, con la lista</td><td>⬜</td></tr>
@@ -523,6 +523,8 @@
 <section class="plano">
   <h2>Bitácora</h2>
   <ul class="bitacora">
+    <li><time>23/10 11:13</time>Contraste tras revisión: 36 titulares sin otras inversiones y 3 con otras operaciones; cero solicitudes por lead y cero eliminaciones de las 41 fuentes existentes. Los criterios de conversión por lead y episodio coinciden. RLS activa; permisos anónimos ausentes; prueba de sesiones por rol pendiente.</li>
+    <li><time>23/10 10:59</time>Fase 0 preparada en solo lectura: 39 contratos de septiembre, 2 antiguos y 4 fuentes retiradas; dos leads con historial; los 11 borrados encontrados en el portal. Se corrige la interpretación de la auditoría. Decisiones y SQL de corrección pendientes.</li>
     <li><time>23/10 10:12</time>Plan en HTML entregado para revisión. Nada aplicado. Fase 0 sin empezar.</li>
     <li><time>22/10 21:05</time>Auditoría de las 151 tablas entregada (3 agentes + verificación en producción + agrupación). Sin P0.</li>
   </ul>
