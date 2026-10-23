@@ -1,5 +1,7 @@
 ## 20261022171001 — El CRM cancela solo las solicitudes de inversión que ya no corresponden (piezas `private.solicitud_desechar`, `private.solicitudes_desechar_por_contrato`, `private.solicitudes_desechar_ciclo`, `private.solicitud_cancelacion_vista`; puertas `crm.crear_contrato_con_cuenta_pdf_v2` y `crm.solicitud_inversion_fn` re-emitidas; tabla `crm.solicitudes_desechadas_corridas`; job `crm-solicitudes-desechar`)
 
+**APLICADA EN PRODUCCIÓN EL 22/10/2026 (20:16 Lima, Miguel con `!`, `supabase db query --linked --file` + `supabase migration repair --status applied`) Y REGISTRADA.** Huellas vivas comprobadas por el Director tras aplicar (solo lectura) = las del laboratorio y del postflight; advisors de producción sin alertas nuevas tras la tanda A. D-74 recontado antes de aplicar: 7 preparadas, la primera corrida (02:17 Lima del 23/10) cancelaría 2 (1 por número usado, 1 por 30 días sin movimiento); job `crm-solicitudes-desechar` activo. App del grupo C publicada a las 19:42 (`a7a2521d`, `build-20261023T003505007Z`).
+
 **RESELLE C2b (22/10/2026 19:19 Lima):** sustituye a `20261022171000`, que NUNCA se aplicó: su preflight exigía `relacl IS NULL` en `crm.inversion_solicitudes` y producción tiene materializada la ACL del dueño (`{postgres=arwdDxtm/postgres}`: sin permisos a nadie más, RLS activa, dueño postgres). La comprobación pasa a «ningún permiso a nadie que no sea el dueño» (`aclexplode(coalesce(relacl, acldefault('r', relowner)))`); nada más cambia. El 22/10 a las 19:1x la `20261022171000` se negó en producción con ese preflight y la transacción se deshizo (7 de 8 de la tanda A aplicadas). Lección: anclar ACL por «quién tiene qué», no por `relacl IS NULL`.
 
 **INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022171001_crm_solicitudes_desechadas_solas.sql`** (bloque 2.15 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261010000200_crm_solicitudes_desechadas_solas.sql`, copia `fase2`, sha256 del origen `2da58642f8fe…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
@@ -160,6 +162,8 @@ diagnóstico aproximado— y en la cabecera). Las huellas de las dos puertas no 
 
 
 ## 20261022170900 — Reuniones y agenda: el analista dado de baja o suspendido sigue con su marca y el desglose de reuniones suma el total (`crm.metricas_reuniones_fn`, `crm.metricas_agenda_fn` + piezas `private.filtrar_desglose_sujetos_con_bajas_crm` y `private.desglose_responsables_reuniones_crm`)
+
+**APLICADA EN PRODUCCIÓN EL 22/10/2026 (20:10 Lima, Miguel con `!`, `supabase db query --linked --file` + `supabase migration repair --status applied`) Y REGISTRADA.** Huellas vivas comprobadas por el Director tras aplicar (solo lectura) = las del laboratorio y del postflight; advisors de producción sin alertas nuevas tras la tanda A. Aplicada antes de las 22:00 por decisión de Miguel con la app nueva ya viva (19:42); las pestañas abiertas antes deben recargar. App del grupo C publicada a las 19:42 (`a7a2521d`, `build-20261023T003505007Z`).
 
 **INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170900_crm_reuniones_desglose_con_bajas.sql`** (bloque 2.12 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261009230000_crm_reuniones_desglose_con_bajas.sql`, copia `fase2`, sha256 del origen `dfa2a98254ce…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
 
@@ -358,6 +362,8 @@ de la ronda 2, `0f1aecd8…`).
 
 
 ## 20261022170801 — Convertir a un cliente antiguo sin ficha de persona usa su misma ficha (puerta `crm.preparar_persona_lead_inversion_fn`; núcleos `private.inversion_persona_contexto_para` y `private.inversion_contexto_lectura_para`; piezas `private.conversion_absorber_cliente_antiguo`, `private.conversion_enlazar_cliente_antiguo` y `private.lead_historia_de_persona`)
+
+**APLICADA EN PRODUCCIÓN EL 22/10/2026 (19:39 Lima, Miguel con `!`, `supabase db query --linked --file` + `supabase migration repair --status applied`) Y REGISTRADA.** Huellas vivas comprobadas por el Director tras aplicar (solo lectura) = las del laboratorio y del postflight; advisors de producción sin alertas nuevas tras la tanda A. Es la 8.ª de la tanda A; la `20261022170800` se negó a las 19:15 por el ancla de ACL y se deshizo entera. App del grupo C publicada a las 19:42 (`a7a2521d`, `build-20261023T003505007Z`).
 
 **RESELLE C2b (22/10/2026 19:19 Lima):** sustituye a `20261022170800`, que NUNCA se aplicó: su preflight exigía `relacl IS NULL` en `crm.inversionista_leads` y `crm.inversionista_operaciones` y producción tiene materializada la ACL del dueño (`{postgres=arwdDxtm/postgres}`: sin permisos a nadie más, RLS activa, dueño postgres). La comprobación pasa a «ningún permiso a nadie que no sea el dueño» (`aclexplode(coalesce(relacl, acldefault('r', relowner)))`); nada más cambia. El 22/10 a las 19:1x la `20261022170800` se negó en producción con ese preflight y la transacción se deshizo (7 de 8 de la tanda A aplicadas). Lección: anclar ACL por «quién tiene qué», no por `relacl IS NULL`.
 
@@ -788,6 +794,8 @@ demás): es redundante a propósito, para que el código diga lo que cubre; (9) 
 
 ## 20261022170700 — El teléfono alternativo de un CLIENTE no puede ser el número de un lead que ya existe (pieza `private.juicio_lead_vivo_por_numero`; disparador `private.trg_leads_disponibilidad_atomica`)
 
+**APLICADA EN PRODUCCIÓN EL 22/10/2026 (19:14 Lima, Miguel con `!`, `supabase db query --linked --file` + `supabase migration repair --status applied`) Y REGISTRADA.** Huellas vivas comprobadas por el Director tras aplicar (solo lectura) = las del laboratorio y del postflight; advisors de producción sin alertas nuevas tras la tanda A. App del grupo C publicada a las 19:42 (`a7a2521d`, `build-20261023T003505007Z`).
+
 **INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170700_crm_alternativo_cliente_no_toma_lead.sql`** (bloque 2.13 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261009235800_crm_alternativo_cliente_no_toma_lead.sql`, copia `fase2`, sha256 del origen `e41ef86a2419…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
 
 **Nota de integración (22/10/2026, auditor C5 P3-3):** la cabecera da por hecho el 2.16; no está en esta tanda (ver 20261022170600). El oráculo del kit re-asentó su C4 al núcleo del alta que deja el 2.11, que ahora va delante (H-C3-3).
@@ -954,6 +962,8 @@ una llamada construida en tiempo de ejecución no se ve.
 
 ## 20261022170600 — Reactivar una ficha retirada o un lead de la base también reconoce al cliente (pieza `private.juicio_cliente_conservado`; núcleos `private.alta_reactivar_retirado` y `private.base_gestion_reactivar_capital_core`)
 
+**APLICADA EN PRODUCCIÓN EL 22/10/2026 (19:14 Lima, Miguel con `!`, `supabase db query --linked --file` + `supabase migration repair --status applied`) Y REGISTRADA.** Huellas vivas comprobadas por el Director tras aplicar (solo lectura) = las del laboratorio y del postflight; advisors de producción sin alertas nuevas tras la tanda A. App del grupo C publicada a las 19:42 (`a7a2521d`, `build-20261023T003505007Z`).
+
 **INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170600_crm_reactivar_reconoce_cliente.sql`** (bloque 2.11 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261009235500_crm_reactivar_reconoce_cliente.sql`, copia `fase2b`, sha256 del origen `89603c6290ac…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
 
 **Nota de integración (22/10/2026, auditor C5 P3-3/P3-4):** la cabecera (l.77) cita el censo `30|bc19c770…` pero el código usa `3cefe40e…` (l.242); vale el código. El 2.16 (D-62) NO va en esta tanda: sin él, `reabrir_lead_fn`, `tomar_lead_libre`, `rescatar_descartes`, `deshacer_descarte` y el PATCH de `etapa` siguen sin la regla del cliente, y la pieza `private.juicio_cliente_conservado` queda a la espera de su reutilización.
@@ -1057,6 +1067,8 @@ mientras espera; con el mutante M17 (juzga antes y toma los candados después) S
 
 
 ## 20261022170500 — La carga de bases también mira el teléfono alternativo de los clientes (envoltorio `private.bases_carga_contacto_existente`)
+
+**APLICADA EN PRODUCCIÓN EL 22/10/2026 (19:13 Lima, Miguel con `!`, `supabase db query --linked --file` + `supabase migration repair --status applied`) Y REGISTRADA.** Huellas vivas comprobadas por el Director tras aplicar (solo lectura) = las del laboratorio y del postflight; advisors de producción sin alertas nuevas tras la tanda A. App del grupo C publicada a las 19:42 (`a7a2521d`, `build-20261023T003505007Z`).
 
 **INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170500_crm_bases_alternativo_cliente.sql`** (bloque 2.9 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261009235000_crm_bases_alternativo_cliente.sql`, copia `fase2b`, sha256 del origen `42b769c2fc9e…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
 
@@ -1168,6 +1180,8 @@ estadísticas representativos (límite de 8 s). **Opcional (OK de Miguel, con F4
 
 
 ## 20261022170400 — El cliente ya convertido tampoco se duplica al editar un lead, por el INSERT con sesión ni por su teléfono alternativo (pieza `private.juicio_cliente_convertido`; núcleo `private.alta_reactivar_retirado`; disparador `private.trg_leads_disponibilidad_atomica`)
+
+**APLICADA EN PRODUCCIÓN EL 22/10/2026 (19:12 Lima, Miguel con `!`, `supabase db query --linked --file` + `supabase migration repair --status applied`) Y REGISTRADA.** Huellas vivas comprobadas por el Director tras aplicar (solo lectura) = las del laboratorio y del postflight; advisors de producción sin alertas nuevas tras la tanda A. App del grupo C publicada a las 19:42 (`a7a2521d`, `build-20261023T003505007Z`).
 
 **INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170400_crm_cliente_no_se_duplica_al_editar.sql`** (bloque 2.8 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261009150000_crm_cliente_no_se_duplica_al_editar.sql`, copia `fase2`, sha256 del origen `0ec338bb9090…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
 
@@ -1392,6 +1406,8 @@ transacción de la migración ~1,9 s y el candado de `CREATE TRIGGER` ~0,91–0,
 
 ## 20261022170300 — El cliente ya convertido también se reconoce por teléfono y por DNI (núcleo `private.alta_reactivar_retirado`; regla 1b)
 
+**APLICADA EN PRODUCCIÓN EL 22/10/2026 (19:11 Lima, Miguel con `!`, `supabase db query --linked --file` + `supabase migration repair --status applied`) Y REGISTRADA.** Huellas vivas comprobadas por el Director tras aplicar (solo lectura) = las del laboratorio y del postflight; advisors de producción sin alertas nuevas tras la tanda A. App del grupo C publicada a las 19:42 (`a7a2521d`, `build-20261023T003505007Z`).
+
 **INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170300_crm_cliente_por_telefono.sql`** (bloque 2.7 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261008174055_crm_cliente_por_telefono.sql`, copia `fase2`, sha256 del origen `ab9b2ae81e9d…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
 
 **PENDIENTE DE BRANCH. Verificada solo en el laboratorio local (08/10/2026, rondas 1 a 4); no aplicada en ninguna base real.**
@@ -1534,6 +1550,8 @@ sustituidas). La huella del núcleo no cambió en las rondas 3 y 4 (`f74838f2…
 
 
 ## 20261022170200 — Registrar a una persona con lead retirado reactiva su ficha (`crm.crear_lead_si_disponible`, núcleo `private.alta_reactivar_retirado` + pieza `private.alta_reactivar_bloqueo_conservado`)
+
+**APLICADA EN PRODUCCIÓN EL 22/10/2026 (19:07 Lima, Miguel con `!`, `supabase db query --linked --file` + `supabase migration repair --status applied`) Y REGISTRADA.** Huellas vivas comprobadas por el Director tras aplicar (solo lectura) = las del laboratorio y del postflight; advisors de producción sin alertas nuevas tras la tanda A. App del grupo C publicada a las 19:42 (`a7a2521d`, `build-20261023T003505007Z`).
 
 **INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170200_crm_alta_reactiva_lead_retirado.sql`** (bloque 2.4 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261007210152_crm_alta_reactiva_lead_retirado.sql`, copia `fase2`, sha256 del origen `3dfa47efc4d3…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
 
@@ -1724,6 +1742,8 @@ ronda 2: `bf94eb55c234885e33b8436b44f884dd2e7c1d9aceee4a850fe6defcbe65d366`; ron
 
 
 ## 20261022170100 — «No asistió» espera a la hora de la cita (`private.trg_tareas_before_update`)
+
+**APLICADA EN PRODUCCIÓN EL 22/10/2026 (19:06 Lima, Miguel con `!`, `supabase db query --linked --file` + `supabase migration repair --status applied`) Y REGISTRADA.** Huellas vivas comprobadas por el Director tras aplicar (solo lectura) = las del laboratorio y del postflight; advisors de producción sin alertas nuevas tras la tanda A. App del grupo C publicada a las 19:42 (`a7a2521d`, `build-20261023T003505007Z`).
 
 **INTEGRADA EN C2 DEL GRUPO C (22/10/2026) con fecha definitiva `20261022170100_crm_no_asistio_espera_hora.sql`** (bloque 2.1 del plan «Mantenibilidad y consistencia del backend CRM»; fecha de trabajo `20261006152203_crm_no_asistio_espera_hora.sql`, copia `fase2`, sha256 del origen `9a3d096c099c…`; solo cambia la primera línea de cabecera). Re-asentada contra producción del 22/10/2026 (RESELLE C2: solo huellas; ensayo en seco encadenado de los 9 bloques con rollback = SECO OK y huella de la base IGUAL, repetido por el Director con las copias renombradas, 16:37). **Pendiente de branch y de producción.** Los párrafos siguientes son la sección original del bloque.
 
