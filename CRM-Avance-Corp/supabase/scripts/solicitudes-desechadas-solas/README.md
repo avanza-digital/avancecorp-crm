@@ -1,6 +1,6 @@
 # Ensayo de «el CRM cancela solo las solicitudes de inversión que ya no corresponden»
 
-Verifica la migración `20261022171000_crm_solicitudes_desechadas_solas.sql` (bloque 2.15 del plan del backend; orden de Miguel
+Verifica la migración `20261022171001_crm_solicitudes_desechadas_solas.sql` (bloque 2.15 del plan del backend; orden de Miguel
 D-58, decisiones D-59 y D-63, plan corto aprobado D-66) **en el banco Docker local (el laboratorio) y sin escribir nada**. Este
 ensayo **no se corre contra producción**: siembra solicitudes de inversión con los actores reales del banco, hace un alta REAL de
 contrato por la puerta viva del CRM (`crm.crear_contrato_con_cuenta_pdf_v2`) como un vendedor, corre la tarea nocturna y consulta
@@ -135,7 +135,7 @@ node supabase/scripts/solicitudes-desechadas-solas/armar-ensayo.mjs --trinquetes
 node supabase/scripts/solicitudes-desechadas-solas/armar-ensayo.mjs --trinquetes --sin-migracion > "$SALIDAS/trinquetes-sin.sql"
 ```
 
-Resultados medidos: ver la sección del bloque en `supabase/migrations/MIGRACIONES.md` (`20261022171000`).
+Resultados medidos: ver la sección del bloque en `supabase/migrations/MIGRACIONES.md` (`20261022171001`).
 
 El ensayo se arma para una base que **todavía no tiene** esta migración: el preflight exige las dos puertas con su huella auditada
 (alta v2 `505598d6…`/`d0b33d8f…`; consulta `0427b888…`/`1c5867ea…`) y nada de lo nuevo presente.

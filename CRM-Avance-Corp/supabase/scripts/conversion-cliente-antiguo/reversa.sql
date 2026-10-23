@@ -1,4 +1,4 @@
--- REVERSA de 20261022170800_crm_conversion_cliente_antiguo_misma_ficha.sql («Convertir a un cliente antiguo sin ficha de persona usa su
+-- REVERSA de 20261022170801_crm_conversion_cliente_antiguo_misma_ficha.sql («Convertir a un cliente antiguo sin ficha de persona usa su
 -- misma ficha», bloque 2.10). GENERADA desde la migración (sus anclas, sus frases y sus listas, byte a byte; generador en
 -- fase-2/bloque-2.10/salidas/ronda6/trabajo/generadores/generar-reversa.py): no editar a mano sin volver a ensayarla.
 --

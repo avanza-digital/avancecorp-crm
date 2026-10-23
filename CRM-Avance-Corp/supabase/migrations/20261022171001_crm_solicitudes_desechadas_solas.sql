@@ -1,4 +1,5 @@
--- 20261022171000_crm_solicitudes_desechadas_solas.sql — bloque 2.15 del plan «Mantenibilidad y consistencia del backend CRM» (fecha de trabajo 20261010000200_crm_solicitudes_desechadas_solas.sql; integrado el 2026/10/22, C2 del grupo C)
+-- 20261022171001_crm_solicitudes_desechadas_solas.sql — bloque 2.15 del plan «Mantenibilidad y consistencia del backend CRM» (fecha de trabajo 20261010000200_crm_solicitudes_desechadas_solas.sql; integrado el 2026/10/22, C2 del grupo C)
+-- RESELLE C2b (22/10/2026): sustituye a 20261022171000 (nunca aplicada: su preflight 0.3 exigía relacl NULL en crm.inversion_solicitudes; producción tiene la ACL del dueño materializada, {postgres=arwdDxtm/postgres}, sin permisos a nadie más). Ahora se exige «ningún permiso a nadie que no sea el dueño». Nada más cambia.
 -- EL CRM CANCELA SOLO LAS SOLICITUDES DE INVERSIÓN QUE YA NO CORRESPONDEN — bloque 2.15 del plan de mantenibilidad del backend
 -- (AVANCE-BACKEND-0810-F2). Orden de Miguel D-58 («hagamos que el sistema pueda solo desechar solicitudes que ya no corresponden»,
 -- 09/10/2026), con D-59 (los dos casos), D-63 (30 días) y el plan corto aprobado en D-66; decisiones de la ronda 2 (10/10/2026):
@@ -207,7 +208,9 @@ $a$)) <> 2 then
   end if;
 
   -- 0.3 La forma de las tablas de las que depende la regla.
-  if (select c.relowner::regrole::text || '|' || c.relrowsecurity::text || '|' || coalesce(c.relacl::text, '-')
+  if (select c.relowner::regrole::text || '|' || c.relrowsecurity::text || '|'
+              || coalesce((select string_agg(acl.grantee::regrole::text || '=' || acl.privilege_type, ',' order by acl.grantee::regrole::text, acl.privilege_type)
+                             from aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) acl where acl.grantee <> c.relowner), '-')
         from pg_class c where c.oid = 'crm.inversion_solicitudes'::regclass) is distinct from 'postgres|true|-' then
     raise exception 'PREFLIGHT solicitudes_desechadas_solas: crm.inversion_solicitudes no tiene la ficha auditada (dueño postgres, RLS activa, sin grants)';
   end if;
