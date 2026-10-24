@@ -1,6 +1,7 @@
 # P-0XX — el USD pendiente deja de congelar el capital del mes
 
-Estado: implementado y verificado en bancos aislados. **Sin aplicar en producción ni publicar la app.**
+Estado: **publicado y verificado el 24/10/2026**. [Acta de publicación y evidencia productiva](capital-pendientes-20261023/PUBLICACION.md).
+La preparación y pruebas iniciales que siguen se conservan como historial.
 Base Git: `avancecorp/main`, `9c11fc75`. Trabajo en clon independiente; los repositorios originales conservan su trabajo local.
 
 ## Cambio
