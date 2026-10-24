@@ -95,7 +95,7 @@ describe('ticket y CSV de Citas con valores guardados por operación', () => {
     expect(within(screen.getByRole('table')).getByRole('row', { name: /Persona sintética 2/ }).textContent).toBe(ticket)
     fireEvent.click(screen.getByRole('button', { name: 'Cómo se calcula el avance mensual' }))
     expect(screen.getByRole('dialog')).toHaveTextContent('suma los equivalentes en soles guardados por operación')
-    expect(screen.getByRole('dialog')).toHaveTextContent('El corte incluye las operaciones valoradas hasta hoy')
+    expect(screen.getByRole('dialog')).toHaveTextContent('El corte incluye las operaciones valoradas hasta la fecha indicada')
     expect(screen.getByRole('dialog')).toHaveTextContent('se muestran aparte y no entran al ticket ni a la proyección')
     expect(screen.getByRole('dialog')).not.toHaveTextContent('se conserva el último corte completo')
     expect(screen.getByRole('dialog')).not.toHaveTextContent('se puede reintentar')
@@ -112,5 +112,12 @@ describe('ticket y CSV de Citas con valores guardados por operación', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Resultados' }))
     expect(screen.getByRole('heading', { name: 'Avance mensual por analista' })).toBeVisible()
     expect(screen.getByText(/Capital en soles con TC fijado por venta/)).toBeVisible()
+    if (payload === sinCorte) {
+      fireEvent.click(screen.getByRole('button', { name: 'Cómo se calcula el avance mensual' }))
+      expect(screen.getByRole('dialog')).toHaveTextContent('aún no hay un corte publicado')
+      expect(screen.getByRole('dialog')).toHaveTextContent('quedan pendientes de la primera publicación')
+      expect(screen.getByRole('dialog')).not.toHaveTextContent('suma los equivalentes en soles guardados')
+      expect(screen.getByRole('dialog')).not.toHaveTextContent('se puede reintentar')
+    }
   })
 })
