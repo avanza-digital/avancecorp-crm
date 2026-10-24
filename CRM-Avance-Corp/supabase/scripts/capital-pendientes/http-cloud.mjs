@@ -1,20 +1,23 @@
 // Sesiones Auth y PostgREST reales, exclusivamente en la rama temporal autorizada.
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 
-const ref = 'buacdmufspxktdfdllte'
+const ref = 'yzujybpofdjgsuritmky'
 assert.ok(process.env.CRM_CAPITAL_BRANCH_CREDENTIALS, 'Falta el archivo privado de la rama')
 const cred = JSON.parse(readFileSync(process.env.CRM_CAPITAL_BRANCH_CREDENTIALS, 'utf8'))
 assert.equal(cred.SUPABASE_URL, `https://${ref}.supabase.co`)
 const destino = new URL(cred.POSTGRES_URL)
 assert.ok(destino.hostname.includes(ref) || destino.username.endsWith(`.${ref}`))
 assert.ok(!destino.href.includes('dctqcbznekcyxhjujuci'))
+assert.ok(process.env.CRM_CAPITAL_SSL_ROOT_CERT, 'Falta el certificado CA del proveedor')
+const certificadoCA = realpathSync(process.env.CRM_CAPITAL_SSL_ROOT_CERT)
+assert.ok(readFileSync(certificadoCA).length, 'El certificado CA está vacío')
 const entorno = { ...process.env }
 for (const clave of Object.keys(entorno).filter(c => c.startsWith('PG'))) delete entorno[clave]
 Object.assign(entorno, { PGHOST: destino.hostname, PGPORT: destino.port || '5432',
   PGDATABASE: destino.pathname.slice(1), PGUSER: decodeURIComponent(destino.username),
-  PGPASSWORD: decodeURIComponent(destino.password), PGSSLMODE: 'require',
+  PGPASSWORD: decodeURIComponent(destino.password), PGSSLMODE: 'verify-full', PGSSLROOTCERT: certificadoCA,
   PGCONNECT_TIMEOUT: '10', PGAPPNAME: 'capital_pendientes_http' })
 function sql(texto) {
   const r = spawnSync('/opt/homebrew/opt/postgresql@17/bin/psql', ['-XqAt', '-v', 'ON_ERROR_STOP=1', '-f', '-'],

@@ -1,12 +1,12 @@
 // Banco propio; jamás acepta una conexión productiva ni reutiliza una base con datos.
 import assert from 'node:assert/strict'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 
 const argumentos = new Set(process.argv.slice(2))
 assert.ok([...argumentos].every((a) => ['--local', '--rama', '--fixtures', '--repetir-tras-http'].includes(a)))
 assert.notEqual(argumentos.has('--local'), argumentos.has('--rama'), 'Elige --local o --rama')
-const rama = 'buacdmufspxktdfdllte'
+const rama = 'yzujybpofdjgsuritmky'
 const local = argumentos.has('--local')
 const entorno = { ...process.env }
 for (const clave of Object.keys(entorno).filter((c) => c.startsWith('PG'))) delete entorno[clave]
@@ -19,9 +19,13 @@ if (!local) {
   const destino = new URL(credenciales.POSTGRES_URL)
   assert.ok(destino.hostname.includes(rama) || destino.username.endsWith(`.${rama}`))
   assert.ok(!destino.href.includes('dctqcbznekcyxhjujuci'))
+  assert.ok(process.env.CRM_CAPITAL_SSL_ROOT_CERT, 'Falta el certificado CA del proveedor')
+  const certificadoCA = realpathSync(process.env.CRM_CAPITAL_SSL_ROOT_CERT)
+  assert.ok(readFileSync(certificadoCA).length, 'El certificado CA está vacío')
   Object.assign(entorno, { PGHOST: destino.hostname, PGPORT: destino.port || '5432', PGDATABASE: destino.pathname.slice(1),
     PGUSER: decodeURIComponent(destino.username), PGPASSWORD: decodeURIComponent(destino.password),
-    PGSSLMODE: 'require', PGCONNECT_TIMEOUT: '10', PGAPPNAME: 'capital_pendientes_pruebas' })
+    PGSSLMODE: 'verify-full', PGSSLROOTCERT: certificadoCA,
+    PGCONNECT_TIMEOUT: '10', PGAPPNAME: 'capital_pendientes_pruebas' })
   comando = '/opt/homebrew/opt/postgresql@17/bin/psql'
   args = ['-XqAt']
 }
