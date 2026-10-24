@@ -52,10 +52,10 @@ test('Citas distingue el último corte pendiente de la ausencia del primer corte
   await page.getByRole('button', { name: 'Citas', exact: true }).click()
   const fila = page.getByRole('table', { name: /Leads, citas, entrevistas, depósito/ }).getByRole('row', { name: /Persona sintética 2/ })
   await expect(fila.getByRole('cell').nth(5)).toHaveText('S/ 70,000')
-  await expect(page.getByText(/2 operaciones por incorporar/)).toBeVisible()
+  await expect(page.getByText(/US\$ 22,000 pendiente de tipo de cambio/)).toBeVisible()
   primera = true
   await page.reload()
-  await expect(page.getByText('El ticket y la proyección están pendientes del primer corte completo de valoración.')).toBeVisible()
-  await expect(page.getByText(/Aún no hay un corte completo/)).toBeVisible()
+  await expect(page.getByText('El ticket y la proyección están pendientes de la primera publicación de capital valorado.')).toBeVisible()
+  await expect(page.getByText(/Aún no se ha publicado un corte/)).toBeVisible()
   await expect(page.getByRole('table', { name: /Leads, citas, entrevistas, depósito/ })).not.toContainText('S/ 70,000')
 })

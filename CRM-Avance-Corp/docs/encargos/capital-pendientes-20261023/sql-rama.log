@@ -1,0 +1,27 @@
+psql:<stdin>:81: NOTICE:  PASS: precondición: el PEN de las 10 ya tenía una foto publicada
+psql:<stdin>:103: NOTICE:  PASS: TEST 1: corte hasta hoy con ambos PEN (6000), sin USD en base, producción ni facturación
+psql:<stdin>:120: NOTICE:  PASS: metas del analista cuentan solo las dos ventas valoradas
+psql:<stdin>:120: NOTICE:  PASS: ventas del analista: USD pendiente con fuente, monto original y fechas; total PEN independiente
+psql:<stdin>:120: NOTICE:  PASS: la nueva puerta conserva íntegro el detalle y la autorización v1
+psql:<stdin>:140: NOTICE:  PASS: TEST 5: total de lista independiente de página y cuadro diario concilian 6000 PEN
+psql:<stdin>:149: NOTICE:  PASS: TEST 4: con pendiente, repetir sin cambios conserva id, revisión y número de fotos
+psql:<stdin>:163: NOTICE:  PASS: precondición del cierre: corte al último día del mes con USD aún pendiente
+psql:<stdin>:174: NOTICE:  PASS: TEST 3: cierre real rechazado por valoración pendiente
+psql:<stdin>:178: NOTICE:  PASS: el rechazo conserva abierto el mes y no crea sello de capital
+psql:<stdin>:192: NOTICE:  PASS: RLS: el detalle propio no incluye los 7000 USD ajenos
+psql:<stdin>:197: NOTICE:  PASS: RLS vendedor ajeno rechazado
+psql:<stdin>:202: NOTICE:  PASS: RLS: Facturación limita también los pendientes al equipo autorizado
+psql:<stdin>:207: NOTICE:  PASS: RLS supervisor ajeno rechazado
+psql:<stdin>:213: NOTICE:  PASS: RLS: gerencia consulta cada analista sin mezclar sus pendientes
+psql:<stdin>:229: NOTICE:  PASS: sin meta ni producción valorada, el propio analista conserva su aviso de USD pendiente
+psql:<stdin>:237: NOTICE:  PASS: sin meta ni capital valorado, el detalle conserva la autorización v1; el aviso está en cumplimiento
+psql:<stdin>:254: NOTICE:  PASS: TEST 2: al llegar TC, revisión nueva con tres ventas, USD a 68000 y total 74000 PEN
+psql:<stdin>:259: NOTICE:  PASS: TEST 2: ventas del analista y metas quedan sin pendientes
+psql:<stdin>:264: NOTICE:  PASS: consultar el corte anterior tras TC distingue una venta ya valorada por incorporar de un pendiente
+psql:<stdin>:270: NOTICE:  PASS: TEST 5: total de lista independiente de página y cuadro diario concilian 74000 PEN
+psql:<stdin>:276: NOTICE:  PASS: TEST 4: sin pendientes, repetir sin cambios tampoco publica revisión
+psql:<stdin>:281: NOTICE:  PASS: RLS: puerta autenticada mínima; publicador y foto global siguen privados
+psql:<stdin>:297: NOTICE:  PASS: mes sellado con cobertura completa: detalle conserva 74000 PEN y ningún pendiente
+psql:<stdin>:300: NOTICE:  PASS: la cobertura sellada coincide con metas salvo generado_en, metadata opcional del contrato
+psql:<stdin>:304: NOTICE:  PASS: el publicador sigue devolviendo el mismo sello inmutable
+PASS: 26 aserciones; rollback completo; destino buacdmufspxktdfdllte

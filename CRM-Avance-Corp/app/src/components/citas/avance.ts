@@ -119,7 +119,7 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
       : capital.reduce((n, k) => n + Math.round(k.equivalente_pen! * 100), 0) / 100
       : faltaTipoCambio ? null : unificado!.total
     const ticket = monto !== null && capitalPerfiles.size ? monto / capitalPerfiles.size : null
-    const motivoTicket = capitalPendiente ? 'Pendiente del primer corte completo de valoración'
+    const motivoTicket = capitalPendiente ? 'Pendiente de la primera publicación de capital valorado'
       : faltaTipoCambio ? 'Falta el tipo de cambio para incluir dólares'
       : ticket === null ? 'Sin capital cerrado en el mes' : null
     const tasaObservada = resultado.length ? visitas.length / resultado.length : null

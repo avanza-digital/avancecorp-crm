@@ -1,0 +1,49 @@
+--- publicador-base-629ec2c6.sql
++++ publicador-candidato.sql
+@@ -2,7 +2,7 @@
+ declare
+   v_ini timestamptz; v_fin timestamptz; v_hasta date; v_corte date; v_meta uuid; v_revision integer;
+   v_ultimo crm.capital_cortes_valorados%rowtype; v_sellado uuid; v_id uuid;
+-  v_base jsonb; v_produccion jsonb; v_facturacion jsonb; v_metas jsonb; v_personas jsonb; v_huella text; v_completo boolean;
++  v_base jsonb; v_produccion jsonb; v_facturacion jsonb; v_metas jsonb; v_personas jsonb; v_huella text;
+ begin
+   if p_periodo is null or p_periodo<>date_trunc('month',p_periodo)::date
+     or p_periodo<(select vigente_desde from crm.capital_valoracion_politica where id) then
+@@ -16,20 +16,16 @@
+   if v_hasta<p_periodo then return v_ultimo.id; end if;
+   v_ini:=p_periodo::timestamp at time zone 'America/Lima';
+   v_fin:=(v_hasta+1)::timestamp at time zone 'America/Lima';
+-  select least(v_hasta,coalesce(min((b.fecha at time zone 'America/Lima')::date)-1,v_hasta))
+-    into v_corte
+-  from private.capital_operaciones_base(v_ini,v_fin) b
+-  join private.capital_valoraciones_actuales(v_ini,v_fin) a using(fuente,fuente_id)
+-  where a.valoracion_id is null;
+-  if v_corte<p_periodo or (v_ultimo.id is not null and v_corte<v_ultimo.corte) then return v_ultimo.id; end if;
+-  v_fin:=(v_corte+1)::timestamp at time zone 'America/Lima';
++  -- La falta de TC de una operación no detiene las ventas ya valoradas.
++  v_corte:=v_hasta;
+   select mp.id,mp.revision into v_meta,v_revision from crm.meta_periodos mp
+     where mp.periodo=p_periodo order by mp.revision desc limit 1;
+   -- Una sola sentencia comparte snapshot para las cuatro proyecciones.
+   with hechos as materialized(select b.*,a.valoracion_id,a.equivalente_pen,a.tasa,a.fecha_tc,a.politica_tc,
+       a.revision as revision_valoracion
+     from private.capital_operaciones_base(v_ini,v_fin) b
+-    join private.capital_valoraciones_actuales(v_ini,v_fin) a using(fuente,fuente_id)),
++    join private.capital_valoraciones_actuales(v_ini,v_fin) a using(fuente,fuente_id)
++    where a.valoracion_id is not null),
+   operaciones as materialized(select p.*,h.valoracion_id,h.equivalente_pen,h.tasa,h.fecha_tc,h.politica_tc
+     from private.produccion_operaciones(v_ini,v_fin,v_meta) p join hechos h using(fuente,fuente_id)),
+   facturas as materialized(select f.*,h.fuente,h.fuente_id,h.valoracion_id,h.equivalente_pen,h.tasa,
+@@ -56,10 +52,8 @@
+       left join crm.equipo e on e.perfil_id=pe.id
+       left join crm.equipo es on es.perfil_id=e.supervisor_id
+       left join public.perfiles pf on pf.id=pe.id
+-      left join public.perfiles ps on ps.id=coalesce(m.supervisor_id,e.supervisor_id)),
+-    (select coalesce(bool_and(h.valoracion_id is not null),true) from hechos h)
+-    into v_base,v_produccion,v_facturacion,v_metas,v_personas,v_completo;
+-  if not v_completo then return v_ultimo.id; end if;
++      left join public.perfiles ps on ps.id=coalesce(m.supervisor_id,e.supervisor_id))
++    into v_base,v_produccion,v_facturacion,v_metas,v_personas;
+   v_huella:=md5(jsonb_build_array(v_corte,v_meta,v_base,v_produccion,v_facturacion,v_metas,v_personas)::text);
+   if v_ultimo.huella is not distinct from v_huella then return v_ultimo.id; end if;
+   insert into crm.capital_cortes_valorados(periodo,corte,revision,meta_periodo_id,meta_revision,

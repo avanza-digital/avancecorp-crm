@@ -2,6 +2,7 @@ import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetTitle } from '@/components/ui/sheet'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
+import { CoberturaCapitalAviso } from '@/components/common/cobertura-capital'
 import { totalEnSoles } from '@/lib/capital-unificado'
 import { money, numero, porcentajeConversionCanonica } from '@/lib/format'
 import type { RankingCapitalTotalVendedores } from '@/lib/conversion-vendedores'
@@ -168,6 +169,7 @@ function OperacionesValoradas({ datos, total, cargando, reintentar }: {
   return (
     <section aria-label="Ventas con tipo de cambio fijado" className="space-y-3">
       <h3 className="text-sm font-bold">Ventas del corte {fechaCorteCapital(datos.corte)}</h3>
+      {datos.cobertura && <CoberturaCapitalAviso cobertura={datos.cobertura} />}
       <ul className="space-y-3">{datos.operaciones.map((operacion) => (
         <li key={`${operacion.fuente}:${operacion.fuente_id}`} className="space-y-2 rounded-xl border p-3 text-xs">
           <div className="flex flex-wrap justify-between gap-2"><strong>{operacion.numero}</strong><strong>{money(operacion.equivalente_pen, 'PEN')}</strong></div>

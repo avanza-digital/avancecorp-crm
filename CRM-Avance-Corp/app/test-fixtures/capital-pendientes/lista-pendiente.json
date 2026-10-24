@@ -1,0 +1,65 @@
+{
+  "filas": [
+    {
+      "n": 1,
+      "tasa": 1,
+      "tipo": "contrato_nuevo",
+      "fecha": "2026-10-23",
+      "monto": 1000,
+      "moneda": "PEN",
+      "anulado": false,
+      "visible": false,
+      "fecha_tc": null,
+      "analista_id": "f3000000-0000-4000-8000-000000000002",
+      "politica_tc": null,
+      "supervisor_id": "f3000000-0000-4000-8000-000000000001",
+      "cliente_nombre": "Cliente de otro equipo",
+      "analista_nombre": "Persona sintética 2",
+      "equivalente_pen": 1000,
+      "fecha_comercial": "2026-10-23",
+      "supervisor_nombre": "Persona sintética 1"
+    },
+    {
+      "n": 2,
+      "tasa": 1,
+      "tipo": "contrato_nuevo",
+      "fecha": "2026-10-23",
+      "monto": 5000,
+      "moneda": "PEN",
+      "anulado": false,
+      "visible": false,
+      "fecha_tc": null,
+      "analista_id": "f3000000-0000-4000-8000-000000000002",
+      "politica_tc": null,
+      "supervisor_id": "f3000000-0000-4000-8000-000000000001",
+      "cliente_nombre": "Cliente de otro equipo",
+      "analista_nombre": "Persona sintética 2",
+      "equivalente_pen": 5000,
+      "fecha_comercial": "2026-10-23",
+      "supervisor_nombre": "Persona sintética 1"
+    }
+  ],
+  "total": 2,
+  "cortes": {
+    "2026-10-01": "802046e5-491d-4a56-85d9-55b3b174947c"
+  },
+  "pagina": 1,
+  "tamano": 25,
+  "totales": [
+    {
+      "monto": 6000,
+      "moneda": "PEN",
+      "operaciones": 2
+    }
+  ],
+  "version": 3,
+  "totales_por_mes": [
+    {
+      "mes": "2026-10-01",
+      "monto": 6000,
+      "moneda": "PEN",
+      "operaciones": 2,
+      "equivalente_pen": 6000
+    }
+  ]
+}

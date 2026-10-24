@@ -890,7 +890,7 @@ export function RankingVendedoresPanel({
           <p className="mt-2 max-w-4xl">{tipo === 'conversion' ? formulaConversion
             : tipo === 'capital-total'
               ? valoracionCapital
-                ? 'El capital suma los equivalentes guardados de cada venta. Una cotización posterior no los modifica. Las ventas pendientes no reciben puesto; se conserva el último corte completo. Los empates se resuelven por capital confirmado y después por nombre.'
+                ? 'El capital suma las ventas valoradas hasta la fecha del corte. Una cotización posterior no modifica los equivalentes ya fijados. Las ventas pendientes se muestran aparte y se incorporan cuando reciben su valoración. Los empates se resuelven por capital confirmado y después por nombre.'
                 : 'Capital y meta usan el mismo tipo de cambio. Sin TC, US$ se mantiene aparte. Los empates de cumplimiento se resuelven por capital confirmado y después por nombre. El puesto no indica por sí solo que se alcanzó la meta.'
               : 'El lote reúne los leads recibidos en el mes y sigue madurando hasta hoy. No equivale a los cierres logrados durante el mes. Sólo se muestra cuando los datos están verificados.'}</p>
         </details>

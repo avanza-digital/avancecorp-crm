@@ -1,0 +1,47 @@
+{
+  "corte": "2026-10-23",
+  "filas": [
+    {
+      "dia": "2026-10-23",
+      "tipo": "contrato_nuevo",
+      "moneda": "PEN",
+      "capital": 6000,
+      "analista_id": "f3000000-0000-4000-8000-000000000002",
+      "operaciones": 2,
+      "supervisor_id": "f3000000-0000-4000-8000-000000000001",
+      "analista_nombre": "Persona sintética 2",
+      "supervisor_nombre": "Persona sintética 1",
+      "capital_equivalente_pen": 6000
+    }
+  ],
+  "version": 2,
+  "corte_id": "802046e5-491d-4a56-85d9-55b3b174947c",
+  "cobertura": {
+    "corte": "2026-10-23",
+    "estado": "pendiente",
+    "pendientes": {
+      "pen": 0,
+      "usd": 20000,
+      "cantidad": 1
+    },
+    "generado_en": "2026-10-24T03:29:58.232773+00:00",
+    "por_incorporar": {
+      "pen": 0,
+      "usd": 20000,
+      "cantidad": 1
+    },
+    "ventas_pendientes": [
+      {
+        "monto": 20000,
+        "fuente": "contrato",
+        "moneda": "USD",
+        "motivo": "cotizacion_pendiente",
+        "fuente_id": "f3000000-0000-4000-8000-000000000202",
+        "fecha_comercial": "2026-10-23",
+        "fecha_imputacion": "2026-10-23"
+      }
+    ]
+  },
+  "generado_en": "2026-10-24T03:29:58.232773+00:00",
+  "valoracion_activa": true
+}

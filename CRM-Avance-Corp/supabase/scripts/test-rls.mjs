@@ -9,6 +9,12 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
+// Capital parcial: sesiones Auth/PostgREST reales en la rama temporal autorizada.
+if (process.argv.length === 3 && process.argv[2] === '--capital-pendientes-cloud') {
+  await import('./capital-pendientes/http-cloud.mjs');
+  process.exit(0);
+}
+
 // Recorrido: Auth/PostgREST reales sobre una copia desechable del banco local propio.
 if (process.argv.length === 3 && process.argv[2] === '--recorrido-lead') {
   await import('./recorrido-lead/http.mjs');

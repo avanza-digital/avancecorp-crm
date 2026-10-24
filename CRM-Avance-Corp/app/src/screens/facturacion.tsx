@@ -1070,7 +1070,7 @@ export function Facturacion({
         <Input type="date" aria-label="Fecha de consulta" value={ancla} onChange={(e) => { if (e.target.value) setAncla(e.target.value) }} />
         <Button variant="outline" onClick={reintentar}>Actualizar valoraciones</Button>
       </div>
-      {valoraciones.map((valoracion, i) => <Card key={i} className="p-4"><CoberturaCapitalAviso cobertura={valoracion.cobertura} /></Card>)}
+      {valoraciones.map((valoracion, i) => <Card key={i} className="p-4"><CoberturaCapitalAviso cobertura={valoracion.cobertura} />{valoracion.cobertura.pendientes.cantidad > 0 && <p className="mt-2 text-xs text-muted-foreground">Pendientes del mes completo, antes de aplicar los filtros del cuadro.</p>}</Card>)}
     </section>
   )
   return (
@@ -1080,7 +1080,7 @@ export function Facturacion({
       <p role="status" aria-live="polite" className="sr-only">
         {anuncio}
       </p>
-      {valoraciones.map((valoracion) => <Card key={valoracion.corteId ?? 'pendiente'} className="p-4"><CoberturaCapitalAviso cobertura={valoracion.cobertura} /></Card>)}
+      {valoraciones.map((valoracion) => <Card key={valoracion.corteId ?? 'pendiente'} className="p-4"><CoberturaCapitalAviso cobertura={valoracion.cobertura} />{valoracion.cobertura.pendientes.cantidad > 0 && <p className="mt-2 text-xs text-muted-foreground">Pendientes del mes completo, antes de aplicar los filtros del cuadro.</p>}</Card>)}
       {valoracionActiva && cortesLegados.length > 0 && <p className="text-xs">Hasta septiembre se conserva el tipo de cambio mensual: {cortesLegados.map((corte) => `${fechaCorteCapital(corte.fecha)} · S/ ${corte.tasa.toFixed(4)}`).join('; ')}. Desde octubre, cada venta conserva su tasa.</p>}
 
       {esDemo && (

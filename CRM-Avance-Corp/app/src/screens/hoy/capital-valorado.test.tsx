@@ -6,6 +6,8 @@ import abierto from '@/lib/__fixtures__/capital-valorado/activo.json'
 import pendiente from '@/lib/__fixtures__/capital-valorado/pendiente.json'
 import sellado from '@/lib/__fixtures__/capital-valorado/sellado.json'
 import detalleSellado from '@/lib/__fixtures__/capital-valorado/detalle-sellado.json'
+import parcial from '../../../test-fixtures/capital-pendientes/pendiente.json'
+import detalleParcial from '../../../test-fixtures/capital-pendientes/detalle-pendiente.json'
 import { CapitalOperacionesSchema } from '@/lib/capital-valorado'
 import { CumplimientoMetasV2Schema } from '@/lib/objetivos'
 import { clasificarRankingCapitalTotal } from '@/lib/conversion-vendedores'
@@ -31,6 +33,22 @@ function proveedor() {
 }
 
 describe('capital publicado en las pantallas', () => {
+  it('el ranking y el detalle muestran ambos PEN del día mientras el USD espera TC', () => {
+    const datos = v.parse(CumplimientoMetasV2Schema, parcial)
+    const ranking = clasificarRankingCapitalTotal([], {}, {}, null, datos.capital_valoracion!)
+    const { unmount } = render(<RankingVendedoresPanel {...propsCapital(parcial)} />, { wrapper: proveedor() })
+    expect(screen.getAllByText('S/ 6,000').length).toBeGreaterThan(0)
+    expect(screen.getByText(/US\$ 20,000 pendiente de tipo de cambio\. No incluido/)).toBeInTheDocument()
+    unmount()
+    render(<DetalleCapitalRanking abierto fila={ranking.conPuesto[0]!} periodo="octubre 2026" tc={null}
+      cargando={false} error={null} valorado operaciones={v.parse(CapitalOperacionesSchema, detalleParcial)}
+      onCerrar={vi.fn()} onReintentar={vi.fn()} />)
+    const ventas = screen.getByRole('region', { name: 'Ventas con tipo de cambio fijado' })
+    expect(ventas).toHaveTextContent('PENDIENTES-PEN-10')
+    expect(ventas).toHaveTextContent('PENDIENTES-PEN-12')
+    expect(ventas).toHaveTextContent('US$ 20,000 pendiente de tipo de cambio · Contrato · 23/10/2026')
+    expect(ventas).not.toHaveTextContent('S/ 68,000')
+  })
   it('conserva el bloque publicado de ventas propias de supervisores con capital fijo', () => {
     const props = propsCapital()
     const valoracion = { ...props.valoracionCapital!, personas: props.valoracionCapital!.personas.map(p => ({ ...p, en_ranking: false, rol_crm: 'supervisor' })) }
@@ -65,11 +83,11 @@ describe('capital publicado en las pantallas', () => {
     expect(screen.queryByText(/aparte \(sin TC\)/)).not.toBeInTheDocument()
   })
 
-  it('conserva la última fila completa y anuncia la venta pendiente sin asignarle un puesto nuevo', () => {
+  it('muestra el capital valorado y anuncia el USD pendiente por separado', () => {
     render(<RankingVendedoresPanel {...propsCapital(pendiente)} />, { wrapper: proveedor() })
     expect(screen.getAllByText('S/ 74,000')).toHaveLength(2)
     expect(screen.getByText(/1 venta pendiente de valoración/)).toBeInTheDocument()
-    expect(screen.getByText(/Se conserva la última publicación completa/)).toBeInTheDocument()
+    expect(screen.getByText(/US\$ 20,000 pendiente de tipo de cambio\. No incluido/)).toBeInTheDocument()
   })
 
   it('no presenta puestos ni un cero confirmado si aún falta el primer corte', () => {
@@ -77,7 +95,7 @@ describe('capital publicado en las pantallas', () => {
     const valoracion = props.valoracionCapital!
     render(<RankingVendedoresPanel {...props} valoracionCapital={{ ...valoracion, corte_id: null, personas: [],
       cobertura: { ...valoracion.cobertura, corte: null, estado: 'sin_corte' } }} />, { wrapper: proveedor() })
-    expect(screen.getByText(/Aún no hay un corte completo/)).toBeInTheDocument()
+    expect(screen.getByText(/Aún no se ha publicado un corte/)).toBeInTheDocument()
     expect(screen.queryByText('S/ 0')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Ver detalle de/ })).not.toBeInTheDocument()
   })

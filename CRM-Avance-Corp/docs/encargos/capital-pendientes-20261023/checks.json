@@ -1,0 +1,143 @@
+{
+  "sql": {
+    "local": {
+      "assertions": 26,
+      "status": "PASS"
+    },
+    "supabaseBranch": {
+      "ref": "buacdmufspxktdfdllte",
+      "assertions": 26,
+      "status": "PASS",
+      "rollback": true
+    }
+  },
+  "authPostgrest": {
+    "checks": 12,
+    "status": "PASS"
+  },
+  "frontend": {
+    "command": "npm run check",
+    "files": 477,
+    "tests": 7748,
+    "status": "PASS"
+  },
+  "playwright": {
+    "docker": true,
+    "passed": 8,
+    "failed": 0
+  },
+  "types": {
+    "rpc": "crm.capital_operaciones_valoradas_v2_fn",
+    "officialGeneratorMatch": true
+  },
+  "advisors": {
+    "security": {
+      "before": [
+        {
+          "name": "rls_enabled_no_policy",
+          "count": 101
+        },
+        {
+          "name": "anon_security_definer_function_executable",
+          "count": 2
+        },
+        {
+          "name": "authenticated_security_definer_function_executable",
+          "count": 299
+        }
+      ],
+      "after": [
+        {
+          "name": "rls_enabled_no_policy",
+          "count": 101
+        },
+        {
+          "name": "anon_security_definer_function_executable",
+          "count": 2
+        },
+        {
+          "name": "authenticated_security_definer_function_executable",
+          "count": 300
+        }
+      ],
+      "added": [
+        {
+          "group": "authenticated_security_definer_function_executable",
+          "detail": "Function `crm.capital_operaciones_valoradas_v2_fn(p_periodo date, p_vendedor_id uuid, p_corte_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/capital_operaciones_valoradas_v2_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "metadata": {
+            "name": "capital_operaciones_valoradas_v2_fn",
+            "schema": "crm",
+            "language": "plpgsql",
+            "arguments": "p_periodo date, p_vendedor_id uuid, p_corte_id uuid",
+            "security_definer": true
+          }
+        }
+      ]
+    },
+    "performance": {
+      "before": [
+        {
+          "name": "unindexed_foreign_keys",
+          "count": 54
+        },
+        {
+          "name": "auth_rls_initplan",
+          "count": 2
+        },
+        {
+          "name": "no_primary_key",
+          "count": 4
+        },
+        {
+          "name": "unused_index",
+          "count": 293
+        },
+        {
+          "name": "multiple_permissive_policies",
+          "count": 5
+        },
+        {
+          "name": "auth_db_connections_absolute",
+          "count": 1
+        }
+      ],
+      "after": [
+        {
+          "name": "unindexed_foreign_keys",
+          "count": 54
+        },
+        {
+          "name": "auth_rls_initplan",
+          "count": 2
+        },
+        {
+          "name": "no_primary_key",
+          "count": 3
+        },
+        {
+          "name": "unused_index",
+          "count": 275
+        },
+        {
+          "name": "multiple_permissive_policies",
+          "count": 5
+        },
+        {
+          "name": "auth_db_connections_absolute",
+          "count": 1
+        }
+      ],
+      "added": []
+    }
+  },
+  "branch": {
+    "id": "785b841c-7c91-46a6-9217-59a8f8b87c11",
+    "deleted": true,
+    "checkedAt": "2026-10-24 03:55:32 UTC"
+  },
+  "production": {
+    "migrationApplied": false,
+    "frontendPublished": false,
+    "gateRealidad": "NOT RUN: verificacion autorizada exclusivamente en rama"
+  }
+}
