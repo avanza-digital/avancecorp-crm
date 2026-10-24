@@ -1207,11 +1207,18 @@ export async function obtenerCumplimientoMetas(periodo: string, signal?: AbortSi
 export async function obtenerCapitalOperacionesValoradas(
   periodo: string, vendedorId: string, corteId: string, signal?: AbortSignal,
 ): Promise<CapitalOperaciones> {
-  let consulta = cliente().schema('crm').rpc('capital_operaciones_valoradas_fn', {
+  let consulta = cliente().schema('crm').rpc('capital_operaciones_valoradas_v2_fn', {
     p_periodo: periodo, p_vendedor_id: vendedorId, p_corte_id: corteId,
   })
   if (signal) consulta = consulta.abortSignal(signal)
-  const { data, error } = await consulta
+  let { data, error } = await consulta
+  if (error?.code === 'PGRST202') {
+    consulta = cliente().schema('crm').rpc('capital_operaciones_valoradas_fn', {
+      p_periodo: periodo, p_vendedor_id: vendedorId, p_corte_id: corteId,
+    })
+    if (signal) consulta = consulta.abortSignal(signal)
+    ;({ data, error } = await consulta)
+  }
   lanzarAbortSiCorresponde(signal)
   if (error) throw new CrmApiError('No se pudo cargar el detalle de capital valorado.', error.code || 'POSTGREST_ERROR')
   const resultado = v.safeParse(CapitalOperacionesSchema, data)

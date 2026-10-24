@@ -84,7 +84,7 @@ describe('ticket y CSV de Citas con valores guardados por operación', () => {
     </ContextoCitas>)
     expect(cotizacion.hook).toHaveBeenLastCalledWith(false, expect.any(String))
     expect(screen.getByText(/Capital en soles con TC fijado por venta/)).toBeVisible()
-    expect(screen.getByText(/2 operaciones por incorporar/)).toBeVisible()
+    expect(screen.getByText(/US\$ 22,000 pendiente de tipo de cambio/)).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Reintentar tipo de cambio' })).not.toBeInTheDocument()
     const tabla = screen.getByRole('table')
     const ticket = within(tabla).getByRole('row', { name: /Persona sintética 2/ }).textContent

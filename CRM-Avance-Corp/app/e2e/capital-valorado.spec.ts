@@ -49,7 +49,7 @@ test('ranking conserva el corte guardado con otra cotización y muestra su detal
   let mostrarPendiente = false
   await page.route('**/rest/v1/rpc/cumplimiento_metas_v2_fn', (route) => route.fulfill({ headers: CORS, json: mostrarPendiente ? pendiente : abierto }))
   await page.route('**/functions/v1/crm-tipo-cambio', (route) => route.fulfill({ headers: CORS, json: { promedio: tasa, fuente: 'BCRP' } }))
-  await page.route('**/rest/v1/rpc/capital_operaciones_valoradas_fn', async (route) => {
+  await page.route('**/rest/v1/rpc/capital_operaciones_valoradas_v2_fn', async (route) => {
     expect(route.request().postDataJSON().p_corte_id).toBe(abierto.capital_valoracion.corte_id)
     await route.fulfill({ headers: CORS, json: detalle })
   })

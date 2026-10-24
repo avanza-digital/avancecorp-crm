@@ -6071,6 +6071,10 @@ export type Database = {
         Args: { p_corte_id?: string; p_periodo: string; p_vendedor_id: string }
         Returns: Json
       }
+      capital_operaciones_valoradas_v2_fn: {
+        Args: { p_corte_id?: string; p_periodo: string; p_vendedor_id: string }
+        Returns: Json
+      }
       cargar_base_lote: {
         Args: { p_base_id: string; p_filas: Json; p_operacion_id: string }
         Returns: Json

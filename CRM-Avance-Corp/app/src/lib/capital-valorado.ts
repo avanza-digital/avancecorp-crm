@@ -79,6 +79,7 @@ export const CapitalOperacionesSchema = v.variant('valoracion_activa', [
   v.strictObject({
     version: v.literal(1), valoracion_activa: v.literal(true),
     corte_id: UuidSchema, corte: FechaSchema, total_pen: Importe,
+    cobertura: v.optional(CoberturaCapitalSchema),
     operaciones: v.array(v.strictObject({
       fuente: v.picklist(['contrato', 'cierre_externo']), fuente_id: UuidSchema,
       numero: TextoNoVacioSchema, fecha_comercial: FechaSchema, fecha_imputacion: FechaSchema,

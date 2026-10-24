@@ -1,0 +1,65 @@
+{
+  "corte": "2026-10-23",
+  "version": 1,
+  "corte_id": "802046e5-491d-4a56-85d9-55b3b174947c",
+  "cobertura": {
+    "corte": "2026-10-23",
+    "estado": "pendiente",
+    "pendientes": {
+      "pen": 0,
+      "usd": 20000,
+      "cantidad": 1
+    },
+    "generado_en": "2026-10-24T03:29:58.232773+00:00",
+    "por_incorporar": {
+      "pen": 0,
+      "usd": 20000,
+      "cantidad": 1
+    },
+    "ventas_pendientes": [
+      {
+        "monto": 20000,
+        "fuente": "contrato",
+        "moneda": "USD",
+        "motivo": "cotizacion_pendiente",
+        "fuente_id": "f3000000-0000-4000-8000-000000000202",
+        "fecha_comercial": "2026-10-23",
+        "fecha_imputacion": "2026-10-23"
+      }
+    ]
+  },
+  "total_pen": 6000,
+  "operaciones": [
+    {
+      "tasa": 1,
+      "monto": 1000,
+      "fuente": "contrato",
+      "moneda": "PEN",
+      "numero": "PENDIENTES-PEN-10",
+      "fecha_tc": null,
+      "categoria": "nuevo",
+      "fuente_id": "f3000000-0000-4000-8000-000000000201",
+      "politica_tc": null,
+      "valoracion_id": "da54f9ab-b726-4408-b196-0f4122a1d517",
+      "equivalente_pen": 1000,
+      "fecha_comercial": "2026-10-23",
+      "fecha_imputacion": "2026-10-23"
+    },
+    {
+      "tasa": 1,
+      "monto": 5000,
+      "fuente": "contrato",
+      "moneda": "PEN",
+      "numero": "PENDIENTES-PEN-12",
+      "fecha_tc": null,
+      "categoria": "nuevo",
+      "fuente_id": "f3000000-0000-4000-8000-000000000203",
+      "politica_tc": null,
+      "valoracion_id": "276c1a41-af43-4558-9552-65341a993e18",
+      "equivalente_pen": 5000,
+      "fecha_comercial": "2026-10-23",
+      "fecha_imputacion": "2026-10-23"
+    }
+  ],
+  "valoracion_activa": true
+}

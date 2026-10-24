@@ -111,7 +111,7 @@ export function AvanceMensualCitas({ filtros, onAnalista }: { filtros: FiltrosCi
       <ul>{resumen.diferenciasTestigo.map(d => <li key={d.campo}>{d.campo}: pantalla {String(d.pantalla)} · servidor {String(d.servidor)}.</li>)}</ul>
       <p>El porcentaje de depósito, la proyección y la exportación quedan pendientes hasta conciliar las cifras. Actualiza la consulta; si persiste, informa el mes y las diferencias indicadas.</p>
     </div>}
-    {valoracion && <CoberturaCapitalAviso cobertura={valoracion.cobertura} sellado={valoracion.sellado} sinCorte="El ticket y la proyección están pendientes del primer corte completo de valoración." />}
+    {valoracion && <CoberturaCapitalAviso cobertura={valoracion.cobertura} sellado={valoracion.sellado} sinCorte="El ticket y la proyección están pendientes de la primera publicación de capital valorado." />}
     {!valoracion && hayDolares && resumen.tc === null && <div role="status" className="cm-aviso cm-acciones"><span>{tc === undefined ? 'Consultando el tipo de cambio para incluir dólares…' : 'No se pudo obtener el tipo de cambio. El ticket y la proyección con dólares están pendientes.'}</span>{tc !== undefined && <Button size="sm" variant="outline" onClick={recargar}>Reintentar tipo de cambio</Button>}</div>}
     {!resumen.reglasListas && <p role="status" className="cm-aviso">Completa y aplica las reglas en el Control de Citas de Superadmin para calcular las tasas y la proyección.</p>}
     {(filtros.semana || filtros.estados.length || filtros.modalidad || filtros.resultado || filtros.seguimiento) && <p className="cm-alcance">La semana y los filtros de estado, modalidad, resultado y seguimiento delimitan el recorrido y la bandeja. Esta tabla conserva el acumulado mensual con su base completa.</p>}

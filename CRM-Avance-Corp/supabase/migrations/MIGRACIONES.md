@@ -1,3 +1,20 @@
+## 20261024030000 — Capital hasta hoy con USD pendiente separado (P-0XX)
+
+**VERIFICADA SOLO EN RAMA TEMPORAL Y BANCO LOCAL. NO APLICADA EN PRODUCCIÓN.**
+`20261024030000_crm_capital_pendientes_sin_bloquear.sql` conserva la huella e historia del publicador,
+fija `v_corte := v_hasta` y excluye las operaciones sin valoración de las proyecciones valoradas.
+`crm.capital_operaciones_valoradas_v2_fn` añade los pendientes del analista autorizado reutilizando
+`private.capital_estado_corte`; v1 permanece compatible. Sin cambios del sello mensual ni objetos de `public`.
+
+PASS: los cinco casos solicitados (26 aserciones SQL por banco), 12 comprobaciones con Auth/PostgREST real,
+gate completo frontend (7.748 pruebas) y ocho E2E relacionados en Docker. Nueva firma TypeScript cotejada
+con el generador oficial. Advisors: única adición, aviso de definer autenticado de la puerta intencional;
+ninguna adición de rendimiento. Preflight por huella del publicador.
+
+Rama Supabase `buacdmufspxktdfdllte`; aplicación registrada por MCP como `20261024032900` /
+`crm_capital_pendientes_sin_bloquear`. El nombre local identifica la candidata, no afirma aplicación productiva.
+Preparación del esquema, alcance, revisión y limpieza: [acta P-0XX](../../docs/encargos/capital-pendientes-20261023.md).
+
 ## 20261022171001 — El CRM cancela solo las solicitudes de inversión que ya no corresponden (piezas `private.solicitud_desechar`, `private.solicitudes_desechar_por_contrato`, `private.solicitudes_desechar_ciclo`, `private.solicitud_cancelacion_vista`; puertas `crm.crear_contrato_con_cuenta_pdf_v2` y `crm.solicitud_inversion_fn` re-emitidas; tabla `crm.solicitudes_desechadas_corridas`; job `crm-solicitudes-desechar`)
 
 **APLICADA EN PRODUCCIÓN EL 22/10/2026 (20:16 Lima, Miguel con `!`, `supabase db query --linked --file` + `supabase migration repair --status applied`) Y REGISTRADA.** Huellas vivas comprobadas por el Director tras aplicar (solo lectura) = las del laboratorio y del postflight; advisors de producción sin alertas nuevas tras la tanda A. D-74 recontado antes de aplicar: 7 preparadas, la primera corrida (02:17 Lima del 23/10) cancelaría 2 (1 por número usado, 1 por 30 días sin movimiento); job `crm-solicitudes-desechar` activo. App del grupo C publicada a las 19:42 (`a7a2521d`, `build-20261023T003505007Z`).
