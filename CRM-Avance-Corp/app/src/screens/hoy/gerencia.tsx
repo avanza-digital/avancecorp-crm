@@ -1,4 +1,5 @@
 import { ControlesMoviles } from '@/components/gerencia/controles-moviles'
+import { CoberturaCapitalAviso } from '@/components/common/cobertura-capital'
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { AlertTriangle, CalendarRange, RefreshCw, Target } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -810,6 +811,8 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
                 </Button>
               </div>
             )}
+
+            {cumplimientoRanking?.valoracionCapital && <CoberturaCapitalAviso cobertura={cumplimientoRanking.valoracionCapital.cobertura} sellado={cumplimientoRanking.valoracionCapital.sellado} />}
 
             {conversionMensualCargando || cumplimientoRankingCargando || (fuenteActiva != null && lecturaFuentePaneles === undefined) ? (
               <Skeleton className="h-44 rounded-2xl" aria-label="Cargando metas del mes seleccionado" />
