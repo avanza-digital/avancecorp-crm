@@ -1,0 +1,675 @@
+{
+  "release": "crm-20261024T050622Z-2d4f8eadb391",
+  "commit": "2d4f8eadb39141f86d546ab984e8d484a61ef388",
+  "build": "build-20261024T050621234Z",
+  "root_status": 200,
+  "files_checked": 133,
+  "failures": [],
+  "results": [
+    {
+      "ruta": "assets/actividad-visual-BjutlaCr.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/acciones-reconocer-alerta-C2rqALta.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/alertas-presentacion-B4NsBEfD.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/agenda-nl07VYfX.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/alertas-Cbictc8m.css",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/alertas-CXMCLlFu.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/animated-value-CxWwuyas.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/argumentos-rpc-CZnLpNy5.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/avatar-kJqNlpKd.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/aviso-degradacion-DLU-dJtX.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/badge-Bvo89qtv.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/bases-ugdVnyNX.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/button-CpBcizS1.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/card-BfxIfjJd.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/cargar-base-D8Y4nusp.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/cartera-CdzMq4tl.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/cerrar-tarea-D8IIK02x.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/cliente-detalle-BeS2MLI7.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/cobertura-capital-CnCKjDhh.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/cola-seguimiento-CiMfq7Qy.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/config-5i27fmcn.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/config-celulares-DHQF1b5M.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/config-citas-wDUK9lcM.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/config-gestion-diaria-BT4wkwud.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/config-metas-EsLweIOr.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/config-productos-B-i_OgCu.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/config-rentabilidad-Dag5avFw.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/config-sla-CKYAAQ5f.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/config-usuarios-BV2OdDdm.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/configuracion-shell-DFRbMjW5.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/control-citas-BC-92Sjf.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/controles-moviles-Bu9I5oL3.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/controles-periodo-derivaciones-DWvQmv6B.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/crm-api-CU1MCxOT.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/crm-queries-B_07Y7mV.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/data-vendor-DykY550C.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/demo-config-DCXcf92E.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/derivaciones-CxVqNoEw.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/desglose-monedas-Ba3QG0Yv.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/dialog-B-aep0WG.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/dist-DAse8jiX.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/distribucion-lecturas-Dvy8U50s.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/dropdown-menu-CQsK-F4x.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/echart-bar-Cafv9MGC.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/echart-line-C0sZfV3R.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/echart-pCsTulGS.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/enlace-sujeto-CPuaN4ur.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/equipo-CfCUIIGW.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/escape-dialogo-BID6NspT.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/esm-BofDk75c.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/estado-panel-DQNfFR6M.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/estilos-gestion-tVVTyUGz.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/estilos-hoja-BJjnbNbT.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/exportar-csv-BMmN5Q2Z.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/facturacion-BpD46X4W.css",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/foco-Dos0YiNm.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/facturacion-rMTT4P-0.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/gerencia-85O1Bzbf.css",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/gerencia-CFZ8LHdj.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/gerencia-CyFjb0lH.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/gerencia-DcZsXbUM.css",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/gestion-diaria-api-BHt9Zd5R.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/gestion-diaria-avisos-BI-kr7a8.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/gestion-diaria-DKGVjwXy.css",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/gestion-diaria-equipo-CltlQr0e.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/gestion-diaria-jvHtjmJw.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/gestion-diaria-pulso-BfDJwzcd.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/gestion-diaria-queries-DEdNYbKZ.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/gestiones-clientes-C9gxTYu1.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/historial-decisiones-tasa-gerencia--ZtT5ffF.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/hoja-base-BgBsTDk9.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/hoy-BxLpRmaF.css",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/hoy-ChK-R6xz.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/index-DPm3QuUl.css",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/index-CiHsUbtX.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/input-C1cGwr1D.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/inversionistas-api-CeF_yXE5.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/kpi-card-7NdemLa2.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/label-B3XH1ELE.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/lead-hover-card-CL8nhy_x.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/llamadas-celular-DgEK6OCl.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/llamadas-celular-operacion-DNYjJ3A0.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/media-DQ7wMsg1.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/metricas-multiempresa-BRCec8Wq.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/mi-cartera-F1jeTdtI.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/notificaciones-tasa-Do54s20U.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/paginacion-CWHmIFLa.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/panel-analista-supervisor-1ma1gxuk.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/pastilla-cGDb2tCf.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/periodo-DSS4aZeq.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/piezas-base-B0HvHNLj.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/piezas-bases-CUzfQwu8.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/pipeline-BueXW_GK.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/postventa-api-kuKreSTV.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/progress-ChuJ0jl5.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/query-client-gbe_NZU4.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/potencial-demo-D8C7lToU.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/radio-group-CsZ38qfO.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/ranking-vendedores-D-z_n5dm.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/react-vendor-BXy-oECh.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/registrar-resultado-Bk_LLugv.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/repartir-CjuBp5o2.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/rescate-descartados-BqoIfa46.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/rescate-DKeK94OA.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/roles-Cxb57Dxt.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/seguimiento-TBspOuW-.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/rescate-carpeta-8bEmfF4S.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/section-head-eZabykJd.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/segundo-numero-Kku4OmPA.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/select-B8Vc6vDw.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/skeleton-CxgqFole.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/sla-operacion-comandos-BnfWpP7W.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/sla-operacion-DrcKq5VS.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/sla-operacion-queries-BDOhmLiS.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/stat-strip-DSpRSOUj.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/store-context-8oahbTda.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/tabla-B1Acugn2.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/telefono-9z_U36Kc.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/textarea-Dw872OxC.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/ui-vendor-BX0OTKrW.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/use-cartera-paginada-DX5-Kqub.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/universal-DwCjmUkO.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/use-etapa-visible-BM9350G4.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/use-metricas-vendedores-operativas-B0OxOZOS.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/use-resumen-cartera-operativo-dhWHv0r-.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/use-valor-diferido-C5pSPdfy.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/use-periodo-gerencia--U5SoyeZ.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "assets/utils-CZKTDciF.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "index.html",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "manifest.webmanifest",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "sw-crm.js",
+      "status": 200,
+      "hash_ok": true
+    },
+    {
+      "ruta": "version.json",
+      "status": 200,
+      "hash_ok": true
+    }
+  ]
+}

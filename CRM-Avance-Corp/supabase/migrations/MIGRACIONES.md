@@ -1,6 +1,8 @@
 ## 20261024030000 — Capital hasta hoy con USD pendiente separado (P-0XX)
 
-**VERIFICADA SOLO EN RAMA TEMPORAL Y BANCO LOCAL. NO APLICADA EN PRODUCCIÓN.**
+**APLICADA EN PRODUCCIÓN mediante merge de rama el 23/10/2026; primer corte comprobado a las 23:50 Lima y verificación final el 24/10.**
+Historial 541 previo intacto + candidata `20261024030000`; publicador y RPC v2 coinciden con la rama probada.
+[Acta de publicación](../../docs/encargos/capital-pendientes-20261023/PUBLICACION.md).
 `20261024030000_crm_capital_pendientes_sin_bloquear.sql` conserva la huella e historia del publicador,
 fija `v_corte := v_hasta` y excluye las operaciones sin valoración de las proyecciones valoradas.
 `crm.capital_operaciones_valoradas_v2_fn` añade los pendientes del analista autorizado reutilizando
@@ -12,7 +14,7 @@ con el generador oficial. Advisors: única adición, aviso de definer autenticad
 ninguna adición de rendimiento. Preflight por huella del publicador.
 
 Rama Supabase `buacdmufspxktdfdllte`; aplicación registrada por MCP como `20261024032900` /
-`crm_capital_pendientes_sin_bloquear`. El nombre local identifica la candidata, no afirma aplicación productiva.
+`crm_capital_pendientes_sin_bloquear`. Registro de la primera prueba; la publicación posterior usa la versión `20261024030000` y la rama `yzujybpofdjgsuritmky`, ya eliminada.
 Preparación del esquema, alcance, revisión y limpieza: [acta P-0XX](../../docs/encargos/capital-pendientes-20261023.md).
 
 ## 20261022171001 — El CRM cancela solo las solicitudes de inversión que ya no corresponden (piezas `private.solicitud_desechar`, `private.solicitudes_desechar_por_contrato`, `private.solicitudes_desechar_ciclo`, `private.solicitud_cancelacion_vista`; puertas `crm.crear_contrato_con_cuenta_pdf_v2` y `crm.solicitud_inversion_fn` re-emitidas; tabla `crm.solicitudes_desechadas_corridas`; job `crm-solicitudes-desechar`)

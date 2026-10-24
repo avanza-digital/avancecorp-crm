@@ -1,0 +1,256 @@
+{
+  "fecha_utc": "2026-10-24",
+  "migracion": "20261024030000_crm_capital_pendientes_sin_bloquear",
+  "codigo_verificado": "7fe3fc7b21dcf18c16e1ae0bd516cf1d5c3f6b00",
+  "sql_sha256": "08367a686b72ec191ed951db64190d39745fb6d7549c1c1aa723c3425e4feff3",
+  "branch": {
+    "ref": "yzujybpofdjgsuritmky",
+    "deleted": true,
+    "sql_assertions": 26,
+    "sql_repeat_assertions": 26,
+    "http_assertions": 12,
+    "tls": "verify-full",
+    "null_email_rejected": true
+  },
+  "catalogo": [
+    {
+      "jsonb_build_object": {
+        "cron": [
+          {
+            "job": "crm-capital-valorar",
+            "active": true,
+            "status": "succeeded",
+            "end_time": "2026-10-24T04:50:00.024622+00:00",
+            "schedule": "*/5 * * * *"
+          }
+        ],
+        "funciones": [
+          {
+            "acl": [
+              "postgres=X/postgres"
+            ],
+            "md5": "90b53525ad7693c5ff4b77ff15da07d2",
+            "firma": "private.publicar_corte_capital(date)",
+            "owner": "postgres",
+            "config": [
+              "search_path=\"\""
+            ]
+          },
+          {
+            "acl": [
+              "postgres=X/postgres",
+              "authenticated=X/postgres"
+            ],
+            "md5": "6420116af5c3705c087a6389640849e1",
+            "firma": "crm.capital_operaciones_valoradas_v2_fn(date,uuid,uuid)",
+            "owner": "postgres",
+            "config": [
+              "search_path=\"\""
+            ]
+          }
+        ],
+        "migracion": {
+          "name": "crm_capital_pendientes_sin_bloquear",
+          "version": "20261024030000"
+        }
+      }
+    }
+  ],
+  "invariantes_iguales": true,
+  "historial_previo": [
+    {
+      "total_base": 541,
+      "huella_base": "e07ee2c150d7e642bbde5224c45bb8fc"
+    }
+  ],
+  "edge_24_iguales": true,
+  "antes": [
+    {
+      "corte": "2026-10-23",
+      "revision": 69,
+      "generado_en": "2026-10-23 20:10:01.262126+00",
+      "corte_hasta_hoy": true,
+      "pen_sin_valorar": 0,
+      "pen_valoradas_fuera_de_foto": 3,
+      "usd_valoradas_fuera_de_foto": 0,
+      "usd_pendientes": 1,
+      "usd_original_pendiente": "20000.00",
+      "sin_valoracion_en_foto": 0,
+      "operaciones_valoradas_en_foto": 175
+    }
+  ],
+  "despues": [
+    {
+      "corte": "2026-10-23",
+      "revision": 70,
+      "generado_en": "2026-10-24 04:50:00.76537+00",
+      "corte_hasta_hoy": true,
+      "pen_sin_valorar": 0,
+      "pen_valoradas_fuera_de_foto": 0,
+      "usd_valoradas_fuera_de_foto": 0,
+      "usd_pendientes": 1,
+      "usd_original_pendiente": "20000.00",
+      "sin_valoracion_en_foto": 0,
+      "operaciones_valoradas_en_foto": 178
+    }
+  ],
+  "rpc_smoke": [
+    {
+      "smoke": {
+        "corte": "2026-10-23",
+        "lista_pen": 6648834.1,
+        "usd_pendiente": "20000.00",
+        "facturacion_pen": 6648834.1,
+        "personas_metas_conciliadas": 30
+      }
+    }
+  ],
+  "advisors": {
+    "security": {
+      "antes": [
+        {
+          "nombre": "rls_enabled_no_policy",
+          "cantidad": 101
+        },
+        {
+          "nombre": "extension_in_public",
+          "cantidad": 1
+        },
+        {
+          "nombre": "anon_security_definer_function_executable",
+          "cantidad": 2
+        },
+        {
+          "nombre": "authenticated_security_definer_function_executable",
+          "cantidad": 299
+        },
+        {
+          "nombre": "auth_leaked_password_protection",
+          "cantidad": 1
+        }
+      ],
+      "despues": [
+        {
+          "nombre": "rls_enabled_no_policy",
+          "cantidad": 101
+        },
+        {
+          "nombre": "extension_in_public",
+          "cantidad": 1
+        },
+        {
+          "nombre": "anon_security_definer_function_executable",
+          "cantidad": 2
+        },
+        {
+          "nombre": "authenticated_security_definer_function_executable",
+          "cantidad": 300
+        },
+        {
+          "nombre": "auth_leaked_password_protection",
+          "cantidad": 1
+        }
+      ]
+    },
+    "performance": {
+      "antes": [
+        {
+          "nombre": "unindexed_foreign_keys",
+          "cantidad": 54
+        },
+        {
+          "nombre": "auth_rls_initplan",
+          "cantidad": 2
+        },
+        {
+          "nombre": "no_primary_key",
+          "cantidad": 3
+        },
+        {
+          "nombre": "unused_index",
+          "cantidad": 117
+        },
+        {
+          "nombre": "multiple_permissive_policies",
+          "cantidad": 5
+        },
+        {
+          "nombre": "auth_db_connections_absolute",
+          "cantidad": 1
+        }
+      ],
+      "despues": [
+        {
+          "nombre": "unindexed_foreign_keys",
+          "cantidad": 54
+        },
+        {
+          "nombre": "auth_rls_initplan",
+          "cantidad": 2
+        },
+        {
+          "nombre": "no_primary_key",
+          "cantidad": 3
+        },
+        {
+          "nombre": "unused_index",
+          "cantidad": 117
+        },
+        {
+          "nombre": "multiple_permissive_policies",
+          "cantidad": 5
+        },
+        {
+          "nombre": "auth_db_connections_absolute",
+          "cantidad": 1
+        }
+      ]
+    }
+  },
+  "checks": {
+    "app": "PASS 477 archivos, 7748 tests; lint/tipos/cobertura/build/bundle/duplicación",
+    "e2e": "PASS 8 tests Docker"
+  },
+  "limites": [
+    "Smoke productivo SQL en transacción de solo lectura con rol authenticated; no es sesión Auth de navegador.",
+    "gate:realidad midió 10 supuestos: 8 conformes y 2 divergencias existentes (ventas de analistas de baja y domicilios ausentes).",
+    "Pruebas sintéticas exclusivamente en rama; ningún fixture en producción."
+  ],
+  "release": {
+    "commit": "2d4f8eadb39141f86d546ab984e8d484a61ef388",
+    "zip": "crm-20261024T050622Z-2d4f8eadb391.zip",
+    "sha256": "1032a2e1d7288856402474a1cbadb5011a167a8c54e011f38943d69fdca08b36",
+    "build": "build-20261024T050621234Z",
+    "source_clean": true,
+    "same_tree_as_tested": true,
+    "status": "PUBLICADO"
+  },
+  "http": {
+    "release": "crm-20261024T050622Z-2d4f8eadb391",
+    "commit": "2d4f8eadb39141f86d546ab984e8d484a61ef388",
+    "build": "build-20261024T050621234Z",
+    "root_status": 200,
+    "files_checked": 133,
+    "failures": []
+  },
+  "navegador": {
+    "sesion_existente": "Gerencia",
+    "facturacion": "PASS total 6648834.10 PEN y USD 20000 pendiente separado",
+    "metas": "PASS aviso USD 20000 separado en la versión final",
+    "detalle_analista": "PASS venta PEN 5000 del 23/10 visible en detalle del analista afectado",
+    "mutaciones_negocio": false
+  },
+  "ci": {
+    "pr_362": {
+      "app_quality": "success",
+      "rls_preflight": "success"
+    },
+    "pr_363": {
+      "app_quality": "success",
+      "app_quality_run_id": 40064791906,
+      "rls_preflight": "success",
+      "rls_preflight_run_id": 40064791904
+    },
+    "coderabbit": "pending; observaciones conocidas resueltas"
+  }
+}

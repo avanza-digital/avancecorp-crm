@@ -1,0 +1,14 @@
+PASS: rama exclusiva vacía, siete cuentas sintéticas creadas con Auth oficial
+PASS: cinco sesiones reales de supervisor, analista, gerencia y equipo ajeno
+PASS: analista: ambos PEN suman 6000; USD 20000 separado con fuente y fecha
+PASS: v1 mantiene exactamente su contrato de respuesta
+PASS: supervisor del equipo y gerencia pueden consultar el mismo analista
+PASS: supervisor y analista ajenos reciben 403 sin datos del vendedor
+PASS: anon y service_role no ejecutan la nueva puerta autenticada
+PASS: el analista no puede leer directamente las fotos globales
+PASS: metas HTTP mantiene 6000 PEN y el pendiente en su ámbito
+PASS: Facturación HTTP: lista y cuadro usan el mismo corte y suman 6000 PEN
+PASS: tras TC, el analista recibe una revisión nueva con 74000 PEN y sin pendientes
+PASS: otra corrida sin cambios conserva el mismo corte a través de PostgREST
+PASS: 12 comprobaciones HTTP; datos exclusivamente sintéticos en yzujybpofdjgsuritmky
+Limpieza prevista: eliminar la rama temporal completa al terminar la verificación.
