@@ -95,6 +95,10 @@ describe('ticket y CSV de Citas con valores guardados por operación', () => {
     expect(within(screen.getByRole('table')).getByRole('row', { name: /Persona sintética 2/ }).textContent).toBe(ticket)
     fireEvent.click(screen.getByRole('button', { name: 'Cómo se calcula el avance mensual' }))
     expect(screen.getByRole('dialog')).toHaveTextContent('suma los equivalentes en soles guardados por operación')
+    expect(screen.getByRole('dialog')).toHaveTextContent('El corte incluye las operaciones valoradas hasta hoy')
+    expect(screen.getByRole('dialog')).toHaveTextContent('se muestran aparte y no entran al ticket ni a la proyección')
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('se conserva el último corte completo')
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('se puede reintentar')
   })
   it.each([sellado, sinCorte])('el módulo completo muestra el avance sin citas ni asignaciones cuando existe consulta mensual', payload => {
     window.history.replaceState(null, '', '#/reuniones/mes/2026-10')

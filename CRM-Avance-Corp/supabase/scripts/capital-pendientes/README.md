@@ -9,12 +9,16 @@ Desde la raíz del CRM, con el esquema completo y la candidata aplicados en un b
 
 ```sh
 node supabase/scripts/capital-pendientes/verificar.mjs --local --fixtures
-CRM_CAPITAL_BRANCH_CREDENTIALS=/ruta/privada/rama.json node supabase/scripts/capital-pendientes/verificar.mjs --rama
+CRM_CAPITAL_SSL_ROOT_CERT=/ruta/privada/proveedor-ca.crt CRM_CAPITAL_BRANCH_CREDENTIALS=/ruta/privada/rama.json node supabase/scripts/capital-pendientes/verificar.mjs --rama
 ```
 
 El banco local es `avancecorp-capital-banco-20261023`, PostgreSQL de Supabase, sin red ni puertos publicados.
-La rama autorizada es `buacdmufspxktdfdllte`; el archivo privado procede de `supabase branches get --output json`.
+La rama autorizada es `yzujybpofdjgsuritmky`; el archivo privado procede de `supabase branches get --output json`.
 El runner valida URL y destino PostgreSQL, elimina variables PG heredadas y nunca acepta producción.
+La conexión remota exige `verify-full`: verifica la cadena de confianza y el nombre del servidor.
+Descargar el certificado CA del proveedor desde la configuración de la rama en Supabase y pasarlo por
+`CRM_CAPITAL_SSL_ROOT_CERT`; el runner rechaza certificados ausentes, vacíos o no legibles. No usa el
+almacén ni las opciones PG heredadas. [Guía de SSL de Supabase](https://supabase.com/docs/guides/platform/ssl-enforcement).
 `prueba.sql` exige una base vacía, ejecuta las puertas nativas, verifica permisos con `SET LOCAL ROLE authenticated`
 y termina con `ROLLBACK`. El runner exige evidencia de los cinco casos y al menos 26 aserciones.
 
@@ -25,7 +29,7 @@ La lista de Facturación conserva la ocultación de números de contrato cuando 
 ## Auth/PostgREST
 
 ```sh
-CRM_CAPITAL_BRANCH_CREDENTIALS=/ruta/privada/rama.json node supabase/scripts/test-rls.mjs --capital-pendientes-cloud
+CRM_CAPITAL_SSL_ROOT_CERT=/ruta/privada/proveedor-ca.crt CRM_CAPITAL_BRANCH_CREDENTIALS=/ruta/privada/rama.json node supabase/scripts/test-rls.mjs --capital-pendientes-cloud
 ```
 
 Este modo focal del gate crea siete cuentas ficticias por Auth Admin, inicia cinco sesiones reales y ejecuta
